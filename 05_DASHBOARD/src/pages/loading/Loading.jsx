@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import tesdaLogo from "../../assets/tesda.png";
+import { supabase } from "../../supabaseClient"; 
 
 export default function Loading() {
     const navigate = useNavigate();
@@ -29,7 +30,6 @@ export default function Loading() {
 
         function runSteps() {
             const step = loadingSteps[stepIndex];
-
             setCurrentStep(step);
             setFade("opacity-100 scale-100");
 
@@ -52,30 +52,23 @@ export default function Loading() {
                             clearInterval(titleInterval);
 
                             // ====================================================
-                            // FRONTEND TESTING MODE
-                            // Force Privacy page so UI can be checked.
-                            // Remove this block and uncomment the production block
-                            // before backend integration.
+                            // DYNAMIC SUPABASE ROLE-BASED ROUTING
                             // ====================================================
+                            const navigateTimeout = setTimeout(async () => {
+                                // 1. Get the current active session from Supabase
+                                const { data: { session } } = await supabase.auth.getSession();
 
-                            const navigateTimeout = setTimeout(() => {
-                                navigate("/privacy");
-                            }, 500);
+                                if (!session) {
+                                    // No active session found, boot to landing
+                                    navigate("/");
+                                    return;
+                                }
 
-                            timeouts.push(navigateTimeout);
+                                // 2. Extract the user's role. 
+                                // (Assuming you saved roles in user_metadata during signup)
+                                const role = session.user.user_metadata?.role || "trainee"; 
+                                const privacyAccepted = localStorage.getItem("privacyAccepted");
 
-                            /*
-                            
-                            // ====================================================
-                            // PRODUCTION ROLE-BASED ROUTING
-                            // Uncomment when backend authentication is ready.
-                            // ====================================================
-                            
-                            const navigateTimeout = setTimeout(() => {
-                                const role = localStorage.getItem("role");
-                                const privacyAccepted =
-                                    localStorage.getItem("privacyAccepted");
-                            
                                 if (role === "admin") {
                                     navigate("/admin");
                                 } else if (role === "assessor") {
@@ -92,8 +85,6 @@ export default function Loading() {
                             }, 500);
                             
                             timeouts.push(navigateTimeout);
-                            
-                            */
                         }
                     }
                 }, 350);

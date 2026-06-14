@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import AnimatedWave from "./AnimatedWave";
+import { supabase } from "../../supabaseClient"; // Imported your Supabase client
 
 export default function Login() {
     const navigate = useNavigate();
@@ -15,18 +16,10 @@ export default function Login() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // ==========================================
-        // TEMPORARY TEST MODE
-        // Skip all login validation and API calls
-        // Directly proceed to Loading Page
-        // ==========================================
-
-        navigate("/loading");
-
-        /*
+        // 1. Clear previous errors and start validation
         setError("");
 
-        if (!email) {
+        if (!email || email.trim() === "") {
             setError("Email is required");
             return;
         }
@@ -39,42 +32,26 @@ export default function Login() {
         setLoading(true);
 
         try {
-            const response = await fetch(
-                "http://localhost:3000/api/login",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        email,
-                        password,
-                    }),
-                }
-            );
+            // 2. Call the Supabase auth method
+            const { data, error: authError } = await supabase.auth.signInWithPassword({
+                email: email,
+                password: password,
+            });
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(
-                    data.message || "Login failed"
-                );
+            // 3. If Supabase returns an error, catch it immediately
+            if (authError) {
+                throw new Error(authError.message);
             }
 
+            // 4. Success!
             console.log("LOGIN SUCCESS:", data);
-
-            localStorage.setItem(
-                "token",
-                data.token
-            );
-
             navigate("/loading");
+            
         } catch (err) {
             setError(err.message);
         } finally {
             setLoading(false);
         }
-        */
     };
 
     return (
@@ -85,7 +62,6 @@ export default function Login() {
 
             {/* Ambient Glow */}
             <div className="absolute -top-40 -left-32 w-[500px] h-[500px] bg-cyan-400/20 blur-[180px]" />
-
             <div className="absolute -bottom-40 -right-32 w-[500px] h-[500px] bg-purple-500/20 blur-[180px]" />
 
             {/* Login Card */}
@@ -109,65 +85,34 @@ export default function Login() {
                 >
                     {/* Email */}
                     <div className="flex items-center h-12 px-4 rounded-2xl bg-slate-900/50 border border-cyan-400/40">
-
-                        <Mail
-                            size={18}
-                            className="text-cyan-300 mr-3"
-                        />
-
+                        <Mail size={18} className="text-cyan-300 mr-3" />
                         <input
                             type="email"
                             placeholder="Email"
                             value={email}
-                            onChange={(e) =>
-                                setEmail(e.target.value)
-                            }
+                            onChange={(e) => setEmail(e.target.value)}
                             className="flex-1 bg-transparent outline-none text-white"
                         />
                     </div>
 
                     {/* Password */}
                     <div className="flex items-center h-12 px-4 rounded-2xl bg-slate-900/50 border border-cyan-400/40">
-
-                        <Lock
-                            size={18}
-                            className="text-cyan-300 mr-3"
-                        />
-
+                        <Lock size={18} className="text-cyan-300 mr-3" />
                         <input
-                            type={
-                                showPassword
-                                    ? "text"
-                                    : "password"
-                            }
+                            type={showPassword ? "text" : "password"}
                             placeholder="Password"
                             value={password}
-                            onChange={(e) =>
-                                setPassword(
-                                    e.target.value
-                                )
-                            }
+                            onChange={(e) => setPassword(e.target.value)}
                             className="flex-1 bg-transparent outline-none text-white"
                         />
-
                         <button
                             type="button"
-                            onClick={() =>
-                                setShowPassword(
-                                    !showPassword
-                                )
-                            }
+                            onClick={() => setShowPassword(!showPassword)}
                         >
                             {showPassword ? (
-                                <EyeOff
-                                    size={18}
-                                    className="text-cyan-300"
-                                />
+                                <EyeOff size={18} className="text-cyan-300" />
                             ) : (
-                                <Eye
-                                    size={18}
-                                    className="text-cyan-300"
-                                />
+                                <Eye size={18} className="text-cyan-300" />
                             )}
                         </button>
                     </div>
@@ -185,9 +130,7 @@ export default function Login() {
                         disabled={loading}
                         className="w-full h-12 rounded-2xl text-white font-bold bg-gradient-to-r from-cyan-400 via-teal-300 to-purple-500"
                     >
-                        {loading
-                            ? "Logging in..."
-                            : "Login"}
+                        {loading ? "Logging in..." : "Login"}
                     </button>
 
                     {/* Request Access */}
@@ -200,10 +143,7 @@ export default function Login() {
                 </form>
 
                 <div className="text-center mt-5">
-                    <a
-                        href="#"
-                        className="text-purple-400 text-sm"
-                    >
+                    <a href="#" className="text-purple-400 text-sm">
                         Forgot Password?
                     </a>
                 </div>
