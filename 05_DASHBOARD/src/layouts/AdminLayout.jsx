@@ -30,7 +30,7 @@ function AdminLayout({ children }) {
         </div>
 
         {/* Content */}
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto p-6 text-gray-900">
           {children}
         </main>
       </div>

@@ -10,6 +10,7 @@ function AdminNavbar() {
         "/admin/user-management/assessors": "Assessor Management",
         "/admin/user-management/add-assessor": "Add Assessor",
         "/admin/assessments": "Assessment Management",
+        "/admin/assessments/create": "Create Assessment",
         "/admin/results": "Results Monitoring",
         "/admin/certificates": "Certificate Management",
         "/admin/profile": "Profile",
@@ -42,7 +43,7 @@ function AdminNavbar() {
                     className="w-10 h-10 rounded-full"
                 />
 
-                <span className="font-medium">
+                <span className="font-medium text-gray-800">
                     Admin [Ash]
                 </span>
             </div>

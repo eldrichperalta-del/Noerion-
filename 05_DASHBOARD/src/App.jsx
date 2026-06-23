@@ -12,7 +12,10 @@ import UserManagement from "./pages/admin/user-management/UserManagement";
 import TraineeManagement from "./pages/admin/user-management/TraineeManagement";
 import AssessorManagement from "./pages/admin/user-management/AssessorManagement";
 import AddAssessor from "./pages/admin/user-management/AddAssessor";
+
 import AssessmentManagement from "./pages/admin/AssessmentManagement";
+import CreateAssessment from "./pages/admin/assessment-management/create-assessment/CreateAssessment";
+
 import ResultsMonitoring from "./pages/admin/ResultsMonitoring";
 import CertificateManagement from "./pages/admin/CertificateManagement";
 import Profile from "./pages/admin/Profile";
@@ -75,7 +78,7 @@ function App() {
         }
       />
 
-      {/* Other admin pages */}
+      {/* Admin assessment management */}
       <Route
         path="/admin/assessments"
         element={
@@ -85,6 +88,16 @@ function App() {
         }
       />
 
+      <Route
+        path="/admin/assessments/create"
+        element={
+          <AdminLayout>
+            <CreateAssessment />
+          </AdminLayout>
+        }
+      />
+
+      {/* Other admin pages */}
       <Route
         path="/admin/results"
         element={
@@ -130,6 +143,7 @@ function App() {
         }
       />
 
+      {/* Fallback route */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

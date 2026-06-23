@@ -2,48 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 
-/*
-  MOCK DATA ONLY FOR FRONTEND TESTING
-
-  This data is used to test:
-  - table display
-  - search function
-  - assessor search
-  - schedule display
-  - automatic completed status
-  - status badge colors
-  - empty search result
-  - pagination
-  - create assessment navigation
-
-  BACKEND HANDOFF NOTE:
-  Later, the backend should replace this mock data with API data.
-
-  Expected backend response format:
-  {
-    id: 1,
-    assessmentId: "ASM-2023-001",
-    course: "Computer Systems Servicing NC II",
-    numberOfTrainees: 25,
-    assignedAssessor: "Emily Chen",
-    schedule: "2023-11-15",
-    status: "Scheduled"
-  }
-
-  Schedule and status rule:
-  - If schedule date is already past today, frontend displays status as "Completed"
-  - If status is "Completed", Schedule column displays a green "Done" badge
-  - Backend may also apply this rule permanently later
-
-  Pagination rule:
-  - Table displays only 5 assessments per page
-  - Pagination footer shows current visible records
-
-  Accepted status values:
-  - Scheduled
-  - Ongoing
-  - Completed
-*/
 const initialAssessments = [
   {
     id: 1,
@@ -106,24 +64,7 @@ function AssessmentManagement() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Shows only 5 records per page.
   const rowsPerPage = 5;
-
-  /*
-    BACKEND HANDOFF NOTE:
-
-    When backend API is ready, replace initialAssessments with state:
-
-    const [assessments, setAssessments] = useState([]);
-
-    Then fetch data from the backend using useEffect and setAssessments(responseData).
-
-    After that, change:
-    initialAssessments.filter(...)
-
-    into:
-    assessments.filter(...)
-  */
 
   const normalizeText = (value) => {
     return String(value ?? "").toLowerCase().trim();
@@ -141,7 +82,6 @@ function AssessmentManagement() {
     );
   };
 
-  // Checks if the schedule date is already before today's date.
   const isPastSchedule = (schedule) => {
     if (!schedule || schedule === "-") {
       return false;
@@ -156,7 +96,6 @@ function AssessmentManagement() {
     return scheduleDate < today;
   };
 
-  // If the schedule date already passed, frontend shows it as Completed.
   const getComputedStatus = (assessment) => {
     if (normalizeText(assessment.status) === "completed") {
       return "Completed";
@@ -169,7 +108,6 @@ function AssessmentManagement() {
     return assessment.status;
   };
 
-  // Shows Done in the Schedule column when the assessment is completed.
   const getScheduleDisplay = (assessment) => {
     const computedStatus = getComputedStatus(assessment);
 
@@ -182,7 +120,6 @@ function AssessmentManagement() {
       : "Not scheduled";
   };
 
-  // Filters using the displayed values, including computed status and schedule display.
   const filteredAssessments = initialAssessments.filter((assessment) => {
     const searchValue = normalizeText(search);
 
@@ -196,7 +133,6 @@ function AssessmentManagement() {
     );
   });
 
-  // Pagination calculation.
   const totalPages = Math.max(
     Math.ceil(filteredAssessments.length / rowsPerPage),
     1
@@ -210,7 +146,6 @@ function AssessmentManagement() {
   const showingStart = filteredAssessments.length === 0 ? 0 : startIndex + 1;
   const showingEnd = Math.min(endIndex, filteredAssessments.length);
 
-  // Whenever the user searches, go back to page 1.
   useEffect(() => {
     setCurrentPage(1);
   }, [search]);
@@ -265,7 +200,7 @@ function AssessmentManagement() {
 
         <button
           type="button"
-          onClick={() => navigate("/assessment-management/create")}
+          onClick={() => navigate("/admin/assessments/create")}
           className="whitespace-nowrap rounded-xl bg-blue-700 px-6 py-3 font-medium text-white hover:bg-blue-800"
         >
           + Create New Assessment
@@ -274,7 +209,6 @@ function AssessmentManagement() {
 
       <div className="rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
         <div className="overflow-hidden rounded-xl border-2 border-gray-100 shadow-[0_4px_12px_rgba(0,0,0,0.20)]">
-          {/* Horizontal overflow only. Vertical scrolling is removed. */}
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-200">
@@ -351,7 +285,6 @@ function AssessmentManagement() {
               </tbody>
             </table>
 
-            {/* Pagination footer */}
             <div className="flex items-center justify-between border-t border-gray-200 px-4 py-4 text-sm">
               <p className="font-medium text-gray-700">
                 Showing {showingStart}-{showingEnd} of{" "}
