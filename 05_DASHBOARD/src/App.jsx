@@ -1,12 +1,15 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import AdminLayout from "./layouts/AdminLayout";
+import TraineeLayout from "./layouts/TraineeLayout";
 
+/* Public Pages */
 import Landing from "./pages/landing/Landing";
 import Login from "./pages/login/Login";
 import Loading from "./pages/loading/Loading";
 import Privacy from "./pages/privacy/Privacy";
 
+/* Admin Pages */
 import Home from "./pages/admin/Home";
 import UserManagement from "./pages/admin/user-management/UserManagement";
 import TraineeManagement from "./pages/admin/user-management/TraineeManagement";
@@ -22,16 +25,20 @@ import Profile from "./pages/admin/Profile";
 import Settings from "./pages/admin/Settings";
 import Logout from "./pages/admin/Logout";
 
+/* Trainee Pages */
+import TraineeHome from "./pages/traineedashboard/Home";
+
 function App() {
   return (
     <Routes>
-      {/* Public pages */}
+      {/* Public Pages */}
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/loading" element={<Loading />} />
       <Route path="/privacy" element={<Privacy />} />
 
-      {/* Admin dashboard home */}
+      {/* ================= ADMIN ================= */}
+
       <Route
         path="/admin"
         element={
@@ -41,7 +48,6 @@ function App() {
         }
       />
 
-      {/* Admin user management */}
       <Route
         path="/admin/user-management"
         element={
@@ -78,7 +84,6 @@ function App() {
         }
       />
 
-      {/* Admin assessment management */}
       <Route
         path="/admin/assessments"
         element={
@@ -97,7 +102,6 @@ function App() {
         }
       />
 
-      {/* Other admin pages */}
       <Route
         path="/admin/results"
         element={
@@ -143,7 +147,18 @@ function App() {
         }
       />
 
-      {/* Fallback route */}
+      {/* ================= TRAINEE ================= */}
+
+      <Route
+        path="/trainee"
+        element={
+          <TraineeLayout>
+            <TraineeHome />
+          </TraineeLayout>
+        }
+      />
+
+      {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

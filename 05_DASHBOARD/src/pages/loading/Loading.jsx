@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import tesdaLogo from "../../assets/tesda.png";
-import { supabase } from "../../supabaseClient"; 
+import { supabase } from "../../supabaseClient";
 
 export default function Loading() {
     const navigate = useNavigate();
@@ -16,6 +16,8 @@ export default function Loading() {
     const [titleDots, setTitleDots] = useState(0);
     const [currentStep, setCurrentStep] = useState("");
     const [fade, setFade] = useState("opacity-100");
+
+
 
     useEffect(() => {
         const timeouts = [];
@@ -55,18 +57,30 @@ export default function Loading() {
                             // DYNAMIC SUPABASE ROLE-BASED ROUTING
                             // ====================================================
                             const navigateTimeout = setTimeout(async () => {
-                                // 1. Get the current active session from Supabase
+                                // 1. Get session
                                 const { data: { session } } = await supabase.auth.getSession();
 
                                 if (!session) {
-                                    // No active session found, boot to landing
                                     navigate("/");
                                     return;
                                 }
 
-                                // 2. Extract the user's role. 
-                                // (Assuming you saved roles in user_metadata during signup)
-                                const role = session.user.user_metadata?.role || "trainee"; 
+                                // 2. GET ROLE FROM DATABASE (NOT METADATA)
+                                const { data: profile, error } = await supabase
+                                    .from("profiles")
+                                    .select("role")
+                                    .eq("id", session.user.id)
+                                    .single();
+
+                                if (error || !profile) {
+                                    console.log("Profile fetch error:", error);
+                                    navigate("/");
+                                    return;
+                                }
+
+                                const role = profile.role;
+
+                                // 3. ROUTING
                                 const privacyAccepted = localStorage.getItem("privacyAccepted");
 
                                 if (role === "admin") {
@@ -83,7 +97,7 @@ export default function Loading() {
                                     navigate("/");
                                 }
                             }, 500);
-                            
+
                             timeouts.push(navigateTimeout);
                         }
                     }
