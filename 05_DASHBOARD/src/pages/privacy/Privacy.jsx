@@ -10,7 +10,7 @@ export default function Privacy() {
     const handleAccept = () => {
         if (!consent) return;
 
-        navigate("/admin");
+        navigate("/trainee");
     };
 
     const handleDecline = () => {
