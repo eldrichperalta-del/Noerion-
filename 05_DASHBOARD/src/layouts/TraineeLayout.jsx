@@ -20,7 +20,7 @@ function TraineeLayout({ children }) {
           </div>
         </div>
 
-        <main className="flex-1 overflow-auto px-15 py-6 text-gray-900">
+        <main className="flex-1 overflow-auto px-20 py-6 text-gray-900">
           {children}
         </main>
       </div>

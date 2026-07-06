@@ -10,6 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/dseg7-classic": "^5.2.5",
+    "@fontsource/libre-baskerville": "^5.2.10",
+    "@fontsource/orbitron": "^5.2.8",
     "@supabase/supabase-js": "^2.108.1",
     "lucide-react": "^1.18.0",
     "react": "^19.2.6",
