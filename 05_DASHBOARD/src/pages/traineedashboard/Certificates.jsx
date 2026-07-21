@@ -1,7 +1,12 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { CalendarDays, ChevronDown } from "lucide-react";
+import CertificateTemplate from "../../components/traineedashboard/certificate/CertificateTemplate";
+import DashboardPageHeader from "../../components/common/DashboardPageHeader";
 
 export default function Certificates() {
+  const navigate = useNavigate();
+
   const certificates = [
     {
       id: 1,
@@ -55,6 +60,32 @@ export default function Certificates() {
 
   const [statusFilter, setStatusFilter] = useState("All");
   const [dateFilter, setDateFilter] = useState("");
+  const [printCertificate, setPrintCertificate] = useState(null);
+
+  const formatDate = (date) =>
+    new Date(date).toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+
+  const getCertificateTitle = (certificate) =>
+    certificate.name.replace(" Certificate", "");
+
+  const handleDownload = (certificate) => {
+    const previousTitle = document.title;
+
+    setPrintCertificate(certificate);
+    document.title = "Certificate of Competency";
+
+    setTimeout(() => {
+      window.print();
+
+      setTimeout(() => {
+        document.title = previousTitle;
+      }, 500);
+    }, 100);
+  };
 
   const filteredCertificates = useMemo(() => {
     return certificates.filter((certificate) => {
@@ -69,136 +100,158 @@ export default function Certificates() {
   }, [statusFilter, dateFilter]);
 
   return (
-    <div className="p-0">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">
-          My Certificates
-        </h1>
-
-        <div className="flex gap-3">
-          {/* Status */}
-          <div className="bg-white rounded-xl p-3 shadow-[0_4px_12px_rgba(0,0,0,0.30)]">
-            <div className="relative">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="appearance-none rounded-lg border border-gray-300 bg-white px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option>All</option>
-                <option>Valid</option>
-                <option>Invalid</option>
-              </select>
-
-              <ChevronDown
-                size={16}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
-              />
-            </div>
-          </div>
-
-          {/* Date */}
-          <div className="bg-white rounded-xl p-3 shadow-[0_4px_12px_rgba(0,0,0,0.30)]">
-            <div className="relative">
-              <CalendarDays
-                size={17}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
-              />
-
-              <input
-                type="date"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="rounded-lg border border-gray-300 bg-white pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
+    <>
+      {printCertificate && (
+        <div className="certificate-print-only">
+          <CertificateTemplate
+            traineeName="Trainee's Full Name"
+            traineeId="#NOE-TRAINEE-001"
+            qualification={printCertificate.qualification}
+            assessment={getCertificateTitle(printCertificate)}
+            certificateId={printCertificate.certificateId}
+            dateIssued={formatDate(printCertificate.issued)}
+            trainingCenter="Training Center Name"
+          />
         </div>
-      </div>
+      )}
 
-      {/* Header Container */}
-      <div className="mb-4 rounded-2xl bg-white px-6 py-4 shadow-[0_4px_12px_rgba(0,0,0,0.30)]">
-        <div className="grid grid-cols-[2fr_1.5fr_1fr_0.8fr_1fr] gap-4 text-sm font-semibold text-gray-700">
-          <p>Certificate Name / ID</p>
-          <p>Qualification / Skill</p>
-          <p>Date Issued</p>
-          <p>Status</p>
-          <p></p>
-        </div>
-      </div>
+      <div className="p-0">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <DashboardPageHeader
+            title="My Certificates"
+            subtitle="View, download, and keep track of your earned certificates."
+          />
 
-      {/* Certificate Cards */}
-      <div className="space-y-4">
-        {filteredCertificates.length > 0 ? (
-          filteredCertificates.map((certificate) => (
-            <div
-              key={certificate.id}
-              className="grid grid-cols-[2fr_1.5fr_1fr_0.8fr_1fr] gap-4 items-center rounded-2xl bg-white px-6 py-5 shadow-[0_4px_12px_rgba(0,0,0,0.30)]  hover:shadow-md transition"
-            >
-              {/* Certificate */}
-              <div>
-                <p className="font-semibold text-gray-800">
-                  {certificate.name}
-                </p>
-
-                <p className="text-sm text-gray-500">
-                  {certificate.certificateId}
-                </p>
-              </div>
-
-              {/* Qualification */}
-              <div>
-                <p className="text-gray-700">
-                  {certificate.qualification}
-                </p>
-              </div>
-
-              {/* Date */}
-              <div>
-                <p className="text-gray-700">
-                  {new Date(certificate.issued).toLocaleDateString(
-                    "en-US",
-                    {
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    }
-                  )}
-                </p>
-              </div>
-
-              {/* Status */}
-              <div>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${certificate.status === "Valid"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-red-100 text-red-700"
-                    }`}
+          <div className="flex gap-3">
+            {/* Status */}
+            <div className="bg-white rounded-xl p-3 shadow-[0_4px_12px_rgba(0,0,0,0.30)]">
+              <div className="relative">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="appearance-none rounded-lg border border-gray-300 bg-white px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  {certificate.status}
-                </span>
-              </div>
+                  <option>All</option>
+                  <option>Valid</option>
+                  <option>Invalid</option>
+                </select>
 
-              {/* Buttons */}
-              <div className="flex flex-col gap-2 items-end">
-                <button className="w-40 rounded-lg bg-blue-700 py-2 text-sm font-medium text-white hover:bg-blue-800">
-                  View Certificate
-                </button>
-
-                <button className="w-40 rounded-lg bg-blue-700 py-2 text-sm font-medium text-white hover:bg-blue-800">
-                  Download
-                </button>
+                <ChevronDown
+                  size={16}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+                />
               </div>
             </div>
-          ))
-        ) : (
-          <div className="rounded-xl bg-white py-10 text-center shadow">
-            <p className="text-gray-500">
-              No certificates found.
-            </p>
+
+            {/* Date */}
+            <div className="bg-white rounded-xl p-3 shadow-[0_4px_12px_rgba(0,0,0,0.30)]">
+              <div className="relative">
+                <CalendarDays
+                  size={17}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                />
+
+                <input
+                  type="date"
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className="rounded-lg border border-gray-300 bg-white pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
           </div>
-        )}
+        </div>
+
+        {/* Header Container */}
+        <div className="mb-4 rounded-2xl bg-white px-6 py-4 shadow-[0_4px_12px_rgba(0,0,0,0.30)]">
+          <div className="grid grid-cols-[2fr_1.5fr_1fr_0.8fr_1fr] gap-4 text-sm font-semibold text-gray-700">
+            <p>Certificate Name / ID</p>
+            <p>Qualification / Skill</p>
+            <p>Date Issued</p>
+            <p>Status</p>
+            <p></p>
+          </div>
+        </div>
+
+        {/* Certificate Cards */}
+        <div className="space-y-4">
+          {filteredCertificates.length > 0 ? (
+            filteredCertificates.map((certificate) => (
+              <div
+                key={certificate.id}
+                className="grid grid-cols-[2fr_1.5fr_1fr_0.8fr_1fr] gap-4 items-center rounded-2xl bg-white px-6 py-5 shadow-[0_4px_12px_rgba(0,0,0,0.30)]  hover:shadow-md transition"
+              >
+                {/* Certificate */}
+                <div>
+                  <p className="font-semibold text-gray-800">
+                    {certificate.name}
+                  </p>
+
+                  <p className="text-sm text-gray-500">
+                    {certificate.certificateId}
+                  </p>
+                </div>
+
+                {/* Qualification */}
+                <div>
+                  <p className="text-gray-700">
+                    {certificate.qualification}
+                  </p>
+                </div>
+
+                {/* Date */}
+                <div>
+                  <p className="text-gray-700">
+                    {formatDate(certificate.issued)}
+                  </p>
+                </div>
+
+                {/* Status */}
+                <div>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${certificate.status === "Valid"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-red-100 text-red-700"
+                      }`}
+                  >
+                    {certificate.status}
+                  </span>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex flex-col gap-2 items-end">
+                  <button
+                    onClick={() =>
+                      navigate(`/trainee/certificates/${certificate.id}`, {
+                        state: {
+                          certificate,
+                        },
+                      })
+                    }
+                    className="w-40 rounded-lg bg-blue-700 py-2 text-sm font-medium text-white hover:bg-blue-800"
+                  >
+                    View Certificate
+                  </button>
+
+                  <button
+                    onClick={() => handleDownload(certificate)}
+                    className="w-40 rounded-lg bg-blue-700 py-2 text-sm font-medium text-white hover:bg-blue-800"
+                  >
+                    Download
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-xl bg-white py-10 text-center shadow">
+              <p className="text-gray-500">
+                No certificates found.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -1,5 +1,7 @@
+import DashboardPageHeader from "../../components/common/DashboardPageHeader";
+
 function UserManagement() {
-  return <h1>SETTINGS PAGE</h1>;
+  return <DashboardPageHeader title="System Settings" subtitle="Configure administrative preferences and platform settings." />;
 }
 
 export default UserManagement;

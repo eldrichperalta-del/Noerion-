@@ -70,6 +70,8 @@ export default function AssessmentOverview() {
   };
 
   const current = taskStateMap[assessment.status] || taskStateMap.Pending;
+  const durationMinutes = assessment.durationMinutes || 40;
+  const totalItems = assessment.totalItems || assessment.questions?.length || 40;
 
   // ==========================================================
   // Assessment Action Handler
@@ -280,7 +282,7 @@ export default function AssessmentOverview() {
 
                   <div>
                     <p className="font-semibold">
-                      30 Minutes
+                      {durationMinutes} Minutes
                     </p>
 
                     <p className="text-sm text-gray-500">
@@ -296,7 +298,7 @@ export default function AssessmentOverview() {
 
                   <div>
                     <p className="font-semibold">
-                      40 Questions
+                      {totalItems} Questions
                     </p>
 
                     <p className="text-sm text-gray-500">

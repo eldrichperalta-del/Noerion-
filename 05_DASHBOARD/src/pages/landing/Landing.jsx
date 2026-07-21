@@ -339,9 +339,9 @@ export default function Landing() {
                                 Get Started
                             </button>
 
-                            <button className="bg-transparent border border-gray-700 text-gray-300 font-semibold px-8 py-3 rounded-full hover:border-cyan-400/50 hover:text-cyan-400 transition-all">
+                            <Link to="/certificate-verification" className="bg-transparent border border-gray-700 text-gray-300 font-semibold px-8 py-3 rounded-full hover:border-cyan-400/50 hover:text-cyan-400 transition-all">
                                 Verify Certificate
-                            </button>
+                            </Link>
 
                         </div>
 

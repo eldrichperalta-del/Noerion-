@@ -1,6 +1,151 @@
 @import "tailwindcss";
 
+
+/*VIEW CERTIFICATES */ 
+
 html {
   scroll-behavior: smooth;
 }
+
+.certificate-print-only {
+  display: none;
+}
+
+.certificate-frame {
+  overflow: hidden;
+}
+
+.certificate-border-image {
+  z-index: 1;
+  image-rendering: auto;
+  backface-visibility: hidden;
+}
+
+.certificate-footer-grid {
+  transform: translateY(-1.25rem);
+}
+
+.certificate-verification {
+  transform: translateY(-1.25rem);
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    background: white !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .certificate-print-only,
+  .certificate-print-only * {
+    visibility: visible !important;
+  }
+
+  .certificate-view-page {
+    display: none !important;
+  }
+
+  .certificate-print-only {
+    position: fixed !important;
+    inset: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  .certificate-print-only > div {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    padding: 0 !important;
+  }
+
+  .certificate-print-only .certificate-print-sheet {
+    width: calc(100vw - 6mm) !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: calc(100vh - 6mm) !important;
+    box-shadow: none !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .certificate-print-only .certificate-logo {
+    width: 4rem !important;
+    height: 4rem !important;
+  }
+
+  .certificate-print-only .certificate-logo-text {
+    font-size: 15px !important;
+  }
+
+  .certificate-print-only .certificate-subtitle {
+    font-size: 21px !important;
+  }
+
+  .certificate-print-only .certificate-title {
+    margin-top: 0.5rem !important;
+    font-size: 38px !important;
+  }
+
+  .certificate-print-only .certificate-body {
+    max-width: 820px !important;
+    margin-top: 1.4rem !important;
+    font-size: 21px !important;
+    line-height: 2.35rem !important;
+  }
+
+  .certificate-print-only .certificate-footer-grid {
+    grid-template-columns: 1fr 1fr 108px !important;
+    gap: 1.75rem !important;
+    padding-left: 2.5rem !important;
+    padding-right: 2.5rem !important;
+    transform: translateY(-2rem) !important;
+  }
+
+  .certificate-print-only .certificate-signature-script {
+    font-size: 1.9rem !important;
+  }
+
+  .certificate-print-only .certificate-signature-label {
+    margin-top: 0.5rem !important;
+    padding-top: 0.45rem !important;
+    font-size: 13px !important;
+  }
+
+  .certificate-print-only .certificate-qr {
+    width: 96px !important;
+    height: 96px !important;
+  }
+
+  .certificate-print-only .certificate-qr-label {
+    margin-top: 0.45rem !important;
+    font-size: 10px !important;
+  }
+
+  .certificate-print-only .certificate-verification {
+    margin-top: 0.75rem !important;
+    font-size: 14px !important;
+    transform: translateY(-1.25rem) !important;
+  }
+}
+
 

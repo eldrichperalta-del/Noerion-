@@ -1,125 +1,284 @@
 import { useState } from "react";
 
 import StepProgressBar from "../../../../components/admin/create-assessment/StepProgressBar";
-
+import WrittenAssessmentBuilder from "./written-assessment/WrittenAssessmentBuilder";
 import SelectTrainees from "./SelectTrainees";
 import AssignAssessor from "./AssignAssessor";
 import ScheduleAssessment from "./ScheduleAssessment";
 import ReviewConfirm from "./ReviewConfirm";
 
+
 function CreateAssessment() {
-  // Tracks which step of the assessment wizard is currently active (1–4)
+
+
+  // Tracks current step of assessment wizard (1-5)
   const [currentStep, setCurrentStep] = useState(1);
 
-  // Main data object that holds ALL assessment information across steps
-  // This structure is backend-ready (can be sent as API payload)
+
+
+  // Main assessment data storage
   const [assessmentData, setAssessmentData] = useState({
-    trainees: [], // selected trainees list
-    assessor: {}, // selected assessor object
+
+    // Written Assessment
+    title: "",
+    qualification: "",
+    instructions: "",
+    questions: [],
+
+
+    // Trainees
+    trainees: [],
+
+
+    // Assessor
+    assessor: {},
+
+
+    // Schedule
     schedule: {
-      date: "",      // assessment date
-      startTime: "", // start time
-      endTime: "",   // end time
+      date: "",
+      startTime: "",
+      endTime: "",
     },
-    qualification: "", // assessment qualification/category
+
   });
 
-  // Resets the entire wizard back to initial state
-  // Used after successful assessment creation
+
+
+  // Reset everything after successful creation
   const resetAssessment = () => {
+
     setAssessmentData({
+
+      title: "",
+      qualification: "",
+      instructions: "",
+      questions: [],
+
       trainees: [],
+
       assessor: {},
+
       schedule: {
         date: "",
         startTime: "",
         endTime: "",
       },
-      qualification: "",
+
     });
 
-    // Return user back to Step 1
+
     setCurrentStep(1);
+
   };
 
-  // Debug: logs current step for development tracking
-  console.log("CURRENT STEP:", currentStep);
 
-  // Moves user forward in the step wizard (Step 1 → Step 4)
+
+  console.log(
+    "CURRENT STEP:",
+    currentStep
+  );
+
+
+
+  // Next step
   const nextStep = () => {
-    console.log("NEXT STEP CLICKED:", currentStep);
 
-    if (currentStep < 4) {
-      setCurrentStep((prev) => prev + 1);
+
+    console.log(
+      "NEXT STEP CLICKED:",
+      currentStep
+    );
+
+
+    if (currentStep < 5) {
+
+      setCurrentStep(
+        previous => previous + 1
+      );
+
     }
+
   };
 
-  // Moves user backward in the step wizard
+
+
+  // Previous step
   const prevStep = () => {
+
+
     if (currentStep > 1) {
-      setCurrentStep((prev) => prev - 1);
+
+      setCurrentStep(
+        previous => previous - 1
+      );
+
     }
+
   };
+
+
 
   return (
+
     <div className="min-h-screen p-0">
+
 
       {/* PAGE HEADER */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[#1E3A8A]">
+
+
+        <h1 className="
+          text-3xl
+          font-bold
+          text-[#1E3A8A]
+        ">
           Create Assessment
         </h1>
-        <p className="mt-2 text-gray-600">
+
+
+        <p className="
+          mt-2
+          text-gray-600
+        ">
           Follow the steps to set up a new assessment.
         </p>
+
+
       </div>
 
-      {/* PROGRESS INDICATOR */}
+
+
+      {/* PROGRESS BAR */}
       <div className="mb-8">
-        <StepProgressBar currentStep={currentStep} />
+
+        <StepProgressBar
+          currentStep={currentStep}
+        />
+
       </div>
 
-      {/* STEP 1: Select Trainees */}
-      {currentStep === 1 && (
-        <SelectTrainees
-          assessmentData={assessmentData}
-          setAssessmentData={setAssessmentData}
-          onNext={nextStep}
-        />
-      )}
 
-      {/* STEP 2: Assign Assessor */}
-      {currentStep === 2 && (
-        <AssignAssessor
-          assessmentData={assessmentData}
-          setAssessmentData={setAssessmentData}
-          onNext={nextStep}
-          onBack={prevStep}
-        />
-      )}
 
-      {/* STEP 3: Schedule Assessment */}
-      {currentStep === 3 && (
-        <ScheduleAssessment
-          assessmentData={assessmentData}
-          setAssessmentData={setAssessmentData}
-          onNext={nextStep}
-          onBack={prevStep}
-        />
-      )}
 
-      {/* STEP 4: Review + Confirm */}
-      {currentStep === 4 && (
-        <ReviewConfirm
-          assessmentData={assessmentData}
-          onNext={nextStep}
-          onBack={prevStep}
-          resetAssessment={resetAssessment}
-        />
-      )}
+      {/* STEP 1: CREATE WRITTEN ASSESSMENT */}
+      {
+        currentStep === 1 && (
+
+          <WrittenAssessmentBuilder
+
+            assessmentData={assessmentData}
+
+            setAssessmentData={setAssessmentData}
+
+            onNext={nextStep}
+
+          />
+
+        )
+      }
+
+
+
+
+      {/* STEP 2: SELECT TRAINEES */}
+      {
+        currentStep === 2 && (
+
+          <SelectTrainees
+
+            assessmentData={assessmentData}
+
+            setAssessmentData={setAssessmentData}
+
+            onNext={nextStep}
+
+            onBack={prevStep}
+
+          />
+
+        )
+      }
+
+
+
+      {/* STEP 3: ASSIGN ASSESSOR */}
+      {
+        currentStep === 3 && (
+
+          <AssignAssessor
+
+            assessmentData={assessmentData}
+
+            setAssessmentData={setAssessmentData}
+
+            onNext={nextStep}
+
+            onBack={prevStep}
+
+          />
+
+        )
+      }
+
+
+
+
+
+
+      {/* STEP 4: SCHEDULE ASSESSMENT */}
+      {
+        currentStep === 4 && (
+
+          <ScheduleAssessment
+
+            assessmentData={assessmentData}
+
+            setAssessmentData={setAssessmentData}
+
+            onNext={nextStep}
+
+            onBack={prevStep}
+
+          />
+
+        )
+      }
+
+
+
+
+
+
+
+      {/* STEP 5: REVIEW AND CONFIRM */}
+      {
+        currentStep === 5 && (
+
+          <ReviewConfirm
+
+            assessmentData={assessmentData}
+
+            onNext={nextStep}
+
+            onBack={prevStep}
+
+            resetAssessment={resetAssessment}
+
+          />
+
+        )
+      }
+
+
+
+
 
     </div>
+
   );
+
 }
+
 
 export default CreateAssessment;

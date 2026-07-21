@@ -9,9 +9,9 @@ function ScheduleAssessment({
   onNext,
   onBack,
 }) {
-  const schedule = assessmentData.schedule || {};
+  const schedule = assessmentData?.schedule || {};
 
-  const selectedDate = schedule.date
+  const selectedDate = schedule?.date
     ? new Date(schedule.date + "T00:00:00")
     : null;
 
@@ -210,8 +210,8 @@ function ScheduleAssessment({
                     disabled={!canProceed}
                     onClick={onNext}
                     className={`px-6 py-3 rounded-lg font-semibold text-white transition ${canProceed
-                        ? "bg-[#001F5B] hover:bg-[#001746]"
-                        : "bg-gray-300 cursor-not-allowed"
+                      ? "bg-[#001F5B] hover:bg-[#001746]"
+                      : "bg-gray-300 cursor-not-allowed"
                       }`}
                   >
                     Next Step
@@ -234,10 +234,12 @@ function ScheduleAssessment({
 
             <p className="font-semibold mb-2">Selected Trainees</p>
             <div className="bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3 mb-4">
-              <ul className="text-sm text-gray-700 list-disc ml-5">
-                {assessmentData.trainees.length ? (
-                  assessmentData.trainees.map((t, i) => (
-                    <li key={i}>{t.name || t}</li>
+              <ul className="ml-5 list-disc text-sm text-gray-700">
+                {assessmentData?.trainees?.length > 0 ? (
+                  assessmentData.trainees.map((trainee) => (
+                    <li key={trainee.id}>
+                      {trainee.fullName}
+                    </li>
                   ))
                 ) : (
                   <li>No trainees selected</li>
@@ -247,7 +249,7 @@ function ScheduleAssessment({
 
             <p className="font-semibold mb-2">Assessor</p>
             <div className="bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3 mb-4 text-sm text-gray-700">
-              {assessmentData.assessor?.name || "None"}
+              {assessmentData?.assessor?.name || "None"}
             </div>
 
             <p className="font-semibold mb-2">Date</p>

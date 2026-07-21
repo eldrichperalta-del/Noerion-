@@ -1,6 +1,8 @@
 import { Search } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAssessments } from "../../context/AssessmentContext";
+import DashboardPageHeader from "../../components/common/DashboardPageHeader";
 
 export default function Assessment() {
   const navigate = useNavigate();
@@ -8,40 +10,7 @@ export default function Assessment() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
 
-  const assessments = [
-    {
-      id: 1,
-      title: "Advanced Robotics Assembly",
-      qualification: "TESDA NC III Electronics",
-      assessor: "Engr. J. Dela Cruz",
-      schedule: "April 14, 2025 - 09:00 AM",
-      status: "Pending",
-    },
-    {
-      id: 2,
-      title: "Web Application Development",
-      qualification: "TESDA NC IV IT",
-      assessor: "Ms. A. Santos",
-      schedule: "April 16, 2025 - 01:00 PM",
-      status: "Ongoing",
-    },
-    {
-      id: 3,
-      title: "Culinary Arts Technique",
-      qualification: "TESDA NC II Cookery",
-      assessor: "Chef R. Garcia",
-      schedule: "Completed - April 10, 2025",
-      status: "Completed",
-    },
-    {
-      id: 4,
-      title: "Industrial Electronics",
-      qualification: "TESDA NC III Electronics",
-      assessor: "Mr. L. Hernandez",
-      schedule: "April 17, 2025 - 02:00 PM",
-      status: "Pending",
-    },
-  ];
+  const { assessments } = useAssessments();
 
   const getStatusStyle = (status) => {
     switch (status) {
@@ -87,6 +56,7 @@ export default function Assessment() {
 
   return (
     <div className="p-0">
+      <DashboardPageHeader title="My Assessments" subtitle="View your scheduled assessments and continue the next step in your evaluation." />
 
       {/* Search + Filter */}
       <div className="flex items-center justify-between w-full mb-5">

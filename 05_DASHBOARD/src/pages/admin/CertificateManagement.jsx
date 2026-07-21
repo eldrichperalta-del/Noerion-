@@ -8,6 +8,7 @@ import CertificateDetailsModal from "../../components/admin/certificate-manageme
 import CertificateTrackingModal from "../../components/admin/certificate-management/CertificateTrackingModal";
 import RevokeCertificateModal from "../../components/admin/certificate-management/RevokeCertificateModal";
 import CertificateUploadModal from "../../components/admin/certificate-management/CertificateUploadModal";
+import DashboardPageHeader from "../../components/common/DashboardPageHeader";
 
 import "../../styles/CertificateManagement.css";
 
@@ -220,9 +221,10 @@ export default function CertificateManagement() {
     <div className="cert-page">
 
       {/* ================= HEADER ================= */}
-      <h2 className="text-3xl font-bold text-gray-900 mb-4">
-        OVERVIEW
-      </h2>
+      <DashboardPageHeader
+        title="Certificate Management"
+        subtitle="Issue, monitor, and manage trainee certificates and their verification status."
+      />
 
       {/* ================= OVERVIEW CARDS ================= */}
       <CertificateOverviewCards data={allCertificates} />

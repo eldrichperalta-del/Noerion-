@@ -4,100 +4,61 @@ import {
   ClipboardList,
   Award,
 } from "lucide-react";
+import DashboardPageHeader from "../../components/common/DashboardPageHeader";
+import { useEffect, useState } from "react";
+import { mockAdminDashboard } from "../../data/mockAdminDashboard";
 
 function Home() {
-  // Dashboard Statistics
-  const dashboardData = {
-    totalTrainees: 0,
-    totalAssessors: 0,
-    totalAssessments: 0,
-    certificatesIssued: 0,
-  };
+  const [animateAnalytics, setAnimateAnalytics] = useState(false);
+  const { stats: dashboardData, analytics: { passRate, completionRate }, assessments, certificates, activities } = mockAdminDashboard;
 
-  // Analytics
-  const passRate = 0;
-  const completionRate = 0;
-
-  // Future Backend Data
-  const assessments = [];
-  const certificates = [];
-  const activities = [];
-
-  // TODO: Replace with API data from backend
+  useEffect(() => {
+    const timer = setTimeout(() => setAnimateAnalytics(true), 120);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="space-y-6">
+      <DashboardPageHeader title="Welcome, Admin" subtitle="Here is an overview of your platform activity and management tasks." />
       {/* OVERVIEW CARDS */}
-      <div className="bg-white rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.35)] p-6">
-        <h2 className="text-2xl font-bold mb-6">
-          OVERVIEW CARDS
-        </h2>
-
+      <div className="p-0">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
           {/* Total Trainees */}
-          <div className="bg-white rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.20)] p-5">
-            <h3 className="font-bold text-lg mb-4">
-              TOTAL TRAINEES
-            </h3>
-
-            <div className="flex items-center gap-4">
-              <Users size={40} />
-
-              <span className="text-4xl font-bold">
+          <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)] border border-gray-100">
+            <p className="text-sm font-medium text-gray-900">Total Trainees</p>
+            <div className="mt-4 flex items-center gap-3"><div className="rounded-xl bg-blue-50 p-3"><Users size={22} /></div><span className="text-3xl font-bold">
                 {dashboardData.totalTrainees}
-              </span>
-            </div>
+              </span></div>
           </div>
 
           {/* Total Assessors */}
-          <div className="bg-white rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.20)] p-5">
-            <h3 className="font-bold text-lg mb-4">
-              TOTAL ASSESSORS
-            </h3>
-
-            <div className="flex items-center gap-4">
-              <UserCheck size={40} />
-
-              <span className="text-4xl font-bold">
+          <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)] border border-gray-100">
+            <p className="text-sm font-medium text-gray-900">Total Assessors</p>
+            <div className="mt-4 flex items-center gap-3"><div className="rounded-xl bg-amber-50 p-3"><UserCheck size={22} /></div><span className="text-3xl font-bold">
                 {dashboardData.totalAssessors}
-              </span>
-            </div>
+              </span></div>
           </div>
 
           {/* Total Assessments */}
-          <div className="bg-white rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.20)] p-5">
-            <h3 className="font-bold text-lg mb-4">
-              TOTAL ASSESSMENTS
-            </h3>
-
-            <div className="flex items-center gap-4">
-              <ClipboardList size={40} />
-
-              <span className="text-4xl font-bold">
+          <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)] border border-gray-100">
+            <p className="text-sm font-medium text-gray-900">Total Assessments</p>
+            <div className="mt-4 flex items-center gap-3"><div className="rounded-xl bg-green-50 p-3"><ClipboardList size={22} /></div><span className="text-3xl font-bold">
                 {dashboardData.totalAssessments}
-              </span>
-            </div>
+              </span></div>
           </div>
 
           {/* Certificates Issued */}
-          <div className="bg-white rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.20)] p-5">
-            <h3 className="font-bold text-lg mb-4">
-              CERTIFICATES ISSUED
-            </h3>
-
-            <div className="flex items-center gap-4">
-              <Award size={40} />
-
-              <span className="text-4xl font-bold">
+          <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)] border border-gray-100">
+            <p className="text-sm font-medium text-gray-900">Certificates Issued</p>
+            <div className="mt-4 flex items-center gap-3"><div className="rounded-xl bg-purple-50 p-3"><Award size={22} /></div><span className="text-3xl font-bold">
                 {dashboardData.certificatesIssued}
-              </span>
-            </div>
+              </span></div>
           </div>
         </div>
       </div>
 
       {/* SECOND MAIN CONTAINER */}
-      <div className="bg-white rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.35)] p-6">
+      <div className="p-6">
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* LEFT SIDE */}
           <div className="xl:col-span-2 space-y-6">
@@ -107,7 +68,7 @@ function Home() {
                 ACTIVE ASSESSMENTS PANEL
               </h2>
 
-              <div className="overflow-hidden rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.20)]">
+              <div className="overflow-hidden bg-white rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
                 <table className="w-full">
                   <thead className="bg-gray-300">
                     <tr>
@@ -164,7 +125,7 @@ function Home() {
                 CERTIFICATE STATUS PANEL
               </h2>
 
-              <div className="overflow-hidden rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.20)]">
+              <div className="overflow-hidden bg-white rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
                 <table className="w-full">
                   <thead className="bg-gray-300">
                     <tr>
@@ -242,7 +203,7 @@ function Home() {
             QUICK ANALYTICS
           </h2>
 
-          <div className="bg-white rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.30)] p-4">
+          <div className="bg-white rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.35)] p-4">
             <div className="space-y-5">
               <div>
                 <div className="flex justify-between mb-2">
@@ -251,10 +212,7 @@ function Home() {
                 </div>
 
                 <div className="w-full h-3 bg-gray-200 rounded-full">
-                  <div
-                    className="h-3 bg-blue-600 rounded-full"
-                    style={{ width: `${passRate}%` }}
-                  ></div>
+                  <div className="h-3 bg-blue-600 rounded-full transition-all duration-1000 ease-out" style={{ width: animateAnalytics ? `${passRate}%` : "0%" }}></div>
                 </div>
               </div>
 
@@ -265,12 +223,7 @@ function Home() {
                 </div>
 
                 <div className="w-full h-3 bg-gray-200 rounded-full">
-                  <div
-                    className="h-3 bg-blue-600 rounded-full"
-                    style={{
-                      width: `${completionRate}%`,
-                    }}
-                  ></div>
+                  <div className="h-3 bg-cyan-500 rounded-full transition-all duration-1000 ease-out" style={{ width: animateAnalytics ? `${completionRate}%` : "0%" }}></div>
                 </div>
               </div>
             </div>

@@ -4,6 +4,7 @@ import { supabase } from "../../supabaseClient";
 import ResultsOverviewCards from "../../components/admin/results-monitoring/ResultsOverviewCards";
 import ResultsFilters from "../../components/admin/results-monitoring/ResultsFilters";
 import ResultsTable from "../../components/admin/results-monitoring/ResultsTable";
+import DashboardPageHeader from "../../components/common/DashboardPageHeader";
 
 import "../../styles/ResultsMonitoring.css";
 
@@ -229,9 +230,10 @@ export default function ResultsMonitoring() {
   return (
     <div className="results-page">
 
-      <h2 className="text-3xl font-bold text-gray-900 mb-4">
-        OVERVIEW
-      </h2>
+      <DashboardPageHeader
+        title="Results Monitoring"
+        subtitle="Track assessment performance, completion outcomes, and trainee results."
+      />
 
       <ResultsOverviewCards
         stats={overviewData}

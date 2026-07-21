@@ -28,31 +28,31 @@ Backend Integration:
 const initialTrainees = [
   {
     id: "TRN-2023-001",
-    name: "John Doe",
+    fullName: "John Doe",
     email: "john.doe@example.com",
     assessmentStatus: "Available",
   },
   {
     id: "TRN-2023-002",
-    name: "Jane Smith",
+    fullName: "Jane Smith",
     email: "jane.smith@example.com",
     assessmentStatus: "Available",
   },
   {
     id: "TRN-2023-003",
-    name: "Alice Brown",
+    fullName: "Alice Brown",
     email: "alice.brown@example.com",
     assessmentStatus: "Available",
   },
   {
     id: "TRN-2023-004",
-    name: "Bob Green",
+    fullName: "Bob Green",
     email: "bob.green@example.com",
     assessmentStatus: "Available",
   },
   {
     id: "TRN-2023-005",
-    name: "Charlie White",
+    fullName: "Charlie White",
     email: "charlie.white@example.com",
     assessmentStatus: "In Another Session",
   },
@@ -73,9 +73,15 @@ function SelectTrainees({ assessmentData, setAssessmentData, onNext }) {
     const searchValue = searchTerm.toLowerCase().trim();
 
     const matchesSearch =
-      trainee.name.toLowerCase().includes(searchValue) ||
-      trainee.id.toLowerCase().includes(searchValue) ||
-      trainee.email.toLowerCase().includes(searchValue);
+      (trainee.name || "")
+        .toLowerCase()
+        .includes(searchValue) ||
+      (trainee.id || "")
+        .toLowerCase()
+        .includes(searchValue) ||
+      (trainee.email || "")
+        .toLowerCase()
+        .includes(searchValue);
 
     const matchesStatus =
       statusFilter === "All"
@@ -167,7 +173,7 @@ function SelectTrainees({ assessmentData, setAssessmentData, onNext }) {
 
           <input
             type="text"
-            placeholder="Search fullname, ID or email"
+            placeholder="Search trainee, ID or email"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full rounded-xl border border-gray-400 py-3 pl-12 pr-4 shadow-[0_4px_12px_rgba(0,0,0,0.15)] focus:border-blue-500 focus:outline-none"

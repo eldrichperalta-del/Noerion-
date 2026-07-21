@@ -1,5 +1,7 @@
+import DashboardPageHeader from "../../components/common/DashboardPageHeader";
+
 function UserManagement() {
-  return <h1>PROFILE PAGE</h1>;
+  return <DashboardPageHeader title="Admin Profile" subtitle="Review and manage your administrator account information." />;
 }
 
 export default UserManagement;

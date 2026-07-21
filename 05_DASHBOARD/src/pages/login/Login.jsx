@@ -67,7 +67,7 @@ export default function Login() {
             {/* Login Card */}
             <div className="relative z-10 w-[420px] p-8 rounded-[28px] bg-slate-950/75 backdrop-blur-[30px] border border-cyan-400/40 shadow-[0_0_20px_rgba(0,242,255,.35),0_0_60px_rgba(0,242,255,.25),0_0_120px_rgba(0,242,255,.35)]">
 
-                <h1 className="text-center text-cyan-400 text-4xl font-light mb-3">
+                <h1 className="text-center text-4xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-white mb-3">
                     NOERION
                 </h1>
 
@@ -136,9 +136,10 @@ export default function Login() {
                     {/* Request Access */}
                     <button
                         type="button"
+                        onClick={() => navigate("/register")}
                         className="w-full h-12 rounded-2xl border border-cyan-400/40 text-cyan-300 bg-slate-900/30"
                     >
-                        Request Access
+                        Register
                     </button>
                 </form>
 

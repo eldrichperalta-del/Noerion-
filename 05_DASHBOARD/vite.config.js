@@ -7,4 +7,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  // Temporary Cloudflare tunnel URLs change on every local testing session.
+  server: {
+    allowedHosts: ['.trycloudflare.com'],
+  },
 })

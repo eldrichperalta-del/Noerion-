@@ -4,8 +4,12 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./index.css";
 
+import { AssessmentProvider } from "./context/AssessmentContext";
+
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <BrowserRouter>
-    <App />
-  </BrowserRouter>
+  <AssessmentProvider>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </AssessmentProvider>
 );

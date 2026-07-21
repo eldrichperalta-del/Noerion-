@@ -4,42 +4,33 @@ function TraineeNavbar() {
   const location = useLocation();
 
   const pageTitles = {
+    // Home
     "/trainee": "Home",
 
+    // Assessment
     "/trainee/assessment": "Assessments",
-    "/trainee/assessment/:id": "Assessment Overview",
-    "/trainee/assessment/:id/baseline": "Baseline",
-    "/trainee/assessment/:id/prepare": "Preparation",
-    "/trainee/assessment/:id/written-assessment": "Written Assessment",
+    "/trainee/assessment/overview": "Assessment Overview",
+    "/trainee/assessment/baseline": "Baseline",
+    "/trainee/assessment/prepare": "Preparation",
+    "/trainee/assessment/written-assessment": "Written Assessment",
 
+    // Results
     "/trainee/results": "Results",
+    "/trainee/assessment-summary": "Assessment Summary",
+
+    // Certificates
+    "/trainee/certificate": "Certificate",
     "/trainee/certificates": "Certificates",
+
+    // Profile
     "/trainee/profile": "Profile",
+
+    // Settings
     "/trainee/settings": "Settings",
-    "/trainee/logout": "Logout",
   };
 
-  // Normalize dynamic assessment routes
-  let normalizedPath = location.pathname;
-
-  if (/^\/trainee\/assessment\/[^/]+$/.test(location.pathname)) {
-    normalizedPath = "/trainee/assessment/:id";
-  } else if (
-    /^\/trainee\/assessment\/[^/]+\/baseline$/.test(location.pathname)
-  ) {
-    normalizedPath = "/trainee/assessment/:id/baseline";
-  } else if (
-    /^\/trainee\/assessment\/[^/]+\/prepare$/.test(location.pathname)
-  ) {
-    normalizedPath = "/trainee/assessment/:id/prepare";
-  } else if (
-    /^\/trainee\/assessment\/[^/]+\/written-assessment$/.test(location.pathname)
-  ) {
-    normalizedPath = "/trainee/assessment/:id/written-assessment";
-  }
-
   const currentTitle =
-    pageTitles[normalizedPath] || "Trainee Dashboard";
+    pageTitles[location.pathname] || "Trainee Dashboard";
 
   return (
     <header
@@ -53,15 +44,17 @@ function TraineeNavbar() {
         px-6
       "
     >
+      {/* Page Title */}
       <h1 className="text-xl font-semibold text-gray-400">
         {currentTitle}
       </h1>
 
+      {/* User */}
       <div className="flex items-center gap-3">
         <img
           src="/trainee.jpg"
           alt="Trainee"
-          className="w-10 h-10 rounded-full"
+          className="w-10 h-10 rounded-full object-cover"
         />
 
         <span className="font-medium text-gray-800">

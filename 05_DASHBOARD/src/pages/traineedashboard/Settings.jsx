@@ -1,3 +1,5 @@
+import DashboardPageHeader from "../../components/common/DashboardPageHeader";
+
 export default function Settings() {
-  return <h1>Settings Page</h1>;
+  return <DashboardPageHeader title="My Settings" subtitle="Manage your trainee account preferences and settings." />;
 }

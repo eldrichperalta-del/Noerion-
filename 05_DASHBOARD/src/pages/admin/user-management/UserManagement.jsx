@@ -9,6 +9,9 @@ function UserManagement() {
         <h1 className="text-4xl font-bold text-gray-900 mt-2">
           User Management
         </h1>
+        <p className="mt-2 text-gray-500">
+          Manage trainee and assessor accounts across the platform.
+        </p>
       </div>
 
       {/* Cards Container */}

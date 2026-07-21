@@ -3,8 +3,11 @@ import { Routes, Route, Navigate } from "react-router-dom";
 /* Public Pages */
 import Landing from "./pages/landing/Landing";
 import Login from "./pages/login/Login";
+import Registration from "./pages/registration/Registration";
 import Loading from "./pages/loading/Loading";
 import Privacy from "./pages/privacy/Privacy";
+import CertificateVerification from "./pages/verification/CertificateVerification";
+import CertificateSearch from "./pages/verification/CertificateSearch";
 
 /* Route Groups */
 import AdminRoutes from "./routes/AdminRoutes";
@@ -17,8 +20,11 @@ function App() {
       {/* Public */}
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Registration />} />
       <Route path="/loading" element={<Loading />} />
       <Route path="/privacy" element={<Privacy />} />
+      <Route path="/verify/:certificateId?" element={<CertificateVerification />} />
+      <Route path="/certificate-verification" element={<CertificateSearch />} />
 
       {/* Dashboards */}
       <Route path="/admin/*" element={<AdminRoutes />} />

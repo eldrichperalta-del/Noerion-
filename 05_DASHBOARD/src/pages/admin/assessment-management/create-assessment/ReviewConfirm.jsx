@@ -129,11 +129,17 @@ function ReviewConfirm({
             </p>
 
             <div className="mt-10 list-box">
-              {trainees.map((t, i) => (
-                <div key={i} className="list-item">
-                  {t.name}
+              {trainees.length > 0 ? (
+                trainees.map((t) => (
+                  <div key={t.id} className="list-item">
+                    {t.fullName || t.name || "Unnamed Trainee"}
+                  </div>
+                ))
+              ) : (
+                <div className="list-item text-gray-500">
+                  No trainees selected
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
