@@ -14,106 +14,94 @@ export default function Loading() {
     ];
 
     const [titleDots, setTitleDots] = useState(0);
-    const [currentStep, setCurrentStep] = useState("");
-    const [fade, setFade] = useState("opacity-100");
-
-
+    const [currentStep, setCurrentStep] = useState(loadingSteps[0]);
+    const [fade, setFade] = useState("opacity-100 scale-100");
 
     useEffect(() => {
-        const timeouts = [];
+        let isMounted = true;
 
+        // 1. Animated Dots (...)
         const titleInterval = setInterval(() => {
             setTitleDots((prev) => (prev + 1) % 4);
-        }, 500);
+        }, 300);
 
-        let stepIndex = 0;
-        let cycleCount = 0;
-        const maxCycles = 2;
-
-        function runSteps() {
-            const step = loadingSteps[stepIndex];
-            setCurrentStep(step);
-            setFade("opacity-100 scale-100");
-
-            const fadeTimeout = setTimeout(() => {
+        // 2. Faster Visual Step Transition
+        let stepIdx = 0;
+        const stepInterval = setInterval(() => {
+            stepIdx = (stepIdx + 1) % loadingSteps.length;
+            if (isMounted) {
                 setFade("opacity-0");
+                setTimeout(() => {
+                    setCurrentStep(loadingSteps[stepIdx]);
+                    setFade("opacity-100 scale-100");
+                }, 150);
+            }
+        }, 800); // Cycles step every 800ms instead of 1800ms
 
-                const nextStepTimeout = setTimeout(() => {
-                    stepIndex++;
+        // 3. IMMEDIATE DATABASE & ROLE CHECK
+        const verifyAndNavigate = async () => {
+            const startTime = Date.now();
 
-                    if (stepIndex < loadingSteps.length) {
-                        runSteps();
-                    } else {
-                        cycleCount++;
+            try {
+                // Get Session
+                const { data: { session } } = await supabase.auth.getSession();
 
-                        if (cycleCount < maxCycles) {
-                            stepIndex = 0;
-                            runSteps();
+                if (!session) {
+                    if (isMounted) navigate("/");
+                    return;
+                }
+
+                // Get User Profile & Role
+                const { data: profile, error } = await supabase
+                    .from("profiles")
+                    .select("role")
+                    .eq("id", session.user.id)
+                    .single();
+
+                if (error || !profile) {
+                    console.error("Profile fetch error:", error);
+                    if (isMounted) navigate("/");
+                    return;
+                }
+
+                // Guarantee a minimum display time of 1.2s so the user sees the cool animation
+                const elapsedTime = Date.now() - startTime;
+                const minDisplayTime = 1200; 
+                const remainingTime = Math.max(0, minDisplayTime - elapsedTime);
+
+                setTimeout(() => {
+                    if (!isMounted) return;
+
+                    const role = profile.role?.toLowerCase();
+                    const privacyAccepted = localStorage.getItem("privacyAccepted");
+
+                    if (role === "admin") {
+                        navigate("/admin");
+                    } else if (role === "assessor") {
+                        navigate("/assessor");
+                    } else if (role === "trainee") {
+                        if (privacyAccepted === "true") {
+                            navigate("/trainee");
                         } else {
-                            // Loading finished
-                            clearInterval(titleInterval);
-
-                            // ====================================================
-                            // DYNAMIC SUPABASE ROLE-BASED ROUTING
-                            // ====================================================
-                            const navigateTimeout = setTimeout(async () => {
-                                // 1. Get session
-                                const { data: { session } } = await supabase.auth.getSession();
-
-                                if (!session) {
-                                    navigate("/");
-                                    return;
-                                }
-
-                                // 2. GET ROLE FROM DATABASE (NOT METADATA)
-                                const { data: profile, error } = await supabase
-                                    .from("profiles")
-                                    .select("role")
-                                    .eq("id", session.user.id)
-                                    .single();
-
-                                if (error || !profile) {
-                                    console.log("Profile fetch error:", error);
-                                    navigate("/");
-                                    return;
-                                }
-
-                                const role = profile.role;
-
-                                // 3. ROUTING
-                                const privacyAccepted = localStorage.getItem("privacyAccepted");
-
-                                if (role === "admin") {
-                                    navigate("/admin");
-                                } else if (role === "assessor") {
-                                    navigate("/assessor");
-                                } else if (role === "trainee") {
-                                    if (privacyAccepted === "true") {
-                                        navigate("/trainee");
-                                    } else {
-                                        navigate("/privacy");
-                                    }
-                                } else {
-                                    navigate("/");
-                                }
-                            }, 500);
-
-                            timeouts.push(navigateTimeout);
+                            navigate("/privacy");
                         }
+                    } else {
+                        navigate("/");
                     }
-                }, 350);
+                }, remainingTime);
 
-                timeouts.push(nextStepTimeout);
-            }, 1800);
+            } catch (err) {
+                console.error("Auth routing error:", err);
+                if (isMounted) navigate("/");
+            }
+        };
 
-            timeouts.push(fadeTimeout);
-        }
-
-        runSteps();
+        verifyAndNavigate();
 
         return () => {
+            isMounted = false;
             clearInterval(titleInterval);
-            timeouts.forEach(clearTimeout);
+            clearInterval(stepInterval);
         };
     }, [navigate]);
 

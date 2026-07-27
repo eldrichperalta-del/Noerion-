@@ -38,12 +38,41 @@ export default function Login() {
                 password: password,
             });
 
-            // 3. If Supabase returns an error, catch it immediately
+            // 3. If Supabase returns an auth error, catch it immediately
             if (authError) {
                 throw new Error(authError.message);
             }
 
-            // 4. Success!
+            const userId = data.user?.id;
+            if (!userId) {
+                throw new Error("Unable to authenticate user ID.");
+            }
+
+            // 4. Fetch the user's approval status from public.profiles
+            const { data: profile, error: profileError } = await supabase
+                .from("profiles")
+                .select("approval_status, role")
+                .eq("id", userId)
+                .single();
+
+            if (profileError) {
+                await supabase.auth.signOut();
+                throw new Error("Could not retrieve profile status.");
+            }
+
+            // 5. Check approval status before letting them proceed
+           // 5. Check approval status before letting them proceed
+            if (profile.role !== "admin" && profile.approval_status === "Pending Approval") {
+                await supabase.auth.signOut(); // Revoke session
+                throw new Error("Your account is currently pending approval by the TESDA Administrator.");
+            }
+
+            if (profile.approval_status === "Rejected") {
+                await supabase.auth.signOut(); // Revoke session
+                throw new Error("Your registration request has been declined.");
+            }
+
+            // 6. Success! Account is approved
             console.log("LOGIN SUCCESS:", data);
             navigate("/loading");
             

@@ -83,7 +83,7 @@ export default function Registration() {
     return publicUrl;
   };
 
- const handleSubmit = async () => {
+  const handleSubmit = async () => {
     setLoading(true);
     setErrorMessage("");
 
@@ -105,7 +105,7 @@ export default function Registration() {
         profilePhotoUrl = await uploadFile(photoFile, "avatars", userId);
       }
 
-      // 3. Insert into public.profiles
+      // 3. Insert/Upsert into public.profiles
       const formattedRole = isAssessor ? "assessor" : "trainee";
       const { error: profileError } = await supabase.from("profiles").upsert({
         id: userId,
@@ -158,6 +158,10 @@ export default function Registration() {
 
         if (traineeError) throw traineeError;
       }
+
+      // 5. SIGN OUT THE USER IMMEDIATELY
+      // Prevents pending users from being logged in right after registration
+      await supabase.auth.signOut();
 
       setStep(4); // Move to Success Screen
     } catch (err) {

@@ -1,134 +1,77 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "../../../supabaseClient"; // Adjust path to your supabase client
 
 import SearchBar from "../../../components/admin/shared/SearchBar";
-
 import StatusFilter from "../../../components/admin/trainee-management/StatusFilter";
 import VerificationFilter from "../../../components/admin/trainee-management/VerificationFilter";
-
 import TraineeTable from "../../../components/admin/trainee-management/TraineeTable";
-
-/*
-|--------------------------------------------------------------------------
-| TEMPORARY MOCK DATA
-|--------------------------------------------------------------------------
-| Frontend Development Only
-|
-| This data is used to test:
-| - trainee table display
-| - search filtering
-| - status filtering
-| - verification filtering
-| - approve/reject frontend actions
-| - pagination in TraineeTable
-|
-| TODO (Backend):
-| Replace this mock data with data from the Trainees API.
-|
-| Expected backend response format:
-| {
-|   id: 1,
-|   fullName: "John Doe",
-|   traineeId: "TRN-2023-001",
-|   email: "john.doe@example.com",
-|   status: "Pending",
-|   verificationStatus: "Not Verified"
-| }
-|
-| Example:
-| GET /api/trainees
-|--------------------------------------------------------------------------
-*/
-const initialTrainees = [
-  {
-    id: 1,
-    fullName: "John Doe",
-    traineeId: "TRN-2023-001",
-    email: "john.doe@example.com",
-    status: "Pending",
-    verificationStatus: "Not Verified",
-  },
-  {
-    id: 2,
-    fullName: "Jane Smith",
-    traineeId: "TRN-2023-002",
-    email: "jane.smith@example.com",
-    status: "Pending",
-    verificationStatus: "Not Verified",
-  },
-  {
-    id: 3,
-    fullName: "Alice Brown",
-    traineeId: "TRN-2023-003",
-    email: "alice@test.co",
-    status: "Approved",
-    verificationStatus: "Verified",
-  },
-  {
-    id: 4,
-    fullName: "Bob Green",
-    traineeId: "TRN-2023-004",
-    email: "bob.green@edu.ph",
-    status: "Approved",
-    verificationStatus: "Verified",
-  },
-  {
-    id: 5,
-    fullName: "Charlie White",
-    traineeId: "TRN-2023-005",
-    email: "c.white@mail.com",
-    status: "Rejected",
-    verificationStatus: "N/A",
-  },
-  {
-    id: 6,
-    fullName: "MAMAMO",
-    traineeId: "TRN-2023-006",
-    email: "MAMAMO@mail.com",
-    status: "Rejected",
-    verificationStatus: "N/A",
-  },
-];
 
 function TraineeManagement() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [verificationFilter, setVerificationFilter] = useState("All");
+  
+  const [trainees, setTrainees] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  /*
-  |--------------------------------------------------------------------------
-  | BACKEND INTEGRATION POINT
-  |--------------------------------------------------------------------------
-  | Currently uses mock data.
-  |
-  | TODO (Backend):
-  | Replace initialTrainees with API response.
-  |
-  | Example:
-  | const [trainees, setTrainees] = useState([]);
-  |
-  | useEffect(() => {
-  |   fetch("/api/trainees")
-  |     .then((res) => res.json())
-  |     .then((data) => setTrainees(data));
-  | }, []);
-  |--------------------------------------------------------------------------
-  */
-  const [trainees, setTrainees] = useState(initialTrainees);
+  // 1. Fetch Trainees from Supabase Profiles Table
+  const fetchTrainees = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .ilike("role", "trainee");
 
-  /*
-  |--------------------------------------------------------------------------
-  | APPROVE TRAINEE
-  |--------------------------------------------------------------------------
-  | Current: Updates frontend state only.
-  |
-  | TODO (Backend):
-  | Replace with API request.
-  |
-  | Example:
-  | PATCH /api/trainees/:id/approve
-  |--------------------------------------------------------------------------
-  */
-  const handleApprove = (id) => {
+    if (error) {
+      console.error("Error fetching trainees:", error.message);
+    } else if (data) {
+      const formatted = data.map((item) => {
+        const rawStatus = item.approval_status || "Pending Approval";
+        
+        // Normalize status display
+        let status = "Pending";
+        let verificationStatus = "Not Verified";
+
+        if (rawStatus.toLowerCase().includes("approved")) {
+          status = "Approved";
+          verificationStatus = "Verified";
+        } else if (rawStatus.toLowerCase().includes("reject")) {
+          status = "Rejected";
+          verificationStatus = "N/A";
+        }
+
+        return {
+          id: item.id,
+          fullName: `${item.first_name || ""} ${item.last_name || ""}`.trim() || "N/A",
+          traineeId: item.trainee_id || `TRN-${item.id.slice(0, 7).toUpperCase()}`,
+          email: item.email || "N/A",
+          status: status,
+          verificationStatus: verificationStatus,
+        };
+      });
+
+      setTrainees(formatted);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchTrainees();
+  }, []);
+
+  // 2. Approve Trainee
+const handleApprove = async (id) => {
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ registration_status: "Approved" }) // <--- UPDATED TO registration_status
+    .eq("id", id)
+    .select();
+
+  if (error) {
+    alert(`Failed to approve: ${error.message}`);
+  } else if (!data || data.length === 0) {
+    alert("Update failed: No record was updated.");
+  } else {
     setTrainees((prev) =>
       prev.map((trainee) =>
         trainee.id === id
@@ -140,22 +83,22 @@ function TraineeManagement() {
           : trainee
       )
     );
-  };
+  }
+};
 
-  /*
-  |--------------------------------------------------------------------------
-  | REJECT TRAINEE
-  |--------------------------------------------------------------------------
-  | Current: Updates frontend state only.
-  |
-  | TODO (Backend):
-  | Replace with API request.
-  |
-  | Example:
-  | PATCH /api/trainees/:id/reject
-  |--------------------------------------------------------------------------
-  */
-  const handleReject = (id) => {
+// 3. Reject Trainee
+const handleReject = async (id) => {
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ registration_status: "Rejected" }) // <--- UPDATED TO registration_status
+    .eq("id", id)
+    .select();
+
+  if (error) {
+    alert(`Failed to reject: ${error.message}`);
+  } else if (!data || data.length === 0) {
+    alert("Update failed: No record was updated.");
+  } else {
     setTrainees((prev) =>
       prev.map((trainee) =>
         trainee.id === id
@@ -167,40 +110,23 @@ function TraineeManagement() {
           : trainee
       )
     );
+  }
+};
+
+  // 4. Delete Trainee
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this record?")) return;
+
+    const { error } = await supabase.from("profiles").delete().eq("id", id);
+
+    if (error) {
+      alert(`Failed to delete: ${error.message}`);
+    } else {
+      setTrainees((prev) => prev.filter((trainee) => trainee.id !== id));
+    }
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | DELETE TRAINEE
-  |--------------------------------------------------------------------------
-  | Current: Removes trainee from frontend state only.
-  |
-  | TODO (Backend):
-  | Replace with API request.
-  |
-  | Example:
-  | DELETE /api/trainees/:id
-  |--------------------------------------------------------------------------
-  */
-  const handleDelete = (id) => {
-    setTrainees((prev) => prev.filter((trainee) => trainee.id !== id));
-  };
-
-  /*
-  |--------------------------------------------------------------------------
-  | FRONTEND FILTERING
-  |--------------------------------------------------------------------------
-  | Current: Filtering is done on the frontend.
-  |
-  | TODO (Backend - Optional):
-  | If dataset becomes large, filtering can be moved to API queries.
-  |
-  | Supported search fields:
-  | - fullName
-  | - email
-  | - traineeId
-  |--------------------------------------------------------------------------
-  */
+  // 5. Frontend Search & Filtering Logic
   const filteredTrainees = trainees.filter((trainee) => {
     const searchValue = search.toLowerCase();
 
@@ -224,19 +150,14 @@ function TraineeManagement() {
       {/* Page Header */}
       <div className="mb-6">
         <h1 className="text-4xl font-bold text-gray-900">Trainees</h1>
-
-        <p className="text-gray-600">
-          Manage and review trainee accounts
-        </p>
+        <p className="text-gray-600">Manage and review trainee accounts</p>
       </div>
 
       {/* Search and Filter Controls */}
       <div className="mb-5 rounded-2xl bg-white p-3 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
         <div className="flex flex-col gap-4 lg:flex-row">
           <SearchBar search={search} setSearch={setSearch} />
-
           <StatusFilter value={statusFilter} onChange={setStatusFilter} />
-
           <VerificationFilter
             value={verificationFilter}
             onChange={setVerificationFilter}
@@ -246,12 +167,18 @@ function TraineeManagement() {
 
       {/* Trainee Data Table */}
       <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
-        <TraineeTable
-          trainees={filteredTrainees}
-          onApprove={handleApprove}
-          onReject={handleReject}
-          onDelete={handleDelete}
-        />
+        {loading ? (
+          <div className="py-12 text-center text-gray-500 font-medium">
+            Loading trainees from database...
+          </div>
+        ) : (
+          <TraineeTable
+            trainees={filteredTrainees}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onDelete={handleDelete}
+          />
+        )}
       </div>
     </div>
   );
