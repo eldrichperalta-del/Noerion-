@@ -106,21 +106,21 @@ export default function Registration() {
       }
 
       // 3. Insert/Upsert into public.profiles
-      const formattedRole = isAssessor ? "assessor" : "trainee";
-      const { error: profileError } = await supabase.from("profiles").upsert({
-        id: userId,
-        role: formattedRole,
-        first_name: form.firstName,
-        middle_name: form.middleName || null,
-        last_name: form.lastName,
-        suffix: form.suffix || null,
-        gender: form.gender,
-        date_of_birth: form.birthDate,
-        contact_number: form.contactNumber,
-        email: form.email,
-        profile_photo_url: profilePhotoUrl,
-        approval_status: "Pending Approval",
-      });
+const formattedRole = isAssessor ? "assessor" : "trainee";
+const { error: profileError } = await supabase.from("profiles").upsert({
+  id: userId,
+  role: formattedRole,
+  first_name: form.firstName,
+  middle_name: form.middleName || null,
+  last_name: form.lastName,
+  suffix: form.suffix || null,
+  gender: form.gender,
+  date_of_birth: form.birthDate,
+  contact_number: form.contactNumber,
+  email: form.email,
+  profile_photo_url: profilePhotoUrl,
+  registration_status: "Pending Approval", // FIXED: Changed from approval_status
+});
 
       if (profileError) throw profileError;
 

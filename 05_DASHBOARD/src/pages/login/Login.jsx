@@ -48,29 +48,32 @@ export default function Login() {
                 throw new Error("Unable to authenticate user ID.");
             }
 
-            // 4. Fetch the user's approval status from public.profiles
-            const { data: profile, error: profileError } = await supabase
-                .from("profiles")
-                .select("approval_status, role")
-                .eq("id", userId)
-                .single();
+            /// 4. Fetch the user's status from public.profiles
+const { data: profile, error: profileError } = await supabase
+  .from("profiles")
+  .select("registration_status, role")
+  .eq("id", userId)
+  .single();
 
-            if (profileError) {
-                await supabase.auth.signOut();
-                throw new Error("Could not retrieve profile status.");
-            }
+if (profileError) {
+  await supabase.auth.signOut();
+  throw new Error("Could not retrieve profile status.");
+}
 
-            // 5. Check approval status before letting them proceed
-           // 5. Check approval status before letting them proceed
-            if (profile.role !== "admin" && profile.approval_status === "Pending Approval") {
-                await supabase.auth.signOut(); // Revoke session
-                throw new Error("Your account is currently pending approval by the TESDA Administrator.");
-            }
+const userStatus = (profile.registration_status || "Pending").toLowerCase();
 
-            if (profile.approval_status === "Rejected") {
-                await supabase.auth.signOut(); // Revoke session
-                throw new Error("Your registration request has been declined.");
-            }
+// 5. Enforce approval check for non-admins
+if (profile.role?.toLowerCase() !== "admin") {
+  if (userStatus.includes("reject")) {
+    await supabase.auth.signOut();
+    throw new Error("Your registration request has been declined.");
+  }
+
+  if (!userStatus.includes("approved")) {
+    await supabase.auth.signOut();
+    throw new Error("Your account is currently pending approval by the TESDA Administrator.");
+  }
+}
 
             // 6. Success! Account is approved
             console.log("LOGIN SUCCESS:", data);

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../../../supabaseClient"; // Adjust path to your supabase client
+import { supabase } from "../../../supabaseClient";
 
 import SearchBar from "../../../components/admin/shared/SearchBar";
 import StatusFilter from "../../../components/admin/trainee-management/StatusFilter";
@@ -26,7 +26,8 @@ function TraineeManagement() {
       console.error("Error fetching trainees:", error.message);
     } else if (data) {
       const formatted = data.map((item) => {
-        const rawStatus = item.approval_status || "Pending Approval";
+        // FIXED: Check registration_status first instead of approval_status
+        const rawStatus = item.registration_status || item.approval_status || "Pending";
         
         // Normalize status display
         let status = "Pending";
@@ -60,57 +61,47 @@ function TraineeManagement() {
   }, []);
 
   // 2. Approve Trainee
-const handleApprove = async (id) => {
+  const handleApprove = async (id) => {
   const { data, error } = await supabase
     .from("profiles")
-    .update({ registration_status: "Approved" }) // <--- UPDATED TO registration_status
+    .update({ registration_status: "Approved" })
     .eq("id", id)
     .select();
 
   if (error) {
     alert(`Failed to approve: ${error.message}`);
-  } else if (!data || data.length === 0) {
-    alert("Update failed: No record was updated.");
-  } else {
-    setTrainees((prev) =>
-      prev.map((trainee) =>
-        trainee.id === id
-          ? {
-              ...trainee,
-              status: "Approved",
-              verificationStatus: "Verified",
-            }
-          : trainee
-      )
-    );
+    return;
   }
+
+  setTrainees((prev) =>
+    prev.map((trainee) =>
+      trainee.id === id
+        ? { ...trainee, status: "Approved", verificationStatus: "Verified" }
+        : trainee
+    )
+  );
 };
 
-// 3. Reject Trainee
-const handleReject = async (id) => {
+  // 3. Reject Trainee
+  const handleReject = async (id) => {
   const { data, error } = await supabase
     .from("profiles")
-    .update({ registration_status: "Rejected" }) // <--- UPDATED TO registration_status
+    .update({ registration_status: "Rejected" })
     .eq("id", id)
     .select();
 
   if (error) {
     alert(`Failed to reject: ${error.message}`);
-  } else if (!data || data.length === 0) {
-    alert("Update failed: No record was updated.");
-  } else {
-    setTrainees((prev) =>
-      prev.map((trainee) =>
-        trainee.id === id
-          ? {
-              ...trainee,
-              status: "Rejected",
-              verificationStatus: "N/A",
-            }
-          : trainee
-      )
-    );
+    return;
   }
+
+  setTrainees((prev) =>
+    prev.map((trainee) =>
+      trainee.id === id
+        ? { ...trainee, status: "Rejected", verificationStatus: "N/A" }
+        : trainee
+    )
+  );
 };
 
   // 4. Delete Trainee
