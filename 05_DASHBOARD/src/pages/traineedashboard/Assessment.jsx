@@ -1,4 +1,4 @@
-import { Search } from "lucide-react";
+import { Calendar, Search } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAssessments } from "../../context/AssessmentContext";
@@ -9,6 +9,7 @@ export default function Assessment() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [selectedDate, setSelectedDate] = useState("");
 
   const { assessments } = useAssessments();
 
@@ -42,7 +43,8 @@ export default function Assessment() {
       statusFilter === "All" ||
       assessment.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    const matchesDate = !selectedDate || assessment.schedule.includes(selectedDate);
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   // Navigate to Assessment Overview
@@ -59,10 +61,10 @@ export default function Assessment() {
       <DashboardPageHeader title="My Assessments" subtitle="View your scheduled assessments and continue the next step in your evaluation." />
 
       {/* Search + Filter */}
-      <div className="flex items-center justify-between w-full mb-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-5">
 
         {/* Search */}
-        <div className="w-[450px] bg-white border border-gray-200 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.30)] p-4">
+        <div className="relative w-full lg:max-w-md">
 
           <div className="relative">
 
@@ -77,16 +79,7 @@ export default function Assessment() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="
-                w-full
-                pl-10
-                pr-4
-                py-3
-                border
-                border-gray-300
-                rounded-xl
-                focus:outline-none
-                focus:ring-2
-                focus:ring-blue-500
+                w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-black placeholder:text-gray-400 outline-none shadow-sm transition focus:border-[#002f86] focus:ring-2 focus:ring-blue-100
               "
             />
 
@@ -96,22 +89,13 @@ export default function Assessment() {
 
         {/* Status Filter */}
 
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.35)] p-4">
+        <div className="flex w-full gap-3 lg:w-auto">
 
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="
-              min-w-[200px]
-              px-4
-              py-3
-              border
-              border-gray-300
-              rounded-xl
-              bg-white
-              focus:outline-none
-              focus:ring-2
-              focus:ring-blue-500
+              min-w-[160px] rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm focus:border-[#002f86] focus:ring-2 focus:ring-blue-100
             "
           >
             <option value="All">All Status</option>
@@ -119,14 +103,14 @@ export default function Assessment() {
             <option value="Ongoing">Ongoing</option>
             <option value="Completed">Completed</option>
           </select>
-
+          <div className="relative flex-1 lg:w-64"><Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" /><input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm outline-none shadow-sm focus:border-[#002f86] focus:ring-2 focus:ring-blue-100" /></div>
         </div>
 
       </div>
 
       {/* Header */}
 
-      <div className="grid grid-cols-[2fr_1.2fr_1.4fr_0.8fr_1fr] gap-4 px-6 py-3 bg-white rounded-t-xl shadow-[0_4px_12px_rgba(0,0,0,0.30)] font-semibold text-gray-700">
+      <div className="grid grid-cols-[2fr_1.2fr_1.4fr_0.8fr_1fr] gap-4 rounded-xl bg-gray-200 px-6 py-3 text-xs font-bold uppercase tracking-wide text-gray-600">
 
         <div>Assessment Title</div>
 
@@ -150,7 +134,7 @@ export default function Assessment() {
 
             <div
               key={assessment.id}
-              className="grid grid-cols-[2fr_1.2fr_1.4fr_0.8fr_1fr] gap-4 items-center bg-white p-6 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.30)] hover:shadow-md transition"
+              className="grid grid-cols-[2fr_1.2fr_1.4fr_0.8fr_1fr] gap-4 items-center rounded-2xl border border-gray-100 bg-white px-6 py-5 shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
             >
 
               <div>
@@ -187,7 +171,7 @@ export default function Assessment() {
 
               <button
                 onClick={() => handleViewAssessment(assessment)}
-                className="bg-blue-700 hover:bg-blue-800 text-white px-5 py-2 rounded-lg transition"
+                className="rounded-xl bg-[#002f86] px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all duration-300 hover:bg-[#001f59] hover:shadow-lg active:scale-95"
               >
                 View Assessment
               </button>

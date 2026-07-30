@@ -19,13 +19,14 @@ function TraineeManagement() {
     setLoading(true);
     const { data, error } = await supabase
       .from("profiles")
-      .select("*")
+      .select("*, trainee_profiles(*)")
       .ilike("role", "trainee");
 
     if (error) {
       console.error("Error fetching trainees:", error.message);
     } else if (data) {
       const formatted = data.map((item) => {
+        const training = Array.isArray(item.trainee_profiles) ? item.trainee_profiles[0] : item.trainee_profiles;
         // FIXED: Check registration_status first instead of approval_status
         const rawStatus = item.registration_status || item.approval_status || "Pending";
         
@@ -48,6 +49,8 @@ function TraineeManagement() {
           email: item.email || "N/A",
           status: status,
           verificationStatus: verificationStatus,
+          ...item,
+          ...(training || {}),
         };
       });
 
@@ -83,10 +86,10 @@ function TraineeManagement() {
 };
 
   // 3. Reject Trainee
-  const handleReject = async (id) => {
+  const handleReject = async (id, rejectionReason) => {
   const { data, error } = await supabase
     .from("profiles")
-    .update({ registration_status: "Rejected" })
+    .update({ registration_status: "Rejected", rejection_reason: rejectionReason })
     .eq("id", id)
     .select();
 

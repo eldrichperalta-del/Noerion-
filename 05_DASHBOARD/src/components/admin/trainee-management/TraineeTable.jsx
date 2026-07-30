@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import RegistrationProfileModal from "../shared/RegistrationProfileModal";
 
 function TraineeTable({ trainees, onApprove, onReject }) {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedTrainee, setSelectedTrainee] = useState(null);
   const menuRef = useRef(null);
 
   // Same as Assessment Management: 5 records per page.
@@ -52,16 +54,6 @@ function TraineeTable({ trainees, onApprove, onReject }) {
     }
 
     return "bg-gray-100 text-gray-700";
-  };
-
-  const handleApprove = (id) => {
-    onApprove(id);
-    setOpenMenuId(null);
-  };
-
-  const handleReject = (id) => {
-    onReject(id);
-    setOpenMenuId(null);
   };
 
   return (
@@ -138,23 +130,14 @@ function TraineeTable({ trainees, onApprove, onReject }) {
                           </span>
                         </button>
 
-                        {openMenuId === trainee.id &&
-                          traineeStatus === "pending" && (
+                        {openMenuId === trainee.id && (
                             <div className="absolute right-0 top-8 z-30 w-44 overflow-hidden rounded-lg border border-gray-100 bg-white py-2 shadow-lg">
                               <button
                                 type="button"
-                                onClick={() => handleApprove(trainee.id)}
+                                onClick={() => { setSelectedTrainee(trainee); setOpenMenuId(null); }}
                                 className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-100"
                               >
-                                Approve
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => handleReject(trainee.id)}
-                                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-100"
-                              >
-                                Reject
+                                View Profile
                               </button>
                             </div>
                           )}
@@ -207,6 +190,7 @@ function TraineeTable({ trainees, onApprove, onReject }) {
           </div>
         </div>
       </div>
+      <RegistrationProfileModal profile={selectedTrainee} title="Trainee Profile" onClose={() => setSelectedTrainee(null)} onApprove={onApprove} onReject={onReject} />
     </div>
   );
 }

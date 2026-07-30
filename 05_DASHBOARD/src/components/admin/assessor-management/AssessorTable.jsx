@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import EditAssessorModal from "./EditAssessorModal";
+import RegistrationProfileModal from "../shared/RegistrationProfileModal";
 
 function AssessorTable({
   assessors,
@@ -8,9 +9,11 @@ function AssessorTable({
   onReactivate,
   onDelete,
   onUpdate,
+  onReject,
 }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedAssessor, setSelectedAssessor] = useState(null);
+  const [profileAssessor, setProfileAssessor] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const menuRef = useRef(null);
@@ -117,9 +120,6 @@ function AssessorTable({
                 <th className="px-4 py-4 text-left font-bold">Assessor ID</th>
                 <th className="px-4 py-4 text-left font-bold">Email</th>
                 <th className="px-4 py-4 text-left font-bold">Status</th>
-                <th className="px-4 py-4 text-left font-bold">
-                  Verification Status
-                </th>
                 <th className="px-4 py-4 text-center font-bold">Actions</th>
               </tr>
             </thead>
@@ -127,8 +127,6 @@ function AssessorTable({
             <tbody>
               {paginatedAssessors.length > 0 ? (
                 paginatedAssessors.map((assessor, index) => {
-                  const verificationStatus =
-                    assessor.verificationStatus?.toLowerCase().trim();
 
                   return (
                     <tr
@@ -156,20 +154,6 @@ function AssessorTable({
                       </td>
 
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`h-3 w-3 rounded-full ${
-                              verificationStatus === "verified"
-                                ? "bg-blue-500"
-                                : "bg-yellow-400"
-                            }`}
-                          />
-
-                          <span>{assessor.verificationStatus}</span>
-                        </div>
-                      </td>
-
-                      <td className="px-4 py-3">
                         <div
                           ref={openMenuId === assessor.id ? menuRef : null}
                           className="relative flex justify-center"
@@ -193,43 +177,7 @@ function AssessorTable({
 
                           {openMenuId === assessor.id && (
                             <div className="absolute right-0 top-8 z-30 w-44 overflow-hidden rounded-lg border border-gray-100 bg-white py-2 shadow-lg">
-                              {verificationStatus === "verified" ? (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleEditClick(assessor)}
-                                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-100"
-                                  >
-                                    Edit
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleDeactivate(assessor.id)
-                                    }
-                                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-100"
-                                  >
-                                    Deactivate
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDelete(assessor.id)}
-                                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50"
-                                  >
-                                    Delete
-                                  </button>
-                                </>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => handleReactivate(assessor.id)}
-                                  className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-100"
-                                >
-                                  Reactivate
-                                </button>
-                              )}
+                              <button type="button" onClick={() => { setProfileAssessor(assessor); setOpenMenuId(null); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-100">View Profile</button>
                             </div>
                           )}
                         </div>
@@ -239,7 +187,7 @@ function AssessorTable({
                 })
               ) : (
                 <tr>
-                  <td colSpan="7" className="py-8 text-center text-gray-500">
+                <td colSpan="6" className="py-8 text-center text-gray-500">
                     No assessors found.
                   </td>
                 </tr>
@@ -298,6 +246,7 @@ function AssessorTable({
         setFormData={setFormData}
         onUpdate={handleUpdate}
       />
+      <RegistrationProfileModal profile={profileAssessor} title="Assessor Profile" onClose={() => setProfileAssessor(null)} onApprove={(id) => handleReactivate(id)} onReject={onReject} />
     </>
   );
 }

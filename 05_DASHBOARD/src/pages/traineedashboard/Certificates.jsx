@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, ChevronDown } from "lucide-react";
+import { CalendarDays, ChevronDown, Search } from "lucide-react";
 import CertificateTemplate from "../../components/traineedashboard/certificate/CertificateTemplate";
 import DashboardPageHeader from "../../components/common/DashboardPageHeader";
 
@@ -59,6 +59,7 @@ export default function Certificates() {
   ];
 
   const [statusFilter, setStatusFilter] = useState("All");
+  const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [printCertificate, setPrintCertificate] = useState(null);
 
@@ -95,9 +96,13 @@ export default function Certificates() {
       const matchesDate =
         !dateFilter || certificate.issued === dateFilter;
 
-      return matchesStatus && matchesDate;
+      const matchesSearch = `${certificate.name} ${certificate.certificateId} ${certificate.qualification}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+
+      return matchesStatus && matchesDate && matchesSearch;
     });
-  }, [statusFilter, dateFilter]);
+  }, [statusFilter, dateFilter, searchTerm]);
 
   return (
     <>
@@ -117,15 +122,17 @@ export default function Certificates() {
 
       <div className="p-0">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="mb-8">
           <DashboardPageHeader
             title="My Certificates"
             subtitle="View, download, and keep track of your earned certificates."
           />
 
-          <div className="flex gap-3">
+          <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative w-full lg:max-w-md"><Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" /><input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search certificates" className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm outline-none shadow-sm focus:border-[#002f86] focus:ring-2 focus:ring-blue-100" /></div>
+            <div className="flex flex-col gap-3 sm:flex-row">
             {/* Status */}
-            <div className="bg-white rounded-xl p-3 shadow-[0_4px_12px_rgba(0,0,0,0.30)]">
+            <div className="rounded-xl bg-white shadow-sm">
               <div className="relative">
                 <select
                   value={statusFilter}
@@ -145,7 +152,7 @@ export default function Certificates() {
             </div>
 
             {/* Date */}
-            <div className="bg-white rounded-xl p-3 shadow-[0_4px_12px_rgba(0,0,0,0.30)]">
+            <div className="rounded-xl bg-white shadow-sm">
               <div className="relative">
                 <CalendarDays
                   size={17}
@@ -160,11 +167,12 @@ export default function Certificates() {
                 />
               </div>
             </div>
+            </div>
           </div>
         </div>
 
         {/* Header Container */}
-        <div className="mb-4 rounded-2xl bg-white px-6 py-4 shadow-[0_4px_12px_rgba(0,0,0,0.30)]">
+        <div className="mb-4 rounded-xl bg-gray-200 px-6 py-3">
           <div className="grid grid-cols-[2fr_1.5fr_1fr_0.8fr_1fr] gap-4 text-sm font-semibold text-gray-700">
             <p>Certificate Name / ID</p>
             <p>Qualification / Skill</p>
@@ -180,7 +188,7 @@ export default function Certificates() {
             filteredCertificates.map((certificate) => (
               <div
                 key={certificate.id}
-                className="grid grid-cols-[2fr_1.5fr_1fr_0.8fr_1fr] gap-4 items-center rounded-2xl bg-white px-6 py-5 shadow-[0_4px_12px_rgba(0,0,0,0.30)]  hover:shadow-md transition"
+              className="grid grid-cols-[2fr_1.5fr_1fr_0.8fr_1fr] gap-4 items-center rounded-2xl border border-gray-100 bg-white px-6 py-5 shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
               >
                 {/* Certificate */}
                 <div>

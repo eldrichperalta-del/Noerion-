@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import SearchBar from "../../../components/admin/shared/SearchBar";
 import AssessorTable from "../../../components/admin/assessor-management/AssessorTable";
 import AssessorStatusFilter from "../../../components/admin/assessor-management/AssessorStatusFilter";
-import AssessorVerificationFilter from "../../../components/admin/assessor-management/AssessorVerificationFilter";
 
 /*
 |--------------------------------------------------------------------------
@@ -93,7 +92,6 @@ function AssessorManagement() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [verificationFilter, setVerificationFilter] = useState("All");
 
   /*
   |--------------------------------------------------------------------------
@@ -144,6 +142,10 @@ function AssessorManagement() {
     );
   };
 
+  const handleReject = (id, rejectionReason) => {
+    setAssessors((prev) => prev.map((assessor) => assessor.id === id ? { ...assessor, status: "Inactive", rejectionReason } : assessor));
+  };
+
   const handleDelete = (id) => {
     setAssessors((prev) => prev.filter((assessor) => assessor.id !== id));
   };
@@ -177,11 +179,7 @@ function AssessorManagement() {
     const matchesStatus =
       statusFilter === "All" || assessor.status === statusFilter;
 
-    const matchesVerification =
-      verificationFilter === "All" ||
-      assessor.verificationStatus === verificationFilter;
-
-    return matchesSearch && matchesStatus && matchesVerification;
+    return matchesSearch && matchesStatus;
   });
 
   return (
@@ -215,10 +213,6 @@ function AssessorManagement() {
             onChange={setStatusFilter}
           />
 
-          <AssessorVerificationFilter
-            value={verificationFilter}
-            onChange={setVerificationFilter}
-          />
         </div>
       </div>
 
@@ -230,6 +224,7 @@ function AssessorManagement() {
           onReactivate={handleReactivate}
           onDelete={handleDelete}
           onUpdate={handleUpdateAssessor}
+          onReject={handleReject}
         />
       </div>
     </div>

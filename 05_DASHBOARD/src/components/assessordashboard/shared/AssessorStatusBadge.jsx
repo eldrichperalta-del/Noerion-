@@ -4,6 +4,7 @@ export default function AssessorStatusBadge({ status }) {
   const statusClass =
     {
       pending: "bg-amber-100 text-amber-700",
+      scheduled: "bg-sky-100 text-sky-700",
       ongoing: "bg-sky-100 text-sky-700",
       completed: "bg-green-100 text-green-700",
       valid: "bg-emerald-100 text-emerald-700",
