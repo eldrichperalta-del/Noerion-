@@ -48,37 +48,52 @@ export default function Login() {
                 throw new Error("Unable to authenticate user ID.");
             }
 
-            /// 4. Fetch the user's status from public.profiles
-const { data: profile, error: profileError } = await supabase
-  .from("profiles")
-  .select("registration_status, role")
-  .eq("id", userId)
-  .single();
+            // 4. Fetch the user's status and rejection reason from public.profiles
+            const { data: profile, error: profileError } = await supabase
+                .from("profiles")
+                .select("registration_status, role, rejected_reason")
+                .eq("id", userId)
+                .single();
 
-if (profileError) {
-  await supabase.auth.signOut();
-  throw new Error("Could not retrieve profile status.");
-}
+            if (profileError) {
+                await supabase.auth.signOut();
+                throw new Error("Could not retrieve profile status.");
+            }
 
-const userStatus = (profile.registration_status || "Pending").toLowerCase();
+            const userStatus = (profile.registration_status || "Pending").toLowerCase().trim();
 
-// 5. Enforce approval check for non-admins
-if (profile.role?.toLowerCase() !== "admin") {
-  if (userStatus.includes("reject")) {
-    await supabase.auth.signOut();
-    throw new Error("Your registration request has been declined.");
-  }
+            // 5. Status Access Controls for non-admins
+            if (profile.role?.toLowerCase() !== "admin") {
+                // If rejected
+                if (userStatus === "rejected" || userStatus.includes("reject")) {
+                    await supabase.auth.signOut();
+                    const reasonMsg = profile.rejected_reason ? ` Reason: ${profile.rejected_reason}` : "";
+                    throw new Error(`Your registration request has been rejected.${reasonMsg}`);
+                }
 
-  if (!userStatus.includes("approved")) {
-    await supabase.auth.signOut();
-    throw new Error("Your account is currently pending approval by the TESDA Administrator.");
-  }
-}
+                // If deactivated/inactive
+                if (userStatus === "inactive") {
+                    await supabase.auth.signOut();
+                    throw new Error("Your account is currently deactivated. Please contact the administrator.");
+                }
 
-            // 6. Success! Account is approved
+                // If pending approval
+                if (userStatus === "pending") {
+                    await supabase.auth.signOut();
+                    throw new Error("Your account is currently pending approval by the TESDA Administrator.");
+                }
+
+                // Only permit login if active or approved
+                if (userStatus !== "active" && userStatus !== "approved") {
+                    await supabase.auth.signOut();
+                    throw new Error("Your account is not active. Please contact support.");
+                }
+            }
+
+            // 6. Success! Account is active/approved
             console.log("LOGIN SUCCESS:", data);
             navigate("/loading");
-            
+
         } catch (err) {
             setError(err.message);
         } finally {

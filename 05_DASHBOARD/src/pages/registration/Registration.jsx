@@ -5,7 +5,7 @@ import {
   Eye, EyeOff, IdCard, ImagePlus, Info, LockKeyhole, Mail, Upload, UserRound, X, Loader2
 } from "lucide-react";
 import AnimatedWave from "../login/AnimatedWave";
-import { supabase } from "../../supabaseClient"; // Ensure path points to your supabase client
+import { supabase } from "../../supabaseClient";
 
 const inputClass = "w-full h-11 rounded-xl border border-cyan-300/30 bg-slate-800/70 px-3 text-sm text-white outline-none placeholder:text-slate-400 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20";
 
@@ -73,10 +73,16 @@ export default function Registration() {
     setPhotoInputKey((key) => key + 1); 
   };
 
-  const uploadFile = async (file, bucket, folder) => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-    const { error } = await supabase.storage.from(bucket).upload(fileName, file);
+  const uploadFile = async (file, bucket, prefix = "") => {
+    const fileExt = file.name.split('.').pop() || 'bin';
+    const uuid = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 11);
+    const fileName = prefix ? `${prefix}_${uuid}.${fileExt}` : `${uuid}.${fileExt}`;
+
+    const { error } = await supabase.storage.from(bucket).upload(fileName, file, {
+      cacheControl: '3600',
+      upsert: false
+    });
+
     if (error) throw error;
     
     const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(fileName);
@@ -102,25 +108,25 @@ export default function Registration() {
       // 2. Upload Profile Photo
       let profilePhotoUrl = "";
       if (photoFile) {
-        profilePhotoUrl = await uploadFile(photoFile, "avatars", userId);
+        profilePhotoUrl = await uploadFile(photoFile, "avatars", `${userId}_avatar`);
       }
 
       // 3. Insert/Upsert into public.profiles
-const formattedRole = isAssessor ? "assessor" : "trainee";
-const { error: profileError } = await supabase.from("profiles").upsert({
-  id: userId,
-  role: formattedRole,
-  first_name: form.firstName,
-  middle_name: form.middleName || null,
-  last_name: form.lastName,
-  suffix: form.suffix || null,
-  gender: form.gender,
-  date_of_birth: form.birthDate,
-  contact_number: form.contactNumber,
-  email: form.email,
-  profile_photo_url: profilePhotoUrl,
-  registration_status: "Pending Approval", // FIXED: Changed from approval_status
-});
+      const formattedRole = isAssessor ? "assessor" : "trainee";
+      const { error: profileError } = await supabase.from("profiles").upsert({
+        id: userId,
+        role: formattedRole,
+        first_name: form.firstName,
+        middle_name: form.middleName || null,
+        last_name: form.lastName,
+        suffix: form.suffix || null,
+        gender: form.gender,
+        date_of_birth: form.birthDate,
+        contact_number: form.contactNumber,
+        email: form.email,
+        profile_photo_url: profilePhotoUrl,
+        registration_status: "Pending", // UPDATED: Changed from "Pending Approval" to "Pending"
+      });
 
       if (profileError) throw profileError;
 
@@ -130,10 +136,10 @@ const { error: profileError } = await supabase.from("profiles").upsert({
         let governmentIdUrl = "";
 
         if (documents.accreditation) {
-          accreditationUrl = await uploadFile(documents.accreditation, "verification-docs", `${userId}/accreditation`);
+          accreditationUrl = await uploadFile(documents.accreditation, "verification-docs", `${userId}_accreditation`);
         }
         if (documents.governmentId) {
-          governmentIdUrl = await uploadFile(documents.governmentId, "verification-docs", `${userId}/gov_id`);
+          governmentIdUrl = await uploadFile(documents.governmentId, "verification-docs", `${userId}_govid`);
         }
 
         const { error: assessorError } = await supabase.from("assessor_profiles").insert({
@@ -160,7 +166,6 @@ const { error: profileError } = await supabase.from("profiles").upsert({
       }
 
       // 5. SIGN OUT THE USER IMMEDIATELY
-      // Prevents pending users from being logged in right after registration
       await supabase.auth.signOut();
 
       setStep(4); // Move to Success Screen
@@ -241,13 +246,37 @@ const { error: profileError } = await supabase.from("profiles").upsert({
 }
 
 function AccountType({ role, onChange }) {
-  const choices = [{ key: "trainee", label: "Trainee", Icon: GraduationCap, description: "Develop your skills, access comprehensive training resources, and track your progress in your professional development journey." }, { key: "assessor", label: "Assessor", Icon: ClipboardCheck, description: "Evaluate performances, provide valuable feedback to trainees, and manage assessments within your designated programs." }];
-  return <section><h2 className="mb-3 text-base font-semibold text-slate-100">Select Account Type</h2><div className="grid gap-3 sm:grid-cols-2">{choices.map(({ key, label, Icon, description }) => <button key={key} onClick={() => onChange(key)} className={`min-h-52 rounded-xl border p-5 text-center transition ${role === key ? "border-cyan-300 bg-cyan-300/10 shadow-[0_0_18px_rgba(34,211,238,.4)]" : "border-slate-500/40 bg-slate-900/50 hover:border-cyan-300/60"}`}><Icon className="mx-auto mb-3 text-cyan-200" size={42} /><span className="block text-base font-bold text-white">{label}</span><span className="mt-2 block text-xs leading-5 text-slate-300">{description}</span></button>)}</div></section>;
+  const choices = [
+    { key: "trainee", label: "Trainee", Icon: GraduationCap, description: "Develop your skills, access comprehensive training resources, and track your progress in your professional development journey." },
+    { key: "assessor", label: "Assessor", Icon: ClipboardCheck, description: "Evaluate performances, provide valuable feedback to trainees, and manage assessments within your designated programs." }
+  ];
+  return (
+    <section>
+      <h2 className="mb-3 text-base font-semibold text-slate-100">Select Account Type</h2>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {choices.map(({ key, label, Icon, description }) => (
+          <button key={key} onClick={() => onChange(key)} className={`min-h-52 rounded-xl border p-5 text-center transition ${role === key ? "border-cyan-300 bg-cyan-300/10 shadow-[0_0_18px_rgba(34,211,238,.4)]" : "border-slate-500/40 bg-slate-900/50 hover:border-cyan-300/60"}`}>
+            <Icon className="mx-auto mb-3 text-cyan-200" size={42} />
+            <span className="block text-base font-bold text-white">{label}</span>
+            <span className="mt-2 block text-xs leading-5 text-slate-300">{description}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function PasswordField({ name, placeholder, value, onChange }) {
   const [visible, setVisible] = useState(false);
-  return <label className="relative block"><LockKeyhole size={15} className="pointer-events-none absolute left-3 top-3 text-cyan-200/75" /><input className={`${inputClass} px-9 pr-10`} name={name} value={value || ""} onChange={onChange} placeholder={placeholder} type={visible ? "text" : "password"} /><button type="button" onClick={() => setVisible(!visible)} className="absolute right-3 top-2.5 text-cyan-300" aria-label={visible ? "Hide password" : "Show password"}>{visible ? <EyeOff size={18} /> : <Eye size={18} />}</button></label>;
+  return (
+    <label className="relative block">
+      <LockKeyhole size={15} className="pointer-events-none absolute left-3 top-3 text-cyan-200/75" />
+      <input className={`${inputClass} px-9 pr-10`} name={name} value={value || ""} onChange={onChange} placeholder={placeholder} type={visible ? "text" : "password"} />
+      <button type="button" onClick={() => setVisible(!visible)} className="absolute right-3 top-2.5 text-cyan-300" aria-label={visible ? "Hide password" : "Show password"}>
+        {visible ? <EyeOff size={18} /> : <Eye size={18} />}
+      </button>
+    </label>
+  );
 }
 
 function PersonalForm({ form, update }) {
@@ -310,6 +339,7 @@ function Verification({ isAssessor, form, update, documents, setDocuments, photo
           <div className="grid gap-3 sm:grid-cols-2">
             <Document 
               label="TESDA Assessor Accreditation Certificate" 
+              file={documents.accreditation}
               required 
               onChange={(event) => {
                 const file = event.target.files?.[0] || null;
@@ -318,6 +348,7 @@ function Verification({ isAssessor, form, update, documents, setDocuments, photo
             />
             <Document 
               label="Government-issued ID" 
+              file={documents.governmentId}
               onChange={(event) => {
                 const file = event.target.files?.[0] || null;
                 setDocuments((current) => ({ ...current, governmentId: file }));
@@ -329,14 +360,14 @@ function Verification({ isAssessor, form, update, documents, setDocuments, photo
 
       <label className="mt-3 flex cursor-pointer gap-2 rounded-lg border border-cyan-200/55 bg-slate-900/60 p-3 text-xs leading-4 text-slate-200">
         <input checked={accepted} onChange={(event) => setAccepted(event.target.checked)} type="checkbox" className="mt-0.5 accent-cyan-400" />
-        I certify that all information provided is true and accurate. I understand that my registration will remain in Pending Approval status until verified and approved by the TESDA Administrator.
+        I certify that all information provided is true and accurate. I understand that my registration will remain in Pending status until verified and approved by the TESDA Administrator.
       </label>
 
       <div className="mt-3 rounded-lg border border-sky-300/30 bg-sky-300/10 p-3 text-xs text-slate-200">
         <p className="mb-1 font-semibold"><Info className="mr-1 inline text-cyan-300" size={14} />What happens next?</p>
         <ul className="list-inside list-disc space-y-0.5 text-slate-300">
           <li>Your request is submitted to the TESDA Administrator.</li>
-          <li>Your account remains in Pending Approval while information is reviewed.</li>
+          <li>Your account remains in Pending status while information is reviewed.</li>
           <li>Once approved, you will receive an email notification.</li>
         </ul>
       </div>
@@ -344,15 +375,18 @@ function Verification({ isAssessor, form, update, documents, setDocuments, photo
   );
 }
 
-function Document({ label, required, onChange }) {
+function Document({ label, required, file, onChange }) {
   return (
-    <label className="rounded-lg border border-dashed border-cyan-200/50 bg-slate-900/50 p-3 text-xs text-slate-200">
-      <b className="block">{label} {required && <span className="text-cyan-300">Required</span>}</b>
+    <label className="block rounded-lg border border-dashed border-cyan-200/50 bg-slate-900/50 p-3 text-xs text-slate-200 cursor-pointer hover:border-cyan-300/80 transition">
+      <b className="block">{label} {required && <span className="text-cyan-300">*Required</span>}</b>
       <span className="block py-1 text-slate-400">PDF, JPG, or PNG · Maximum 10 MB</span>
-      <span className="inline-flex items-center gap-1 text-cyan-200">
-        <Upload size={13} /> 
-        <input onChange={onChange} type="file" accept="image/jpeg,image/png,application/pdf" className="max-w-44 text-xs" />
-      </span>
+      <div className="mt-1 flex items-center gap-1.5 text-cyan-200">
+        <Upload size={13} />
+        <span className="truncate max-w-[200px] font-medium">
+          {file ? file.name : "Choose File"}
+        </span>
+        <input onChange={onChange} type="file" accept="image/jpeg,image/png,application/pdf" className="hidden" />
+      </div>
     </label>
   );
 }
@@ -376,7 +410,7 @@ function Success({ onLogin }) {
         </p>
         <div className="mt-5 flex justify-between rounded-lg border border-slate-500/40 bg-slate-800/70 p-3 text-sm text-slate-100">
           <span>Status</span>
-          <span className="font-semibold text-amber-300">● Pending Approval</span>
+          <span className="font-semibold text-amber-300">● Pending</span>
         </div>
         <div className="mt-3 rounded-lg bg-sky-300/10 p-3 text-left text-xs text-slate-300">
           <Info className="mr-1 inline text-cyan-300" size={14} />

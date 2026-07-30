@@ -7,9 +7,10 @@ function AssessorTable({
   assessors,
   onDeactivate,
   onReactivate,
+  onApprove,
+  onReject,
   onDelete,
   onUpdate,
-  onReject,
 }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedAssessor, setSelectedAssessor] = useState(null);
@@ -18,7 +19,6 @@ function AssessorTable({
   const [currentPage, setCurrentPage] = useState(1);
   const menuRef = useRef(null);
 
-  // Same rule as Assessment and Trainee Management: 5 records per page.
   const rowsPerPage = 5;
 
   const [formData, setFormData] = useState({
@@ -27,7 +27,6 @@ function AssessorTable({
     email: "",
   });
 
-  // Close action menu when clicking outside.
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -36,13 +35,11 @@ function AssessorTable({
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
-  // Reset to page 1 when filtered assessor data changes.
   useEffect(() => {
     setCurrentPage(1);
   }, [assessors.length]);
@@ -61,56 +58,16 @@ function AssessorTable({
     if (normalizedStatus === "active") {
       return "bg-green-100 text-green-700";
     }
-
-    if (normalizedStatus === "inactive") {
+    if (normalizedStatus === "inactive" || normalizedStatus === "rejected") {
       return "bg-red-100 text-red-700";
     }
 
-    return "bg-gray-100 text-gray-700";
-  };
-
-  const handleEditClick = (assessor) => {
-    setSelectedAssessor(assessor);
-
-    setFormData({
-      fullName: assessor.fullName,
-      assessorId: assessor.assessorId,
-      email: assessor.email,
-    });
-
-    setShowEditModal(true);
-    setOpenMenuId(null);
-  };
-
-  const handleDeactivate = (id) => {
-    onDeactivate(id);
-    setOpenMenuId(null);
-  };
-
-  const handleReactivate = (id) => {
-    onReactivate(id);
-    setOpenMenuId(null);
-  };
-
-  const handleDelete = (id) => {
-    onDelete(id);
-    setOpenMenuId(null);
-  };
-
-  const handleUpdate = () => {
-    onUpdate({
-      ...selectedAssessor,
-      ...formData,
-    });
-
-    setShowEditModal(false);
-    setSelectedAssessor(null);
+    return "bg-amber-100 text-amber-700";
   };
 
   return (
     <>
       <div className="overflow-hidden rounded-xl border-2 border-gray-100 shadow-[0_4px_12px_rgba(0,0,0,0.20)]">
-        {/* Same as Assessment Management: horizontal overflow only, no vertical scroll. */}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-200">
@@ -127,20 +84,14 @@ function AssessorTable({
             <tbody>
               {paginatedAssessors.length > 0 ? (
                 paginatedAssessors.map((assessor, index) => {
-
                   return (
                     <tr
                       key={assessor.id}
                       className="border-b border-gray-300 hover:bg-gray-100"
                     >
-                      <td className="px-4 py-3">
-                        {startIndex + index + 1}
-                      </td>
-
+                      <td className="px-4 py-3">{startIndex + index + 1}</td>
                       <td className="px-4 py-3">{assessor.fullName}</td>
-
                       <td className="px-4 py-3">{assessor.assessorId}</td>
-
                       <td className="px-4 py-3">{assessor.email}</td>
 
                       <td className="px-4 py-3">
@@ -177,7 +128,42 @@ function AssessorTable({
 
                           {openMenuId === assessor.id && (
                             <div className="absolute right-0 top-8 z-30 w-44 overflow-hidden rounded-lg border border-gray-100 bg-white py-2 shadow-lg">
-                              <button type="button" onClick={() => { setProfileAssessor(assessor); setOpenMenuId(null); }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-100">View Profile</button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setProfileAssessor(assessor);
+                                  setOpenMenuId(null);
+                                }}
+                                className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                              >
+                                View Profile
+                              </button>
+
+                              {assessor.status === "Active" && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onDeactivate(assessor.id);
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
+                                >
+                                  Deactivate
+                                </button>
+                              )}
+
+                              {assessor.status === "Inactive" && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onReactivate(assessor.id);
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-green-600 hover:bg-gray-100"
+                                >
+                                  Activate
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -187,7 +173,7 @@ function AssessorTable({
                 })
               ) : (
                 <tr>
-                <td colSpan="6" className="py-8 text-center text-gray-500">
+                  <td colSpan="6" className="py-8 text-center text-gray-500">
                     No assessors found.
                   </td>
                 </tr>
@@ -195,7 +181,7 @@ function AssessorTable({
             </tbody>
           </table>
 
-          {/* Same pagination footer format as Assessment and Trainee Management. */}
+          {/* Pagination Footer */}
           <div className="flex items-center justify-between border-t border-gray-200 px-4 py-4 text-sm">
             <p className="font-medium text-gray-700">
               Showing {showingStart}-{showingEnd} of {assessors.length}{" "}
@@ -205,9 +191,7 @@ function AssessorTable({
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() =>
-                  setCurrentPage((page) => Math.max(page - 1, 1))
-                }
+                onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))}
                 disabled={currentPage === 1}
                 className="flex items-center gap-1 text-gray-500 disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -235,18 +219,13 @@ function AssessorTable({
         </div>
       </div>
 
-      <EditAssessorModal
-        isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setSelectedAssessor(null);
-        }}
-        assessor={selectedAssessor}
-        formData={formData}
-        setFormData={setFormData}
-        onUpdate={handleUpdate}
+      <RegistrationProfileModal
+        profile={profileAssessor}
+        title="Assessor Profile"
+        onClose={() => setProfileAssessor(null)}
+        onApprove={(id) => onApprove(id)}
+        onReject={onReject}
       />
-      <RegistrationProfileModal profile={profileAssessor} title="Assessor Profile" onClose={() => setProfileAssessor(null)} onApprove={(id) => handleReactivate(id)} onReject={onReject} />
     </>
   );
 }
