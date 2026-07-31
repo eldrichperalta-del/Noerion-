@@ -73,19 +73,20 @@ export default function Registration() {
     setPhotoInputKey((key) => key + 1); 
   };
 
-  const uploadFile = async (file, bucket, prefix = "") => {
+  // Helper updated to support subfolder structures (e.g., pathPrefix = "userId/accreditation")
+  const uploadFile = async (file, bucket, pathPrefix = "") => {
     const fileExt = file.name.split('.').pop() || 'bin';
     const uuid = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 11);
-    const fileName = prefix ? `${prefix}_${uuid}.${fileExt}` : `${uuid}.${fileExt}`;
+    const filePath = pathPrefix ? `${pathPrefix}/${uuid}.${fileExt}` : `${uuid}.${fileExt}`;
 
-    const { error } = await supabase.storage.from(bucket).upload(fileName, file, {
+    const { error } = await supabase.storage.from(bucket).upload(filePath, file, {
       cacheControl: '3600',
       upsert: false
     });
 
     if (error) throw error;
     
-    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(fileName);
+    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filePath);
     return publicUrl;
   };
 
@@ -108,7 +109,7 @@ export default function Registration() {
       // 2. Upload Profile Photo
       let profilePhotoUrl = "";
       if (photoFile) {
-        profilePhotoUrl = await uploadFile(photoFile, "avatars", `${userId}_avatar`);
+        profilePhotoUrl = await uploadFile(photoFile, "avatars", `${userId}`);
       }
 
       // 3. Insert/Upsert into public.profiles
@@ -125,7 +126,7 @@ export default function Registration() {
         contact_number: form.contactNumber,
         email: form.email,
         profile_photo_url: profilePhotoUrl,
-        registration_status: "Pending", // UPDATED: Changed from "Pending Approval" to "Pending"
+        registration_status: "Pending",
       });
 
       if (profileError) throw profileError;
@@ -135,11 +136,20 @@ export default function Registration() {
         let accreditationUrl = "";
         let governmentIdUrl = "";
 
+        // Saved into dedicated subfolders so RegistrationProfileModal.jsx can locate them
         if (documents.accreditation) {
-          accreditationUrl = await uploadFile(documents.accreditation, "verification-docs", `${userId}_accreditation`);
+          accreditationUrl = await uploadFile(
+            documents.accreditation, 
+            "verification-docs", 
+            `${userId}/accreditation`
+          );
         }
         if (documents.governmentId) {
-          governmentIdUrl = await uploadFile(documents.governmentId, "verification-docs", `${userId}_govid`);
+          governmentIdUrl = await uploadFile(
+            documents.governmentId, 
+            "verification-docs", 
+            `${userId}/gov_id`
+          );
         }
 
         const { error: assessorError } = await supabase.from("assessor_profiles").insert({
