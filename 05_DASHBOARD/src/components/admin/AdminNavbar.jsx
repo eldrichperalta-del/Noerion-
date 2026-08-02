@@ -1,7 +1,46 @@
+import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { supabase } from "../../supabaseClient"; // Adjust relative path if needed
 
 function AdminNavbar() {
     const location = useLocation();
+    const [adminProfile, setAdminProfile] = useState({
+        name: "Admin",
+        photoUrl: "/admin.jpg"
+    });
+
+    useEffect(() => {
+        const fetchAdminProfile = async () => {
+            try {
+                // Get authenticated user
+                const { data: { user } } = await supabase.auth.getUser();
+
+                if (user) {
+                    // Query profile from Supabase
+                    const { data: profile } = await supabase
+                        .from("profiles")
+                        .select("first_name, last_name, profile_photo_url")
+                        .eq("id", user.id)
+                        .maybeSingle();
+
+                    if (profile) {
+                        const fullName = [profile.first_name, profile.last_name]
+                            .filter(Boolean)
+                            .join(" ") || "Admin";
+
+                        setAdminProfile({
+                            name: fullName,
+                            photoUrl: profile.profile_photo_url || "/admin.jpg"
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching admin profile:", error);
+            }
+        };
+
+        fetchAdminProfile();
+    }, []);
 
     const pageTitles = {
         "/admin": "Home",
@@ -38,13 +77,13 @@ function AdminNavbar() {
 
             <div className="flex items-center gap-3">
                 <img
-                    src="/admin.jpg"
-                    alt="Admin"
-                    className="w-10 h-10 rounded-full"
+                    src={adminProfile.photoUrl}
+                    alt={adminProfile.name}
+                    className="w-10 h-10 rounded-full object-cover border border-gray-200"
                 />
 
                 <span className="font-medium text-gray-800">
-                    Admin [Ash]
+                    {adminProfile.name}
                 </span>
             </div>
         </header>

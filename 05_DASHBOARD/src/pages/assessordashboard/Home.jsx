@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import AssessorPageHeader from "../../components/assessordashboard/shared/AssessorPageHeader";
@@ -5,11 +6,8 @@ import AssignedAssessmentsTable from "../../components/assessordashboard/home/As
 import AssessorNotifications from "../../components/assessordashboard/home/AssessorNotifications";
 import AssessorOverviewCards from "../../components/assessordashboard/home/AssessorOverviewCards";
 import UpcomingSchedule from "../../components/assessordashboard/home/UpcomingSchedule";
+import { supabase } from "../../supabaseClient"; // Adjust path if needed
 
-// BACKEND HANDOFF:
-// Replace these mock objects with assessor-scoped records from Supabase/API.
-// Expected joins: assessor profile, assigned assessments, trainees, courses,
-// schedules, evaluation status, and notification feed.
 const dashboardStats = {
   assignedAssessments: 15,
   ongoingAssessments: 4,
@@ -82,25 +80,55 @@ const notifications = [
   {
     id: 1,
     tone: "success",
-    message:
-      "Newly assigned: Advanced Robotics Assembly for Juan Dela Cruz",
+    message: "Newly assigned: Advanced Robotics Assembly for Juan Dela Cruz",
   },
   {
     id: 2,
     tone: "warning",
-    message:
-      "Pending evaluation: Industrial Electronics for Maria Garcia",
+    message: "Pending evaluation: Industrial Electronics for Maria Garcia",
   },
   {
     id: 3,
     tone: "info",
-    message:
-      "Schedule updated: Culinary Arts practical exam at 2:00 PM",
+    message: "Schedule updated: Culinary Arts practical exam at 2:00 PM",
   },
 ];
 
 export default function Home() {
   const navigate = useNavigate();
+  const [assessorName, setAssessorName] = useState("Assessor");
+
+  useEffect(() => {
+    const fetchAssessorName = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("first_name, last_name")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          if (profile) {
+            const fullName = [profile.first_name, profile.last_name]
+              .filter(Boolean)
+              .join(" ");
+
+            if (fullName) {
+              setAssessorName(fullName);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching assessor name for header:", error);
+      }
+    };
+
+    fetchAssessorName();
+  }, []);
 
   const handleViewDetails = () => {
     navigate("/assessor/assessment-panel");
@@ -113,7 +141,7 @@ export default function Home() {
   return (
     <div className="space-y-6">
       <AssessorPageHeader
-        title="Welcome, Assessor"
+        title={`Welcome, ${assessorName}`}
         subtitle="Manage and evaluate assigned assessment."
       />
 

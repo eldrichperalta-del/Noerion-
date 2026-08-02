@@ -1,51 +1,6 @@
-/*
-=================================================
-
-TRAINEE DASHBOARD
-
-BACKEND REQUIREMENTS
-
-Tables Needed:
-
-1. trainees
-   - id
-   - user_id
-   - full_name
-
-2. dashboard_stats
-   - trainee_id
-   - total_assessments
-   - pending_assessments
-   - latest_result
-   - certificates
-   - progress
-
-3. assessments
-   - id
-   - trainee_id
-   - assessment_name
-   - assessment_type
-   - schedule
-   - status
-   - assessment_date
-
-Frontend Status:
-✓ UI Complete
-✓ Responsive
-✓ Navigation Working
-✓ Mock Data Added
-✓ Ready For Supabase Integration
-
-=================================================
-*/
-
-
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-
-// BACKEND:
-// Uncomment when connecting Supabase
-// import { supabase } from "../../supabaseClient";
+import { supabase } from "../../supabaseClient";
 
 import {
   ClipboardList,
@@ -57,13 +12,51 @@ import {
 export default function Home() {
   const navigate = useNavigate();
 
-  // =====================================================
-  // BACKEND NOTE:
-  // These states currently contain MOCK DATA.
-  // Replace with Supabase/API data later.
-  // =====================================================
+  // Dynamic Trainee Name from Supabase
+  const [traineeName, setTraineeName] = useState("Trainee");
 
-  const [traineeName, setTraineeName] = useState("Ash");
+  // Fetch logged-in user name
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchTraineeName() {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (user && isMounted) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("first_name, last_name")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          if (profile && isMounted) {
+            const fullName = [profile.first_name, profile.last_name]
+              .filter(Boolean)
+              .join(" ");
+
+            if (fullName) {
+              setTraineeName(fullName);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching trainee name:", error);
+      }
+    }
+
+    fetchTraineeName();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // =====================================================
+  // Mock Data (Under Development)
+  // =====================================================
 
   const [stats, setStats] = useState({
     totalAssessments: 26,
@@ -106,10 +99,7 @@ export default function Home() {
 
   const [animatedProgress, setAnimatedProgress] = useState(0);
 
-  // =====================================================
   // Progress Animation
-  // =====================================================
-
   useEffect(() => {
     const timer = setTimeout(() => {
       setAnimatedProgress(stats.progress);
@@ -118,111 +108,12 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [stats.progress]);
 
-  // =====================================================
-  // BACKEND SECTION
-  // Uncomment this entire block when Supabase is ready
-  // =====================================================
-
-  /*
-  useEffect(() => {
-    async function fetchDashboardData() {
-      try {
-        // ==========================================
-        // Get Logged-in User
-        // ==========================================
-
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (!user) return;
-
-        // ==========================================
-        // Get Trainee Information
-        // ==========================================
-
-        const { data: trainee, error: traineeError } =
-          await supabase
-            .from("trainees")
-            .select("*")
-            .eq("user_id", user.id)
-            .single();
-
-        if (traineeError) throw traineeError;
-
-        setTraineeName(trainee.full_name);
-
-        // ==========================================
-        // Get Dashboard Statistics
-        // ==========================================
-
-        const { data: dashboardStats, error: statsError } =
-          await supabase
-            .from("dashboard_stats")
-            .select("*")
-            .eq("trainee_id", trainee.id)
-            .single();
-
-        if (statsError) throw statsError;
-
-        setStats({
-          totalAssessments:
-            dashboardStats.total_assessments,
-          pendingAssessments:
-            dashboardStats.pending_assessments,
-          latestResult:
-            dashboardStats.latest_result,
-          certificates:
-            dashboardStats.certificates,
-          progress:
-            dashboardStats.progress,
-        });
-
-        // ==========================================
-        // Get Upcoming Assessments
-        // ==========================================
-
-        const {
-          data: assessments,
-          error: assessmentsError,
-        } = await supabase
-          .from("assessments")
-          .select("*")
-          .eq("trainee_id", trainee.id)
-          .order("assessment_date", {
-            ascending: true,
-          });
-
-        if (assessmentsError)
-          throw assessmentsError;
-
-        setUpcomingAssessments(
-          assessments.map((assessment) => ({
-            id: assessment.id,
-            name: assessment.assessment_name,
-            type: assessment.assessment_type,
-            schedule: assessment.schedule,
-            status: assessment.status,
-          }))
-        );
-      } catch (error) {
-        console.error(
-          "Dashboard Error:",
-          error.message
-        );
-      }
-    }
-
-    fetchDashboardData();
-  }, []);
-  */
-
   return (
     <div className="space-y-4">
-      {/* Header */}
+      {/* Dynamic Welcome Header */}
       <div>
         <h1 className="text-4xl font-bold text-gray-900">
-          Welcome, Eldrich
+          Welcome, {traineeName}
         </h1>
 
         <p className="mt-1 text-gray-600">
@@ -233,7 +124,7 @@ export default function Home() {
       {/* Metrics Row */}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
         {/* Total Assessments */}
-        <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)]  border border-gray-100">
+        <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)] border border-gray-100">
           <p className="text-sm font-medium text-gray-900">
             Total Assessments Taken
           </p>
@@ -250,7 +141,7 @@ export default function Home() {
         </div>
 
         {/* Pending */}
-        <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)]  border border-gray-100">
+        <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)] border border-gray-100">
           <p className="text-sm font-medium text-gray-900">
             Pending Assessments
           </p>
@@ -267,7 +158,7 @@ export default function Home() {
         </div>
 
         {/* Latest Result */}
-        <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)]  border border-gray-100">
+        <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)] border border-gray-100">
           <p className="text-sm font-medium text-gray-900">
             Latest Result Status
           </p>
@@ -284,7 +175,7 @@ export default function Home() {
         </div>
 
         {/* Certificates */}
-        <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)]  border border-gray-100">
+        <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)] border border-gray-100">
           <p className="text-sm font-medium text-gray-900">
             Certificates Earned
           </p>
@@ -305,7 +196,7 @@ export default function Home() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         {/* Upcoming Assessments */}
         <div className="xl:col-span-2">
-          <div className="rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.35)]  border border-gray-100">
+          <div className="rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.35)] border border-gray-100">
             <h2 className="text-2xl font-semibold text-gray-900 mb-5">
               Upcoming Assessments
             </h2>
@@ -339,10 +230,11 @@ export default function Home() {
 
                     <div className="flex justify-start">
                       <span
-                        className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-medium ${assessment.status === "Scheduled"
+                        className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-medium ${
+                          assessment.status === "Scheduled"
                             ? "bg-blue-100 text-blue-700"
                             : "bg-yellow-100 text-yellow-700"
-                          }`}
+                        }`}
                       >
                         {assessment.status}
                       </span>
@@ -351,10 +243,6 @@ export default function Home() {
                 ))
               ) : (
                 <div className="py-8 text-center text-gray-500">
-                  {/* BACKEND:
-                  This message appears when no assessments
-                  are returned from the database.
-                  */}
                   No upcoming assessments available.
                 </div>
               )}
@@ -365,7 +253,7 @@ export default function Home() {
         {/* Right Column */}
         <div className="space-y-6">
           {/* Quick Actions */}
-          <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)]  border border-gray-100">
+          <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)] border border-gray-100">
             <h2 className="text-xl font-semibold mb-4">
               Quick Actions
             </h2>
