@@ -7,9 +7,11 @@ import {
 import DashboardPageHeader from "../../components/common/DashboardPageHeader";
 import { useEffect, useState } from "react";
 import { mockAdminDashboard } from "../../data/mockAdminDashboard";
+import { supabase } from "../../supabaseClient"; // Adjust relative path if needed
 
 function Home() {
   const [animateAnalytics, setAnimateAnalytics] = useState(false);
+  const [adminName, setAdminName] = useState("Admin");
   const { stats: dashboardData, analytics: { passRate, completionRate }, assessments, certificates, activities } = mockAdminDashboard;
 
   useEffect(() => {
@@ -17,9 +19,39 @@ function Home() {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    const fetchAdminName = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("first_name, last_name")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          if (profile) {
+            const fullName = [profile.first_name, profile.last_name]
+              .filter(Boolean)
+              .join(" ");
+
+            if (fullName) {
+              setAdminName(fullName);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching admin name for header:", error);
+      }
+    };
+
+    fetchAdminName();
+  }, []);
+
   return (
     <div className="space-y-6">
-      <DashboardPageHeader title="Welcome, Admin" subtitle="Here is an overview of your platform activity and management tasks." />
+      <DashboardPageHeader title={`Welcome, ${adminName}`} subtitle="Here is an overview of your platform activity and management tasks." />
       {/* OVERVIEW CARDS */}
       <div className="p-0">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, ZoomIn, FileText, ExternalLink, RefreshCw } from "lucide-react";
-import { supabase } from "../../../supabaseClient"; // Adjust path if needed
+import { supabase } from "../../../supabaseClient";
 
 const personalFields = [
   ["first_name", "First Name"],
@@ -27,7 +27,39 @@ const assessorFields = [
   ["years_of_experience", "Years of Experience (Optional)"],
 ];
 
-function Details({ fields, profile }) {
+function Details({ fields, profile, extraData }) {
+  const getFieldValue = (key) => {
+    // 1. Direct check on profile object
+    if (profile?.[key] !== undefined && profile?.[key] !== null && profile?.[key] !== "") {
+      return profile[key];
+    }
+
+    // 2. Check fetched extraData (assessor_profiles / trainee_profiles)
+    if (extraData?.[key] !== undefined && extraData?.[key] !== null && extraData?.[key] !== "") {
+      return extraData[key];
+    }
+
+    // 3. Check array join (e.g., profile.assessor_profiles[0])
+    const assessorRel = Array.isArray(profile?.assessor_profiles)
+      ? profile.assessor_profiles[0]
+      : profile?.assessor_profiles;
+
+    if (assessorRel?.[key] !== undefined && assessorRel?.[key] !== null && assessorRel?.[key] !== "") {
+      return assessorRel[key];
+    }
+
+    // 4. Check array join for trainees
+    const traineeRel = Array.isArray(profile?.trainee_profiles)
+      ? profile.trainee_profiles[0]
+      : profile?.trainee_profiles;
+
+    if (traineeRel?.[key] !== undefined && traineeRel?.[key] !== null && traineeRel?.[key] !== "") {
+      return traineeRel[key];
+    }
+
+    return "Not provided";
+  };
+
   return (
     <dl className="grid gap-3 sm:grid-cols-2">
       {fields.map(([key, label]) => (
@@ -36,7 +68,7 @@ function Details({ fields, profile }) {
             {label}
           </dt>
           <dd className="mt-1 break-words text-sm text-gray-900">
-            {profile[key] || "Not provided"}
+            {getFieldValue(key)}
           </dd>
         </div>
       ))}
@@ -55,16 +87,48 @@ export default function RegistrationProfileModal({
   const [reason, setReason] = useState("");
   const [previewPhoto, setPreviewPhoto] = useState(false);
 
-  // Determine if user is an Assessor
   const assessor =
     profile?.role === "assessor" || title.toLowerCase().includes("assessor");
 
-  // Dynamic Supabase Document Fetching State
   const [documentFiles, setDocumentFiles] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
 
+  // State to hold extra role information fetched directly from database
+  const [extraRoleData, setExtraRoleData] = useState(null);
+
+  // 1. Fetch Assessor or Trainee table details if not already attached to profile
   useEffect(() => {
-    // ONLY fetch documents if the user is an assessor
+    if (!profile?.id) return;
+
+    const fetchRoleDetails = async () => {
+      try {
+        if (assessor) {
+          const { data, error } = await supabase
+            .from("assessor_profiles")
+            .select("*")
+            .eq("user_id", profile.id)
+            .maybeSingle();
+
+          if (!error && data) setExtraRoleData(data);
+        } else {
+          const { data, error } = await supabase
+            .from("trainee_profiles")
+            .select("*")
+            .eq("user_id", profile.id)
+            .maybeSingle();
+
+          if (!error && data) setExtraRoleData(data);
+        }
+      } catch (err) {
+        console.error("Error fetching role profile details:", err);
+      }
+    };
+
+    fetchRoleDetails();
+  }, [profile?.id, assessor]);
+
+  // 2. Fetch Storage Documents for Assessor
+  useEffect(() => {
     if (!profile?.id || !assessor) return;
 
     const fetchUserDocuments = async () => {
@@ -95,7 +159,7 @@ export default function RegistrationProfileModal({
                   category:
                     subfolder === "gov_id"
                       ? "Government ID"
-                      : "Accreditation",
+                      : "Accreditation Certificate",
                   url: urlData?.publicUrl,
                   path: filePath,
                 });
@@ -121,14 +185,16 @@ export default function RegistrationProfileModal({
     profile.last_name?.[0] || ""
   }`;
 
-  // Static fallback documents from profile object if Supabase docs aren't fetched
   const legacyDocuments = assessor
     ? [
         [
           "TESDA Assessor Accreditation Certificate",
-          profile.accreditation_cert_url,
+          profile.accreditation_cert_url || extraRoleData?.accreditation_cert_url,
         ],
-        ["Government-issued ID", profile.government_id_url],
+        [
+          "Government-issued ID",
+          profile.government_id_url || extraRoleData?.government_id_url,
+        ],
       ]
     : [];
 
@@ -143,9 +209,7 @@ export default function RegistrationProfileModal({
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
       <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
-        {/* HEADER */}
         <header className="mb-6 flex items-center gap-4 border-b border-gray-100 pb-5">
-          {/* PROFILE PHOTO DISPLAY */}
           <div className="relative group shrink-0">
             <div className="grid h-16 w-16 place-items-center overflow-hidden rounded-full bg-blue-100 text-lg font-bold text-[#002f86] border border-blue-200">
               {profile.profile_photo_url ? (
@@ -159,7 +223,6 @@ export default function RegistrationProfileModal({
               )}
             </div>
 
-            {/* Click to Zoom Overlay */}
             {profile.profile_photo_url && (
               <button
                 type="button"
@@ -186,7 +249,6 @@ export default function RegistrationProfileModal({
           </button>
         </header>
 
-        {/* Existing Rejection Warning */}
         {profile.rejected_reason && (
           <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-800">
             <span className="font-bold uppercase tracking-wider block mb-1">
@@ -196,15 +258,13 @@ export default function RegistrationProfileModal({
           </div>
         )}
 
-        {/* PERSONAL INFORMATION SECTION */}
         <section>
           <h3 className="mb-3 text-lg font-bold text-gray-900">
             Personal Information
           </h3>
-          <Details fields={personalFields} profile={profile} />
+          <Details fields={personalFields} profile={profile} extraData={extraRoleData} />
         </section>
 
-        {/* PROFESSIONAL / TRAINING INFORMATION SECTION */}
         <section className="mt-6">
           <h3 className="mb-3 text-lg font-bold text-gray-900">
             {assessor ? "Professional Information" : "Training Information"}
@@ -212,10 +272,10 @@ export default function RegistrationProfileModal({
           <Details
             fields={assessor ? assessorFields : traineeFields}
             profile={profile}
+            extraData={extraRoleData}
           />
         </section>
 
-        {/* SUPPORTING DOCUMENTS SECTION (ONLY SHOWS FOR ASSESSOR) */}
         {assessor && (
           <section className="mt-6">
             <h3 className="mb-3 text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -247,7 +307,7 @@ export default function RegistrationProfileModal({
                   </a>
                 ))}
               </div>
-            ) : legacyDocuments.length > 0 ? (
+            ) : legacyDocuments.some(([, url]) => Boolean(url)) ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 {legacyDocuments.map(([label, url]) =>
                   url ? (
@@ -256,9 +316,10 @@ export default function RegistrationProfileModal({
                       href={url}
                       target="_blank"
                       rel="noreferrer"
-                      className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+                      className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition"
                     >
-                      Open {label}
+                      <span className="truncate">Open {label}</span>
+                      <ExternalLink size={16} className="shrink-0 ml-2" />
                     </a>
                   ) : (
                     <div
@@ -278,7 +339,6 @@ export default function RegistrationProfileModal({
           </section>
         )}
 
-        {/* FOOTER / ACTION CONTROLS */}
         <footer className="mt-7 flex justify-end gap-3 border-t border-gray-100 pt-5">
           <button
             onClick={() => setShowReject(true)}
@@ -297,7 +357,6 @@ export default function RegistrationProfileModal({
           </button>
         </footer>
 
-        {/* FULL IMAGE ZOOM MODAL */}
         {previewPhoto && (
           <div className="fixed inset-0 z-[70] grid place-items-center bg-black/80 p-4">
             <div className="relative max-w-lg w-full rounded-2xl bg-slate-900 p-2 shadow-2xl">
@@ -317,7 +376,6 @@ export default function RegistrationProfileModal({
           </div>
         )}
 
-        {/* REJECTION REASON MODAL */}
         {showReject && (
           <div className="fixed inset-0 z-[60] grid place-items-center bg-black/40 p-4">
             <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">

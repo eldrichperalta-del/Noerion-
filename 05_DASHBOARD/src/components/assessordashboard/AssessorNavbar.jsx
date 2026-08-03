@@ -1,7 +1,46 @@
+import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { supabase } from "../../supabaseClient"; // Adjust path if needed
 
 function AssessorNavbar() {
   const location = useLocation();
+  const [assessorProfile, setAssessorProfile] = useState({
+    name: "Assessor",
+    photoUrl: "/assessor.jpg",
+  });
+
+  useEffect(() => {
+    const fetchAssessorProfile = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("first_name, last_name, profile_photo_url")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          if (profile) {
+            const fullName =
+              [profile.first_name, profile.last_name].filter(Boolean).join(" ") ||
+              "Assessor";
+
+            setAssessorProfile({
+              name: fullName,
+              photoUrl: profile.profile_photo_url || "/assessor.jpg",
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching assessor profile:", error);
+      }
+    };
+
+    fetchAssessorProfile();
+  }, []);
 
   const pageTitles = {
     "/assessor": "Home",
@@ -21,8 +60,7 @@ function AssessorNavbar() {
     "/assessor/logout": "Logout",
   };
 
-  const currentTitle =
-    pageTitles[location.pathname] || "Assessor Dashboard";
+  const currentTitle = pageTitles[location.pathname] || "Assessor Dashboard";
 
   return (
     <header
@@ -36,19 +74,17 @@ function AssessorNavbar() {
         px-6
       "
     >
-      <h1 className="text-xl font-semibold text-gray-400">
-        {currentTitle}
-      </h1>
+      <h1 className="text-xl font-semibold text-gray-400">{currentTitle}</h1>
 
       <div className="flex items-center gap-3">
         <img
-          src="/assessor.jpg"
-          alt="Assessor"
-          className="w-10 h-10 rounded-full"
+          src={assessorProfile.photoUrl}
+          alt={assessorProfile.name}
+          className="w-10 h-10 rounded-full object-cover border border-gray-200"
         />
 
         <span className="font-medium text-gray-800">
-          Assessor [Alliah]
+          {assessorProfile.name}
         </span>
       </div>
     </header>
