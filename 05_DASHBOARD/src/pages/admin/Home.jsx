@@ -1,18 +1,27 @@
-import {
-  Users,
-  UserCheck,
-  ClipboardList,
-  Award,
-} from "lucide-react";
-import DashboardPageHeader from "../../components/common/DashboardPageHeader";
 import { useEffect, useState } from "react";
+import { Award, ClipboardList, UserCheck, Users } from "lucide-react";
+import DashboardPageHeader from "../../components/common/DashboardPageHeader";
 import { mockAdminDashboard } from "../../data/mockAdminDashboard";
-import { supabase } from "../../supabaseClient"; // Adjust relative path if needed
+import { certificateRecords } from "../../data/certificateRecords";
+import { scheduledAssessments } from "../../data/scheduledAssessments";
+import { supabase } from "../../supabaseClient";
 
-function Home() {
+const Card = ({ label, value, Icon, tint }) => (
+  <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
+    <p className="text-sm font-medium text-gray-900">{label}</p>
+    <div className="mt-4 flex items-center gap-3">
+      <div className={`rounded-xl p-3 ${tint}`}>
+        <Icon size={22} />
+      </div>
+      <span className="text-3xl font-bold">{value}</span>
+    </div>
+  </div>
+);
+
+export default function Home() {
   const [animateAnalytics, setAnimateAnalytics] = useState(false);
   const [adminName, setAdminName] = useState("Admin");
-  const { stats: dashboardData, analytics: { passRate, completionRate }, assessments, certificates, activities } = mockAdminDashboard;
+  const { stats, analytics, activities } = mockAdminDashboard;
 
   useEffect(() => {
     const timer = setTimeout(() => setAnimateAnalytics(true), 120);
@@ -20,251 +29,153 @@ function Home() {
   }, []);
 
   useEffect(() => {
-    const fetchAdminName = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (user) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("first_name, last_name")
-            .eq("id", user.id)
-            .maybeSingle();
-
-          if (profile) {
-            const fullName = [profile.first_name, profile.last_name]
-              .filter(Boolean)
-              .join(" ");
-
-            if (fullName) {
-              setAdminName(fullName);
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching admin name for header:", error);
-      }
-    };
-
-    fetchAdminName();
+    supabase.auth
+      .getUser()
+      .then(async ({ data: { user } }) => {
+        if (!user) return;
+        const { data } = await supabase
+          .from("profiles")
+          .select("first_name, last_name")
+          .eq("id", user.id)
+          .maybeSingle();
+        const name = [data?.first_name, data?.last_name]
+          .filter(Boolean)
+          .join(" ");
+        if (name) setAdminName(name);
+      })
+      .catch(() => { });
   }, []);
 
   return (
     <div className="space-y-6">
-      <DashboardPageHeader title={`Welcome, ${adminName}`} subtitle="Here is an overview of your platform activity and management tasks." />
-      {/* OVERVIEW CARDS */}
-      <div className="p-0">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-          {/* Total Trainees */}
-          <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)] border border-gray-100">
-            <p className="text-sm font-medium text-gray-900">Total Trainees</p>
-            <div className="mt-4 flex items-center gap-3"><div className="rounded-xl bg-blue-50 p-3"><Users size={22} /></div><span className="text-3xl font-bold">
-                {dashboardData.totalTrainees}
-              </span></div>
-          </div>
-
-          {/* Total Assessors */}
-          <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)] border border-gray-100">
-            <p className="text-sm font-medium text-gray-900">Total Assessors</p>
-            <div className="mt-4 flex items-center gap-3"><div className="rounded-xl bg-amber-50 p-3"><UserCheck size={22} /></div><span className="text-3xl font-bold">
-                {dashboardData.totalAssessors}
-              </span></div>
-          </div>
-
-          {/* Total Assessments */}
-          <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)] border border-gray-100">
-            <p className="text-sm font-medium text-gray-900">Total Assessments</p>
-            <div className="mt-4 flex items-center gap-3"><div className="rounded-xl bg-green-50 p-3"><ClipboardList size={22} /></div><span className="text-3xl font-bold">
-                {dashboardData.totalAssessments}
-              </span></div>
-          </div>
-
-          {/* Certificates Issued */}
-          <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)] border border-gray-100">
-            <p className="text-sm font-medium text-gray-900">Certificates Issued</p>
-            <div className="mt-4 flex items-center gap-3"><div className="rounded-xl bg-purple-50 p-3"><Award size={22} /></div><span className="text-3xl font-bold">
-                {dashboardData.certificatesIssued}
-              </span></div>
-          </div>
-        </div>
+      <DashboardPageHeader
+        title={`Welcome, ${adminName}`}
+        subtitle="Here is an overview of your platform activity and management tasks."
+      />
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <Card
+          label="Total Trainees"
+          value={stats.totalTrainees}
+          Icon={Users}
+          tint="bg-blue-50"
+        />
+        <Card
+          label="Total Assessors"
+          value={stats.totalAssessors}
+          Icon={UserCheck}
+          tint="bg-amber-50"
+        />
+        <Card
+          label="Total Assessments"
+          value={stats.totalAssessments}
+          Icon={ClipboardList}
+          tint="bg-green-50"
+        />
+        <Card
+          label="Certificates Issued"
+          value={stats.certificatesIssued}
+          Icon={Award}
+          tint="bg-purple-50"
+        />
       </div>
-
-      {/* SECOND MAIN CONTAINER */}
-      <div className="p-6">
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* LEFT SIDE */}
-          <div className="xl:col-span-2 space-y-6">
-            {/* ACTIVE ASSESSMENTS */}
-            <div>
-              <h2 className="text-2xl font-bold mb-4">
-                ACTIVE ASSESSMENTS PANEL
-              </h2>
-
-              <div className="overflow-hidden bg-white rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
-                <table className="w-full">
-                  <thead className="bg-gray-300">
-                    <tr>
-                      <th className="text-left p-3">
-                        Trainee Name
-                      </th>
-
-                      <th className="text-left p-3">
-                        Assessment Type
-                      </th>
-
-                      <th className="text-left p-3">
-                        Status
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody className="divide-y divide-gray-200">
-                    {assessments.length === 0 ? (
-                      <tr>
-                        <td className="p-3">
-                          No data available
-                        </td>
-
-                        <td className="p-3">-</td>
-
-                        <td className="p-3">-</td>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="space-y-6 xl:col-span-2">
+          <section>
+            <h2 className="mb-4 text-2xl font-bold">Assessments Panel</h2>
+            <div className="overflow-hidden rounded-xl bg-white shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
+              <table className="w-full">
+                <thead className="bg-gray-300">
+                  <tr>
+                    <th className="p-3 text-left">Course</th>
+                    <th className="p-3 text-left">Assessment Type</th>
+                    <th className="p-3 text-left">Schedule Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {scheduledAssessments.length ? (
+                    scheduledAssessments.map((assessment) => (
+                      <tr key={assessment.id}>
+                        <td className="p-3">{assessment.course}</td>
+                        <td className="p-3">{assessment.type}</td>
+                        <td className="p-3">{assessment.scheduleDate}</td>
                       </tr>
-                    ) : (
-                      assessments.map((assessment) => (
-                        <tr key={assessment.id}>
-                          <td className="p-3">
-                            {assessment.traineeName}
-                          </td>
-
-                          <td className="p-3">
-                            {assessment.assessmentType}
-                          </td>
-
-                          <td className="p-3">
-                            {assessment.status}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* CERTIFICATE STATUS */}
-            <div>
-              <h2 className="text-2xl font-bold mb-4">
-                CERTIFICATE STATUS PANEL
-              </h2>
-
-              <div className="overflow-hidden bg-white rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
-                <table className="w-full">
-                  <thead className="bg-gray-300">
+                    ))
+                  ) : (
                     <tr>
-                      <th className="text-left p-3">
-                        Trainee Name
-                      </th>
-
-                      <th className="text-left p-3">
-                        Course
-                      </th>
-
-                      <th className="text-left p-3">
-                        Certificate Status
-                      </th>
+                      <td className="p-3">No scheduled assessments</td>
+                      <td className="p-3">-</td>
+                      <td className="p-3">-</td>
                     </tr>
-                  </thead>
-
-                  <tbody className="divide-y divide-gray-200">
-                    {certificates.length === 0 ? (
-                      <tr>
-                        <td className="p-3">
-                          No data available
-                        </td>
-
-                        <td className="p-3">-</td>
-
-                        <td className="p-3">-</td>
-                      </tr>
-                    ) : (
-                      certificates.map((certificate) => (
-                        <tr key={certificate.id}>
-                          <td className="p-3">
-                            {certificate.traineeName}
-                          </td>
-
-                          <td className="p-3">
-                            {certificate.course}
-                          </td>
-
-                          <td className="p-3">
-                            {certificate.status}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                  )}
+                </tbody>
+              </table>
             </div>
-          </div>
-
-          {/* RECENT ACTIVITY */}
-          <div>
-            <h2 className="text-2xl font-bold mb-4">
-              RECENT ACTIVITY
-            </h2>
-
-            <div className="bg-white rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.20)] p-4">
-              {activities.length === 0 ? (
-                <p>No recent activity</p>
-              ) : (
+          </section>
+          <section>
+            <h2 className="mb-4 text-2xl font-bold">Certificate Status Panel</h2>
+            <div className="overflow-hidden rounded-xl bg-white shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
+              <table className="w-full">
+                <thead className="bg-gray-300">
+                  <tr>
+                    <th className="p-3 text-left">Trainee Name</th>
+                    <th className="p-3 text-left">Course</th>
+                    <th className="p-3 text-left">Certificate Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {certificateRecords.map((certificate) => (
+                    <tr key={certificate.certificateId}>
+                      <td className="p-3">{certificate.traineeName}</td>
+                      <td className="p-3">{certificate.course}</td>
+                      <td className="p-3">{certificate.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+        <aside className="space-y-6">
+          <section>
+            <h2 className="mb-4 text-2xl font-bold">Recent Activity</h2>
+            <div className="rounded-xl bg-white p-4 shadow-[0_4px_12px_rgba(0,0,0,0.20)]">
+              {activities.length ? (
                 activities.map((activity) => (
-                  <p key={activity.id}>
-                    {activity.message}
-                  </p>
+                  <p key={activity.id}>{activity.message}</p>
                 ))
+              ) : (
+                <p>No recent activity</p>
               )}
             </div>
-          </div>
-        </div>
-
-        {/* QUICK ANALYTICS */}
-        <div className="mt-8">
-          <h2 className="text-2xl font-bold mb-4">
-            QUICK ANALYTICS
-          </h2>
-
-          <div className="bg-white rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.35)] p-4">
-            <div className="space-y-5">
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span>Pass Rate</span>
-                  <span>{passRate}%</span>
-                </div>
-
-                <div className="w-full h-3 bg-gray-200 rounded-full">
-                  <div className="h-3 bg-blue-600 rounded-full transition-all duration-1000 ease-out" style={{ width: animateAnalytics ? `${passRate}%` : "0%" }}></div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span>Completion Rate</span>
-                  <span>{completionRate}%</span>
-                </div>
-
-                <div className="w-full h-3 bg-gray-200 rounded-full">
-                  <div className="h-3 bg-cyan-500 rounded-full transition-all duration-1000 ease-out" style={{ width: animateAnalytics ? `${completionRate}%` : "0%" }}></div>
-                </div>
+          </section>
+          <section>
+            <h2 className="mb-4 text-2xl font-bold">Quick Analytics</h2>
+            <div className="rounded-xl bg-white p-4 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
+              <div className="space-y-5">
+                {[
+                  ["Pass Rate", analytics.passRate, "bg-blue-600"],
+                  ["Completion Rate", analytics.completionRate, "bg-cyan-500"],
+                ].map(([label, value, color]) => (
+                  <div key={label}>
+                    <div className="mb-2 flex justify-between">
+                      <span>{label}</span>
+                      <span>{value}%</span>
+                    </div>
+                    <div className="h-3 w-full rounded-full bg-gray-200">
+                      <div
+                        className={`h-3 rounded-full transition-all duration-1000 ease-out ${color}`}
+                        style={{
+                          width: animateAnalytics ? `${value}%` : "0%",
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
-        </div>
-
+          </section>
+        </aside>
       </div>
     </div>
   );
 }
-
-export default Home;

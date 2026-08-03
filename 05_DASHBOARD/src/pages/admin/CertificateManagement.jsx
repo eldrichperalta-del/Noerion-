@@ -11,6 +11,7 @@ import CertificateUploadModal from "../../components/admin/certificate-managemen
 import DashboardPageHeader from "../../components/common/DashboardPageHeader";
 
 import "../../styles/CertificateManagement.css";
+import { certificateRecords } from "../../data/certificateRecords";
 
 /**
  * ==========================================
@@ -130,7 +131,7 @@ export default function CertificateManagement() {
         // const res = await fetch("/api/certificates");
         // const data = await res.json();
 
-        const data = mockCertificates; // temporary fallback
+        const data = certificateRecords; // temporary fallback
 
         setAllCertificates(data);
       } catch (err) {

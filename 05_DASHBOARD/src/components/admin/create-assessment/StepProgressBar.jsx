@@ -1,7 +1,7 @@
 function StepProgressBar({ currentStep = 1 }) {
 
   const steps = [
-    "Step 1: Create Assessment",
+    "Step 1: Choose Assessment",
     "Step 2: Select Trainees",
     "Step 3: Assign Assessors",
     "Step 4: Schedule & Duration",

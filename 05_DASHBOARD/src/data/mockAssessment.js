@@ -1,1 +1,1 @@
-export { mockAssessments, getMockAssessmentById } from "./mockAssessments";
+export { addMockAssessment, mockAssessments, getMockAssessmentById } from "./mockAssessments";

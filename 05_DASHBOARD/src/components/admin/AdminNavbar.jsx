@@ -49,8 +49,9 @@ function AdminNavbar() {
         "/admin/user-management/assessors": "Assessor Management",
         "/admin/user-management/add-assessor": "Add Assessor",
         "/admin/assessments": "Assessment Management",
-        "/admin/assessments/create": "Create Assessment",
-        "/admin/assessments/schedule": "Schedule Assessment",
+        "/admin/assessments/create": "Assessment Management",
+        "/admin/assessments/schedule": "Assessment Management",
+        "/admin/assessments/schedule/choose": "Assessment Management",
         "/admin/results": "Results Monitoring",
         "/admin/certificates": "Certificate Management",
         "/admin/profile": "Profile",
@@ -58,9 +59,10 @@ function AdminNavbar() {
         "/admin/logout": "Logout",
     };
 
-    const currentTitle = /^\/admin\/assessments\/[^/]+$/.test(location.pathname)
-        ? "Assessment Details"
-        : pageTitles[location.pathname] || "Admin Dashboard";
+    const currentTitle = pageTitles[location.pathname]
+        || (/^\/admin\/assessments\/[^/]+$/.test(location.pathname)
+            ? "Assessment Details"
+            : "Admin Dashboard");
 
     return (
         <header

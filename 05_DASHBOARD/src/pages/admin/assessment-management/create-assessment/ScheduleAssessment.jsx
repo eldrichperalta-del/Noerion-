@@ -232,6 +232,11 @@ function ScheduleAssessment({
               Assessment Details Summary
             </h3>
 
+            <p className="font-semibold mb-2">Selected Course</p>
+            <div className="bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3 mb-4 text-sm text-gray-700">
+              {assessmentData?.selectedAssessment?.title || "No assessment selected"}
+            </div>
+
             <p className="font-semibold mb-2">Selected Trainees</p>
             <div className="bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3 mb-4">
               <ul className="ml-5 list-disc text-sm text-gray-700">

@@ -5,6 +5,7 @@ function ReviewConfirm({
   onNext,
   onBack,
   resetAssessment,
+  onComplete,
 }) {
   // ===============================
   // SAFELY DESTRUCTURE BACKEND DATA
@@ -14,6 +15,7 @@ function ReviewConfirm({
     assessor = {},
     schedule = {},
     qualification = "",
+    selectedAssessment = null,
   } = assessmentData;
 
   // ===============================
@@ -50,6 +52,7 @@ function ReviewConfirm({
     // await axios.post("/api/assessments", assessmentData);
     // =========================================================
     console.log("ASSESSMENT CREATED PAYLOAD:", assessmentData);
+    onComplete?.(assessmentData);
 
     // Show success UI (frontend feedback only)
     setShowSuccessMessage(true);
@@ -111,6 +114,11 @@ function ReviewConfirm({
         ========================== */}
         <div className="text-xl font-semibold text-gray-900 mb-6">
           <h1>Show full summary before finalizing</h1>
+        </div>
+
+        <div className="mb-6 rounded-xl bg-white p-4 shadow-sm">
+          <span className="font-semibold">Selected Course:</span>{" "}
+          {selectedAssessment?.title || "No assessment selected"}
         </div>
 
         {/* =========================

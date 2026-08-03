@@ -7,6 +7,29 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Schedule Assessment controls mirror the Assessor Assessment Panel dimensions. */
+div:has(> label > input[placeholder="Search course and qualification"]) {
+  justify-content: space-between;
+}
+
+label:has(> input[placeholder="Search course and qualification"]) {
+  flex: none !important;
+  width: 100%;
+  max-width: 28rem;
+}
+
+input[placeholder="Search course and qualification"],
+input[aria-label="Schedule date"] {
+  border-color: #e5e7eb !important;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  font-size: 0.875rem;
+}
+
+input[aria-label="Schedule date"] {
+  width: 100%;
+  max-width: 16rem;
+}
+
 /* Keep Question Modal header and footer dividers subtle. */
 .fixed.inset-0.z-50 form > .border-b,
 .fixed.inset-0.z-50 form > .border-t {
@@ -153,4 +176,3 @@ html {
     transform: translateY(-1.25rem) !important;
   }
 }
-

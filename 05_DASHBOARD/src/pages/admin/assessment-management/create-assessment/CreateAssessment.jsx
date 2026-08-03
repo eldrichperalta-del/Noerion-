@@ -1,284 +1,47 @@
 import { useState } from "react";
-
-import StepProgressBar from "../../../../components/admin/create-assessment/StepProgressBar";
+import { Link, useNavigate } from "react-router-dom";
 import WrittenAssessmentBuilder from "./written-assessment/WrittenAssessmentBuilder";
-import SelectTrainees from "./SelectTrainees";
-import AssignAssessor from "./AssignAssessor";
-import ScheduleAssessment from "./ScheduleAssessment";
-import ReviewConfirm from "./ReviewConfirm";
+import { addMockAssessment } from "../../../../data/mockAssessment";
 
-
-function CreateAssessment() {
-
-
-  // Tracks current step of assessment wizard (1-5)
-  const [currentStep, setCurrentStep] = useState(1);
-
-
-
-  // Main assessment data storage
-  const [assessmentData, setAssessmentData] = useState({
-
-    // Written Assessment
-    title: "",
-    qualification: "",
-    instructions: "",
-    questions: [],
-
-
-    // Trainees
-    trainees: [],
-
-
-    // Assessor
-    assessor: {},
-
-
-    // Schedule
-    schedule: {
-      date: "",
-      startTime: "",
-      endTime: "",
-    },
-
-  });
-
-
-
-  // Reset everything after successful creation
-  const resetAssessment = () => {
-
-    setAssessmentData({
-
-      title: "",
-      qualification: "",
-      instructions: "",
-      questions: [],
-
-      trainees: [],
-
-      assessor: {},
-
-      schedule: {
-        date: "",
-        startTime: "",
-        endTime: "",
-      },
-
+export default function CreateAssessment() {
+  const navigate = useNavigate();
+  const [assessmentData, setAssessmentData] = useState({ title: "", qualification: "", instructions: "", questions: [] });
+  const saveAssessment = () => {
+    if (!assessmentData.title.trim() || !assessmentData.qualification.trim()) {
+      alert("Please provide an assessment title and qualification before saving.");
+      return;
+    }
+    const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    addMockAssessment({
+      id: `assessment-${Date.now()}`,
+      title: assessmentData.title.trim(),
+      qualification: assessmentData.qualification.trim(),
+      unitOfCompetency: assessmentData.title.trim(),
+      instructions: assessmentData.instructions.trim(),
+      createdDate: today,
+      lastUpdated: today,
+      status: "Draft",
+      assessmentType: "Written",
+      questions: structuredClone(assessmentData.questions),
     });
-
-
-    setCurrentStep(1);
-
+    navigate("/admin/assessments");
   };
-
-
-
-  console.log(
-    "CURRENT STEP:",
-    currentStep
-  );
-
-
-
-  // Next step
-  const nextStep = () => {
-
-
-    console.log(
-      "NEXT STEP CLICKED:",
-      currentStep
-    );
-
-
-    if (currentStep < 5) {
-
-      setCurrentStep(
-        previous => previous + 1
-      );
-
-    }
-
-  };
-
-
-
-  // Previous step
-  const prevStep = () => {
-
-
-    if (currentStep > 1) {
-
-      setCurrentStep(
-        previous => previous - 1
-      );
-
-    }
-
-  };
-
-
 
   return (
-
-    <div className="min-h-screen p-0">
-
-
-      {/* PAGE HEADER */}
-      <div className="mb-8">
-
-
-        <h1 className="
-          text-3xl
-          font-bold
-          text-[#1E3A8A]
-        ">
-          Create Assessment
-        </h1>
-
-
-        <p className="
-          mt-2
-          text-gray-600
-        ">
-          Follow the steps to set up a new assessment.
-        </p>
-
-
+    <div className="min-h-screen">
+      <header className="mb-8">
+        <nav className="flex gap-2 text-sm font-semibold">
+          <Link to="/admin/assessments" className="text-gray-500 hover:text-[#002f86] hover:underline">Assessment Library</Link>
+          <span>&gt;</span>
+          <span className="text-[#002f86]">Create Assessment</span>
+        </nav>
+        <h1 className="mt-2 text-3xl font-bold text-[#1E3A8A]">Create Assessment</h1>
+        <p className="mt-2 text-gray-600">Create assessment details and add questions.</p>
+      </header>
+      <WrittenAssessmentBuilder assessmentData={assessmentData} setAssessmentData={setAssessmentData} />
+      <div className="flex justify-end pt-6">
+        <button type="button" onClick={saveAssessment} className="rounded-xl bg-[#001F5B] px-6 py-3 font-semibold text-white hover:bg-blue-800">Save Assessment</button>
       </div>
-
-
-
-      {/* PROGRESS BAR */}
-      <div className="mb-8">
-
-        <StepProgressBar
-          currentStep={currentStep}
-        />
-
-      </div>
-
-
-
-
-      {/* STEP 1: CREATE WRITTEN ASSESSMENT */}
-      {
-        currentStep === 1 && (
-
-          <WrittenAssessmentBuilder
-
-            assessmentData={assessmentData}
-
-            setAssessmentData={setAssessmentData}
-
-            onNext={nextStep}
-
-          />
-
-        )
-      }
-
-
-
-
-      {/* STEP 2: SELECT TRAINEES */}
-      {
-        currentStep === 2 && (
-
-          <SelectTrainees
-
-            assessmentData={assessmentData}
-
-            setAssessmentData={setAssessmentData}
-
-            onNext={nextStep}
-
-            onBack={prevStep}
-
-          />
-
-        )
-      }
-
-
-
-      {/* STEP 3: ASSIGN ASSESSOR */}
-      {
-        currentStep === 3 && (
-
-          <AssignAssessor
-
-            assessmentData={assessmentData}
-
-            setAssessmentData={setAssessmentData}
-
-            onNext={nextStep}
-
-            onBack={prevStep}
-
-          />
-
-        )
-      }
-
-
-
-
-
-
-      {/* STEP 4: SCHEDULE ASSESSMENT */}
-      {
-        currentStep === 4 && (
-
-          <ScheduleAssessment
-
-            assessmentData={assessmentData}
-
-            setAssessmentData={setAssessmentData}
-
-            onNext={nextStep}
-
-            onBack={prevStep}
-
-          />
-
-        )
-      }
-
-
-
-
-
-
-
-      {/* STEP 5: REVIEW AND CONFIRM */}
-      {
-        currentStep === 5 && (
-
-          <ReviewConfirm
-
-            assessmentData={assessmentData}
-
-            onNext={nextStep}
-
-            onBack={prevStep}
-
-            resetAssessment={resetAssessment}
-
-          />
-
-        )
-      }
-
-
-
-
-
     </div>
-
   );
-
 }
-
-
-export default CreateAssessment;

@@ -468,4 +468,9 @@ export const mockAssessments = [
 ];
 
 export const getMockAssessmentById = (id) =>
-  mockAssessments.find((assessment) => assessment.id === Number(id));
+  mockAssessments.find((assessment) => String(assessment.id) === String(id));
+
+export const addMockAssessment = (assessment) => {
+  mockAssessments.push(assessment);
+  return assessment;
+};

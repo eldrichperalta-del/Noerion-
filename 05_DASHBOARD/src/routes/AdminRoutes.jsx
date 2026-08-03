@@ -13,6 +13,8 @@ import AddAssessor from "../pages/admin/user-management/AddAssessor";
 import AssessmentManagement from "../pages/admin/AssessmentManagement";
 import AssessmentDetails from "../pages/admin/AssessmentDetails";
 import CreateAssessment from "../pages/admin/assessment-management/create-assessment/CreateAssessment";
+import ScheduleAssessmentPage from "../pages/admin/assessment-management/ScheduleAssessmentPage";
+import ScheduleAssessmentWorkflow from "../pages/admin/assessment-management/ScheduleAssessmentWorkflow";
 
 import ResultsMonitoring from "../pages/admin/ResultsMonitoring";
 import CertificateManagement from "../pages/admin/CertificateManagement";
@@ -80,7 +82,11 @@ export default function AdminRoutes() {
       />
       <Route
         path="/assessments/schedule"
-        element={<AdminLayout><CreateAssessment /></AdminLayout>}
+        element={<AdminLayout><ScheduleAssessmentPage /></AdminLayout>}
+      />
+      <Route
+        path="/assessments/schedule/choose"
+        element={<AdminLayout><ScheduleAssessmentWorkflow /></AdminLayout>}
       />
       <Route path="/assessments/:id" element={<AdminLayout><AssessmentDetails /></AdminLayout>} />
 
