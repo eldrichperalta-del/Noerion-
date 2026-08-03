@@ -17,6 +17,28 @@
   }
 }
 
+/* Keep text legible in the Assessment Details question modal. */
+.fixed form {
+  color: #111827;
+}
+
+.fixed form h2,
+.fixed form p,
+.fixed form label,
+.fixed form button:not(.bg-\[\#002f86\]),
+.fixed form input,
+.fixed form textarea {
+  color: #111827 !important;
+}
+
+/* True/False choices are fixed labels in the question editor. */
+input[value="True"],
+input[value="False"] {
+  pointer-events: none;
+  background: #f8fafc;
+}
+
+
 .hero {
   position: relative;
 

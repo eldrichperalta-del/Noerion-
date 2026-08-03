@@ -7,6 +7,12 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Keep Question Modal header and footer dividers subtle. */
+.fixed.inset-0.z-50 form > .border-b,
+.fixed.inset-0.z-50 form > .border-t {
+  border-color: #e5e7eb !important;
+}
+
 .certificate-print-only {
   display: none;
 }
@@ -147,5 +153,4 @@ html {
     transform: translateY(-1.25rem) !important;
   }
 }
-
 

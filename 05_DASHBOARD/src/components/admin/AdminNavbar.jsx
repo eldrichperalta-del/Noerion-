@@ -11,6 +11,7 @@ function AdminNavbar() {
         "/admin/user-management/add-assessor": "Add Assessor",
         "/admin/assessments": "Assessment Management",
         "/admin/assessments/create": "Create Assessment",
+        "/admin/assessments/schedule": "Schedule Assessment",
         "/admin/results": "Results Monitoring",
         "/admin/certificates": "Certificate Management",
         "/admin/profile": "Profile",
@@ -18,7 +19,9 @@ function AdminNavbar() {
         "/admin/logout": "Logout",
     };
 
-    const currentTitle = pageTitles[location.pathname] || "Admin Dashboard";
+    const currentTitle = /^\/admin\/assessments\/[^/]+$/.test(location.pathname)
+        ? "Assessment Details"
+        : pageTitles[location.pathname] || "Admin Dashboard";
 
     return (
         <header

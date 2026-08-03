@@ -10,6 +10,7 @@ import {
   LogOut,
   X,
   Menu,
+  ChevronDown,
 } from "lucide-react";
 import { supabase } from "../../supabaseClient";
 import { useState } from "react";
@@ -19,6 +20,7 @@ function AdminSidebar({ isOpen, setIsOpen }) {
   const navigate = useNavigate();
 
   const [loggingOut, setLoggingOut] = useState(false);
+  const [assessmentOpen, setAssessmentOpen] = useState(false);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -143,6 +145,8 @@ function AdminSidebar({ isOpen, setIsOpen }) {
                       </span>
                     )}
                   </button>
+                ) : item.label === "Assessment Management" ? (
+                  <><button type="button" onClick={() => setAssessmentOpen((open) => !open)} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-blue-700 transition text-left"><item.icon size={22}/>{isOpen && <><span className="text-sm font-medium flex-1">{item.label}</span><ChevronDown size={16} className={assessmentOpen ? "rotate-180 transition-transform" : "transition-transform"}/></>}</button>{isOpen && assessmentOpen && <div className="ml-10 mt-1 space-y-1 pl-3"><NavLink to="/admin/assessments" end className={({isActive}) => `block rounded-lg px-3 py-2 text-sm ${isActive ? "bg-blue-800 text-white" : "text-blue-100 hover:bg-blue-700"}`}>Assessment Library</NavLink><NavLink to="/admin/assessments/schedule" className={({isActive}) => `block rounded-lg px-3 py-2 text-sm ${isActive ? "bg-blue-800 text-white" : "text-blue-100 hover:bg-blue-700"}`}>Schedule Assessment</NavLink></div>}</>
                 ) : (
                   <NavLink
                     to={item.path}
