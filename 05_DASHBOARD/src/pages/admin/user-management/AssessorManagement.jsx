@@ -227,14 +227,13 @@ function AssessorManagement() {
       </div>
 
       {/* Controls Bar */}
-      <div className="mb-5 rounded-2xl bg-white p-3 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
-        <div className="flex flex-col gap-4 lg:flex-row">
+      <div className="mb-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
           <SearchBar search={search} setSearch={setSearch} />
-          <AssessorStatusFilter value={statusFilter} onChange={setStatusFilter} />
-          <AssessorVerificationFilter
-            value={verificationFilter}
-            onChange={setVerificationFilter}
-          />
+          <div className="flex flex-col gap-4 sm:flex-row lg:ml-auto">
+            <AssessorStatusFilter value={statusFilter} onChange={setStatusFilter} />
+            <AssessorVerificationFilter value={verificationFilter} onChange={setVerificationFilter} />
+          </div>
         </div>
       </div>
 

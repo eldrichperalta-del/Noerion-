@@ -17,6 +17,7 @@ function AdminLayout({ children }) {
 
       <div
         className="
+          relative
           flex-1
           flex
           flex-col
@@ -25,6 +26,14 @@ function AdminLayout({ children }) {
           duration-300
         "
       >
+        {isOpen && (
+          <button
+            type="button"
+            aria-label="Close sidebar"
+            onClick={() => setIsOpen(false)}
+            className="absolute inset-0 z-20 cursor-default bg-black/45"
+          />
+        )}
 
         {/* Top Bar */}
         <div className="flex items-center bg-white shadow-sm">
