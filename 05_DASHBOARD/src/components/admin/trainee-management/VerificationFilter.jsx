@@ -3,7 +3,7 @@ function VerificationFilter({ value, onChange }) {
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="border rounded-xl px-6 py-3 min-w-[220px]"
+      className="min-w-[220px] rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-[#002f86] focus:ring-2 focus:ring-blue-100"
     >
       <option value="All">
         Verification: All

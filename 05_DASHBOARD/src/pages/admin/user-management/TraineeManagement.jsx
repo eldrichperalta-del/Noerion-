@@ -165,14 +165,13 @@ function TraineeManagement() {
         <p className="text-gray-600">Manage and review trainee accounts</p>
       </div>
 
-      <div className="mb-5 rounded-2xl bg-white p-3 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
-        <div className="flex flex-col gap-4 lg:flex-row">
+      <div className="mb-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
           <SearchBar search={search} setSearch={setSearch} />
-          <StatusFilter value={statusFilter} onChange={setStatusFilter} />
-          <VerificationFilter
-            value={verificationFilter}
-            onChange={setVerificationFilter}
-          />
+          <div className="flex flex-col gap-4 sm:flex-row lg:ml-auto">
+            <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+            <VerificationFilter value={verificationFilter} onChange={setVerificationFilter} />
+          </div>
         </div>
       </div>
 

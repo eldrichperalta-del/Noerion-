@@ -14,7 +14,15 @@ function TraineeLayout({ children }) {
       <TraineeSidebar isOpen={isOpen} setIsOpen={setIsOpen} />
 
       {/* Main Container */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300">
+      <div className="relative flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300">
+        {isOpen && (
+          <button
+            type="button"
+            aria-label="Close sidebar"
+            onClick={() => setIsOpen(false)}
+            className="absolute inset-0 z-20 cursor-default bg-black/45"
+          />
+        )}
         {/* Navbar */}
         <TraineeNavbar />
 

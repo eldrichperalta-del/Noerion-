@@ -15,7 +15,16 @@ export default function AssessorLayout({ children }) {
         setIsOpen={setIsOpen}
       />
 
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="relative flex flex-col flex-1 overflow-hidden">
+
+        {isOpen && (
+          <button
+            type="button"
+            aria-label="Close sidebar"
+            onClick={() => setIsOpen(false)}
+            className="absolute inset-0 z-20 cursor-default bg-black/45"
+          />
+        )}
 
         <AssessorNavbar
           isOpen={isOpen}
