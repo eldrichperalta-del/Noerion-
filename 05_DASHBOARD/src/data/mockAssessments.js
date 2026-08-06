@@ -395,7 +395,7 @@ export const mockAssessments = [
     createdDate: "Jan 12, 2026",
     lastUpdated: "Jul 30, 2026",
     schedule: "April 16, 2025 - 01:00 PM",
-    status: "Ongoing",
+    status: "Pending",
     durationMinutes: 30,
     totalItems: 2,
     assessmentType: "Written",

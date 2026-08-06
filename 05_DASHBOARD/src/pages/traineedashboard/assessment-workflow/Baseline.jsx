@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import BaselineInstructionsModal from "../../../components/traineedashboard/assessment-workflow/BaselineInstructionsModal";
 import EEGWave from "../../../components/common/EEGWave";
 import {
@@ -179,36 +179,38 @@ export default function Baseline() {
         });
     };
     return (
-        <div className="min-h-screen p-0">
+        <div className="h-[calc(100vh-7rem)] overflow-hidden p-0">
 
             {/* Header */}
 
-            <h1 className="text-4xl font-bold text-slate-900">
+            <nav className="mb-2 flex gap-2 text-sm font-semibold"><Link to="/trainee/assessment" className="text-gray-500 hover:text-[#002f86] hover:underline">My Assessments</Link><span>&gt;</span><Link to="/trainee/assessment/overview" className="text-gray-500 hover:text-[#002f86] hover:underline">Assessment Overview</Link><span>&gt;</span><span className="text-[#002f86]">Baseline</span></nav>
+
+            <h1 className="text-3xl font-bold text-slate-900">
                 Baseline EEG Required
             </h1>
 
-            <p className="mt-2 text-lg text-slate-600">
+            <p className="mt-1 text-base text-slate-600">
                 Before starting your written assessment, please complete a
                 5-minutes baseline recording.
             </p>
 
-            <div className="mx-auto mt-2 max-w-[1250px] rounded-3xl p-6">
+            <div className="mx-auto mt-1 max-w-[1250px] rounded-3xl p-3">
 
-                <div className="grid gap-6 lg:grid-cols-3">
+                <div className="grid gap-4 lg:grid-cols-3">
 
                     {/* LEFT */}
 
-                    <div className="space-y-4">
+                    <div className="space-y-3">
 
                         {/* Instructions */}
 
-                        <div className="rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.30)]">
+                        <div className="rounded-2xl bg-white p-4 shadow-[0_4px_12px_rgba(0,0,0,0.30)]">
 
                             <h2 className="text-xl font-bold">
                                 INSTRUCTIONS:
                             </h2>
 
-                            <div className="mt-5 space-y-4">
+                            <div className="mt-3 space-y-2">
 
                                 <div className="flex items-center gap-3">
                                     <Armchair className="h-5 w-5 text-blue-600" />
@@ -248,7 +250,7 @@ export default function Baseline() {
 
                         <div className="rounded-1xl">
 
-                            <div className="flex h-32 items-center justify-center">
+                            <div className="flex h-24 items-center justify-center">
 
                                 <span
                                     style={{
@@ -263,7 +265,7 @@ export default function Baseline() {
                                             0 0 60px rgba(135,206,250,.35)
                                         `,
                                     }}
-                                    className="text-[80px] leading-none tracking-wide select-none"
+                                    className="text-6xl leading-none tracking-wide select-none"
                                 >
                                     {minutes}:{seconds}
                                 </span>
@@ -273,7 +275,7 @@ export default function Baseline() {
 
                         {/* Recording Controls */}
 
-                        <div className="rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.30)] space-y-4">
+                        <div className="space-y-3 rounded-2xl bg-white p-4 shadow-[0_4px_12px_rgba(0,0,0,0.30)]">
 
                             {/* ==========================================================
                                     START RECORDING
@@ -310,13 +312,13 @@ export default function Baseline() {
 
                         <div className="rounded-2xl bg-white shadow-[0_4px_12px_rgba(0,0,0,0.30)] overflow-hidden">
 
-                            <div className="p-6">
+                            <div className="p-4">
 
                                 <h2 className="text-2xl font-bold">
                                     EEG STATUS:
                                 </h2>
 
-                                <div className="mt-5 space-y-4">
+                                <div className="mt-3 space-y-3">
 
                                     <div className="flex items-center gap-3 text-lg">
 
@@ -358,7 +360,7 @@ export default function Baseline() {
 
                             </div>
 
-                            <div className="relative h-64 w-full overflow-hidden">
+                            <div className="relative h-52 w-full overflow-hidden">
                                 <EEGWave
                                     variant="baseline"
                                     className="absolute inset-0"
@@ -366,7 +368,7 @@ export default function Baseline() {
                             </div>
                         </div>
 
-                        <div className="mt-4">
+                        <div className="mt-3">
 
                             <button
                                 onClick={handleStartAssessment}
@@ -380,7 +382,7 @@ export default function Baseline() {
                                 Start Written Assessment
                             </button>
 
-                            <p className="mt-3 text-center italic text-slate-600">
+                            <p className="mt-2 text-center text-sm italic text-slate-600">
                                 (Button will be enabled after successful
                                 5-minutes baseline completion.)
                             </p>

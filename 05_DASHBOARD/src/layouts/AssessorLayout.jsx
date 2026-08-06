@@ -5,7 +5,7 @@ import AssessorNavbar from "../components/assessordashboard/AssessorNavbar";
 import DashboardBackground from "../components/common/DashboardBackground";
 
 export default function AssessorLayout({ children }) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <div className="flex h-screen bg-gray-100">

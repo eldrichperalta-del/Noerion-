@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Clock3,
   FileText,
@@ -122,6 +122,7 @@ export default function AssessmentOverview() {
       {/* PAGE TITLE */}
 
       <div className="mb-5">
+        <nav className="mb-2 flex gap-2 text-sm font-semibold"><Link to="/trainee/assessment" className="text-gray-500 hover:text-[#002f86] hover:underline">My Assessments</Link><span>&gt;</span><span className="text-[#002f86]">Assessment Overview</span></nav>
         <h1 className="text-4xl font-bold text-gray-900">
           Assessment Overview
         </h1>

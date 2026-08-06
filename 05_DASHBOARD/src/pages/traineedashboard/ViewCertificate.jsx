@@ -1,5 +1,5 @@
 import { Download } from "lucide-react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import CertificateTemplate from "../../components/traineedashboard/certificate/CertificateTemplate";
 
 const certificateFallbacks = [
@@ -54,7 +54,6 @@ const certificateFallbacks = [
 ];
 
 export default function ViewCertificate() {
-  const navigate = useNavigate();
   const { id } = useParams();
   const { state } = useLocation();
 
@@ -66,12 +65,6 @@ export default function ViewCertificate() {
     return (
       <div className="rounded-xl bg-white p-10 text-center shadow">
         <p className="text-gray-600">Certificate not found.</p>
-        <button
-          onClick={() => navigate("/trainee/certificates")}
-          className="mt-5 rounded-lg bg-[#002f86] px-5 py-2 text-sm font-semibold text-white hover:bg-[#00266b]"
-        >
-          Back to Certificates
-        </button>
       </div>
     );
   }
@@ -111,33 +104,24 @@ export default function ViewCertificate() {
     <>
       <div className="certificate-print-only">{certificatePreview}</div>
 
-      <div className="certificate-view-page min-h-full py-2">
-        <nav className="mb-6 text-lg print:hidden">
-          <span className="font-semibold text-gray-900">{title}</span>
-        </nav>
-
-        <div className="certificate-print-area">
-          {certificatePreview}
-        </div>
-
-        <div className="mt-8 flex justify-center gap-5 print:hidden">
+      <div className="certificate-view-page min-h-[calc(100vh-7rem)] py-2">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 print:hidden">
+          <nav className="flex gap-2 text-sm font-semibold">
+            <Link to="/trainee/certificates" className="text-gray-500 hover:text-[#002f86] hover:underline">My Certificates</Link><span>&gt;</span><span className="text-[#002f86]">{title}</span>
+          </nav>
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 rounded-lg bg-[#002f86] px-8 py-3 text-base font-medium text-white shadow-[0_4px_10px_rgba(0,47,134,0.35)] hover:bg-[#00266b]"
+            className="flex items-center gap-2 rounded-lg bg-[#002f86] px-5 py-2.5 text-sm font-medium text-white shadow-[0_4px_10px_rgba(0,47,134,0.35)] hover:bg-[#00266b]"
           >
-            <Download size={18} />
+            <Download size={17} />
             Download PDF
           </button>
+        </div>
 
-          <button
-            onClick={() => navigate("/trainee/certificates")}
-            className="rounded-lg bg-[#002f86] px-8 py-3 text-base font-medium text-white shadow-[0_4px_10px_rgba(0,47,134,0.35)] hover:bg-[#00266b]"
-          >
-            Back to Certificates
-          </button>
+        <div className="certificate-print-area certificate-screen-preview">
+          {certificatePreview}
         </div>
       </div>
     </>
   );
 }
-

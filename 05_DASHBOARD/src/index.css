@@ -50,12 +50,21 @@ input[aria-label="Schedule date"] {
   backface-visibility: hidden;
 }
 
-.certificate-footer-grid {
-  transform: translateY(-1.25rem);
-}
+/* This scales only the on-screen preview. The printable certificate keeps
+   its original layout through the dedicated print-only element below. */
+@media screen {
+  .certificate-screen-preview {
+    display: flex;
+    justify-content: center;
+    height: min(calc(100vh - 9.5rem), 660px);
+    overflow: hidden;
+  }
 
-.certificate-verification {
-  transform: translateY(-1.25rem);
+  .certificate-screen-preview > * {
+    width: min(100%, 980px);
+    transform: scale(0.94);
+    transform-origin: top center;
+  }
 }
 
 @media print {

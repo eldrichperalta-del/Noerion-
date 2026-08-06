@@ -25,7 +25,9 @@ function TraineeNavbar() {
     "/trainee/settings": "Settings",
   };
 
-  const currentTitle = pageTitles[location.pathname] || "Trainee Dashboard";
+  const currentTitle = /^\/trainee\/certificates\/[^/]+$/.test(location.pathname)
+    ? "View Certificates"
+    : pageTitles[location.pathname] || "Trainee Dashboard";
 
   useEffect(() => {
     let isMounted = true;
