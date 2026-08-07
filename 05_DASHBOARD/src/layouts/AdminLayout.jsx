@@ -5,7 +5,7 @@ import AdminNavbar from "../components/admin/AdminNavbar";
 import DashboardBackground from "../components/common/DashboardBackground";
 
 function AdminLayout({ children }) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">

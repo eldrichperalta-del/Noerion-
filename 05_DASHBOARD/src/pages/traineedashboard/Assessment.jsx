@@ -18,9 +18,6 @@ export default function Assessment() {
       case "Pending":
         return "bg-yellow-100 text-yellow-700";
 
-      case "Ongoing":
-        return "bg-blue-100 text-blue-700";
-
       case "Completed":
         return "bg-green-100 text-green-700";
 
@@ -100,7 +97,6 @@ export default function Assessment() {
           >
             <option value="All">All Status</option>
             <option value="Pending">Pending</option>
-            <option value="Ongoing">Ongoing</option>
             <option value="Completed">Completed</option>
           </select>
           <div className="relative flex-1 lg:w-64"><Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" /><input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm outline-none shadow-sm focus:border-[#002f86] focus:ring-2 focus:ring-blue-100" /></div>

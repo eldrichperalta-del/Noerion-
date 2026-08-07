@@ -1,4 +1,4 @@
-import { useLocation, Navigate } from "react-router-dom";
+import { Link, useLocation, Navigate } from "react-router-dom";
 
 import SummaryInfoCards from "../../components/traineedashboard/assessment-summary/SummaryInfoCards";
 import PerformanceBreakdown from "../../components/traineedashboard/assessment-summary/PerformanceBreakdown";
@@ -23,6 +23,7 @@ export default function AssessmentSummary() {
 
   return (
     <div className="space-y-6">
+      <nav className="flex gap-2 text-sm font-semibold"><Link to="/trainee/results" className="text-gray-500 hover:text-[#002f86] hover:underline">Results</Link><span>&gt;</span><span className="text-[#002f86]">Assessment Summary</span></nav>
       <DashboardPageHeader title="Assessment Summary" subtitle="Review your performance, cognitive insights, and assessment feedback." />
 
       <SummaryInfoCards assessment={assessment} />

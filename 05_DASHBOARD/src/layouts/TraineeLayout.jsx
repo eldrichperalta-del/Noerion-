@@ -6,7 +6,7 @@ import TraineeNavbar from "../components/traineedashboard/TraineeNavbar";
 import DashboardBackground from "../components/common/DashboardBackground";
 
 function TraineeLayout({ children }) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <div className="flex h-screen w-full bg-gray-100 overflow-hidden">

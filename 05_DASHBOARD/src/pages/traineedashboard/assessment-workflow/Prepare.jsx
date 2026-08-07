@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import EEGWave from "../../../components/common/EEGWave";
 import {
     CheckCircle2,
@@ -89,22 +89,23 @@ export default function Prepare() {
     };
 
     return (
-        <div className="p-0">
+        <div className="h-[calc(100vh-7rem)] overflow-hidden p-0">
             {/* ================================= */}
             {/* Header */}
             {/* ================================= */}
 
-            <div className="mb-8">
-                <h1 className="text-4xl font-bold text-slate-900">
+            <div className="mb-3">
+                <nav className="mb-2 flex gap-2 text-sm font-semibold"><Link to="/trainee/assessment" className="text-gray-500 hover:text-[#002f86] hover:underline">My Assessments</Link><span>&gt;</span><Link to="/trainee/assessment/overview" state={{ assessment }} className="text-gray-500 hover:text-[#002f86] hover:underline">Assessment Overview</Link><span>&gt;</span><Link to="/trainee/assessment/baseline" state={{ assessment }} className="text-gray-500 hover:text-[#002f86] hover:underline">Baseline</Link><span>&gt;</span><span className="text-[#002f86]">Preparation</span></nav>
+                <h1 className="text-3xl font-bold text-slate-900">
                     Prepare for Written Assessment
                 </h1>
 
-                <p className="mt-2 text-lg text-slate-600">
+                <p className="mt-1 text-base text-slate-600">
                     Please verify that your EEG device is connected and ready before beginning the written assessment.
                 </p>
             </div>
 
-            <div className="mx-auto max-w-[1190px] p-2">
+            <div className="mx-auto max-w-[1190px] p-1">
 
 
 
@@ -112,21 +113,21 @@ export default function Prepare() {
                 {/* Main Grid */}
                 {/* ================================= */}
 
-                <div className="grid grid-cols-12 gap-5">
+                <div className="grid grid-cols-12 gap-4">
 
                     {/* LEFT COLUMN */}
 
-                    <div className="col-span-4 flex flex-col gap-6">
+                    <div className="col-span-4 flex flex-col gap-4">
 
                         {/* Device Status */}
 
-                        <div className="rounded-2xl bg-white shadow-[0_4px_12px_rgba(0,0,0,0.30)] p-6">
+                        <div className="rounded-2xl bg-white p-4 shadow-[0_4px_12px_rgba(0,0,0,0.30)]">
 
-                            <h2 className="text-xl font-bold mb-6">
+                            <h2 className="mb-3 text-lg font-bold">
                                 DEVICE STATUS
                             </h2>
 
-                            <div className="space-y-6">
+                            <div className="space-y-3">
 
                                 {/* Connection */}
 
@@ -142,7 +143,7 @@ export default function Prepare() {
                                         </p>
 
                                         <p
-                                            className={`text-2xl font-bold ${connected
+                                            className={`text-xl font-bold ${connected
                                                 ? "text-green-600"
                                                 : "text-red-500"
                                                 }`}
@@ -169,7 +170,7 @@ export default function Prepare() {
                                         </p>
 
                                         <p
-                                            className={`text-2xl font-bold ${signalQuality === "Good"
+                                            className={`text-xl font-bold ${signalQuality === "Good"
                                                 ? "text-green-600"
                                                 : "text-red-500"
                                                 }`}
@@ -186,13 +187,13 @@ export default function Prepare() {
 
                         {/* Instructions */}
 
-                        <div className="rounded-2xl bg-white shadow-[0_4px_12px_rgba(0,0,0,0.30)] p-6">
+                        <div className="rounded-2xl bg-white p-4 shadow-[0_4px_12px_rgba(0,0,0,0.30)]">
 
-                            <h2 className="text-1xl font-bold mb-5">
+                            <h2 className="mb-3 text-base font-bold">
                                 QUICK INSTRUCTIONS
                             </h2>
 
-                            <div className="space-y-4">
+                            <div className="space-y-2">
 
                                 <div className="flex items-center gap-3">
                                     <Headset className="h-5 w-5 text-blue-600" />
@@ -250,26 +251,26 @@ export default function Prepare() {
 
                     {/* RIGHT COLUMN */}
 
-                    <div className="col-span-8 flex flex-col gap-6">
+                    <div className="col-span-8 flex flex-col gap-4">
 
                         {/* EEG CARD */}
 
                         <div className="rounded-2xl bg-white shadow-[0_4px_12px_rgba(0,0,0,0.30)] overflow-hidden">
 
-                            <div className="flex items-center gap-3 px-6 py-5">
+                            <div className="flex items-center gap-3 px-4 py-3">
 
                                 <CheckCircle2
                                     className="text-green-600"
                                     size={28}
                                 />
 
-                                <span className="text-3xl font-semibold">
+                                <span className="text-2xl font-semibold">
                                     EEG Ready
                                 </span>
 
                             </div>
 
-                            <div className="relative h-64">
+                            <div className="relative h-52">
                                 <EEGWave
                                     variant="prepare"
                                     className="absolute inset-0"
@@ -284,7 +285,7 @@ export default function Prepare() {
                             <button
                                 onClick={handleWrittenAssessment}
                                 disabled={!eegReady}
-                                className={`w-full py-5 rounded-2xl text-2xl font-semibold transition-all flex justify-center items-center gap-3
+                                className={`flex w-full items-center justify-center gap-3 rounded-2xl py-3 text-xl font-semibold transition-all
                                         ${eegReady
                                         ? "bg-blue-600 hover:bg-blue-700 text-white"
                                         : "bg-gray-300 text-gray-500 cursor-not-allowed"
@@ -297,7 +298,7 @@ export default function Prepare() {
 
                             </button>
 
-                            <div className="mt-8 rounded-xl border border-blue-200 bg-blue-50 py-4 text-center text-blue-800 text-xl font-medium">
+                            <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 py-3 text-center text-base font-medium text-blue-800">
 
                                 Adjust device for better contact
 

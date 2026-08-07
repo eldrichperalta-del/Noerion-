@@ -197,16 +197,18 @@ export default function Home() {
         {/* Upcoming Assessments */}
         <div className="xl:col-span-2">
           <div className="rounded-2xl bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.35)] border border-gray-100">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-5">
+            <button onClick={() => navigate("/trainee/assessment")} className="mb-5 text-2xl font-semibold text-gray-900 hover:text-[#002f86]">
               Upcoming Assessments
-            </h2>
+            </button>
 
-            <div className="space-y-4">
+            <div className="overflow-hidden rounded-xl border border-gray-100">
+              <div className="grid grid-cols-[1.4fr_1.2fr_0.6fr] gap-4 bg-gray-100 px-4 py-3 text-xs font-bold uppercase tracking-wide text-gray-600"><span>Assessment</span><span>Schedule</span><span>Status</span></div>
               {upcomingAssessments.length > 0 ? (
                 upcomingAssessments.map((assessment) => (
                   <div
                     key={assessment.id}
-                    className="grid grid-cols-[1.4fr_1.2fr_0.6fr] gap-4 border-b border-gray-100 pb-4 items-center hover:bg-gray-100"
+                    onClick={() => navigate("/trainee/assessment")}
+                    className="grid grid-cols-[1.4fr_1.2fr_0.6fr] items-center gap-4 border-b border-gray-100 px-4 py-4 transition hover:cursor-pointer hover:bg-gray-50"
                   >
                     <div>
                       <p className="font-semibold text-gray-900">

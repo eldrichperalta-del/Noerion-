@@ -27,7 +27,7 @@ export default function CertificateTemplate({
             className="certificate-border-image pointer-events-none absolute inset-0 h-full w-full object-fill"
           />
 
-          <div className="relative z-10 flex h-full flex-col items-center px-12 pb-8 pt-10 text-center">
+          <div className="relative z-10 flex h-full flex-col items-center px-12 pb-10 pt-8 text-center">
             <img src={tesdaLogo} alt="TESDA" className="certificate-logo h-14 w-14 object-contain" />
 
             <p className="certificate-logo-text mt-1 text-[14px] font-extrabold leading-none text-[#102a6c]">
@@ -40,7 +40,7 @@ export default function CertificateTemplate({
               Certificate of Competency
             </h2>
 
-            <div className="certificate-body mt-3 max-w-[680px] text-[17px] font-medium leading-7">
+            <div className="certificate-body mt-2 max-w-[680px] text-[15px] font-medium leading-6">
               <p>This is to certify that the individual has demonstrated competency in</p>
               <p>
                 This is to certify that{" "}
@@ -70,12 +70,12 @@ export default function CertificateTemplate({
               </p>
             </div>
 
-            <div className="certificate-footer-grid mt-auto grid w-full grid-cols-[1fr_1fr_92px] items-end gap-6 px-8">
+            <div className="certificate-footer-grid mt-auto grid w-full grid-cols-[1fr_1fr_76px] items-end gap-5 px-7">
               <div className="text-center">
                 <p className="certificate-signature-script font-['Brush_Script_MT',cursive] text-2xl leading-none">
                   Signature
                 </p>
-                <div className="certificate-signature-label mt-1 border-t-2 border-[#111827] pt-1 text-[13px] font-extrabold">
+                <div className="certificate-signature-label mt-1 border-t-2 border-[#111827] pt-1 text-[11px] font-extrabold">
                   {assessorName} &amp; Signature
                 </div>
               </div>
@@ -84,13 +84,13 @@ export default function CertificateTemplate({
                 <p className="certificate-signature-script font-['Brush_Script_MT',cursive] text-2xl leading-none">
                   Signature
                 </p>
-                <div className="certificate-signature-label mt-1 border-t-2 border-[#111827] pt-1 text-[13px] font-extrabold">
+                <div className="certificate-signature-label mt-1 border-t-2 border-[#111827] pt-1 text-[11px] font-extrabold">
                   {authorityName} Signature
                 </div>
               </div>
 
               <div className="flex flex-col items-center">
-                <div className="certificate-qr grid h-[78px] w-[78px] grid-cols-[repeat(17,1fr)] gap-[1px] border-2 border-[#111827] bg-white p-[3px]">
+                <div className="certificate-qr grid h-[66px] w-[66px] grid-cols-[repeat(17,1fr)] gap-[1px] border-2 border-[#111827] bg-white p-[3px]">
                   {qrCells.split("").map((cell, index) => (
                     <span
                       key={index}
@@ -106,7 +106,7 @@ export default function CertificateTemplate({
               </div>
             </div>
 
-            <p className="certificate-verification mt-3 text-[12px] font-medium">
+            <p className="certificate-verification mt-2 text-[10px] font-medium">
               This certificate is digitally verified through the NOERION system.
             </p>
           </div>
@@ -115,6 +115,5 @@ export default function CertificateTemplate({
     </div>
   );
 }
-
 
 

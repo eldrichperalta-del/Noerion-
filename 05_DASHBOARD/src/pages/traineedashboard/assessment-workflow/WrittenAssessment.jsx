@@ -148,7 +148,7 @@ export default function WrittenAssessment() {
   };
 
   const renderMultipleChoice = () => (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
       {current.choices.map((choice) => {
         const isSelected = selectedAnswer === choice;
 
@@ -156,13 +156,13 @@ export default function WrittenAssessment() {
           <button
             key={choice}
             onClick={() => saveAnswer(choice)}
-            className={`flex min-h-20 items-center gap-4 rounded-xl border px-6 py-5 text-left text-xl font-semibold transition ${isSelected
+            className={`flex min-h-20 items-center gap-4 rounded-xl border px-6 py-5 text-left !text-xl font-semibold leading-7 break-words md:!text-2xl transition ${isSelected
               ? "border-[#0B5D8A] bg-sky-50 shadow-[0_0_0_2px_rgba(14,116,144,0.15)]"
               : "border-gray-300 bg-white hover:border-[#0B5D8A]"
               }`}
           >
             <span
-              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 ${isSelected
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border-2 ${isSelected
                 ? "border-[#0B5D8A] bg-[#0B5D8A] text-white"
                 : "border-gray-400"
                 }`}
@@ -177,7 +177,7 @@ export default function WrittenAssessment() {
   );
 
   const renderTrueFalse = () => (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
       {["True", "False"].map((choice) => {
         const isSelected = selectedAnswer === choice;
 
@@ -185,15 +185,15 @@ export default function WrittenAssessment() {
           <button
             key={choice}
             onClick={() => saveAnswer(choice)}
-            className={`flex min-h-20 items-center gap-5 rounded-xl border px-7 py-5 text-left text-xl font-bold uppercase transition ${isSelected
+            className={`flex min-h-20 items-center gap-4 rounded-xl border px-6 py-5 text-left !text-xl font-bold uppercase leading-7 md:!text-2xl transition ${isSelected
               ? "border-[#0B5D8A] bg-sky-50 shadow-[0_0_0_2px_rgba(14,116,144,0.15)]"
               : "border-gray-300 bg-white hover:border-[#0B5D8A]"
               }`}
           >
             {isSelected ? (
-              <CheckCircle className="text-[#0B5D8A]" size={30} />
+              <CheckCircle className="shrink-0 text-[#0B5D8A]" size={30} />
             ) : (
-              <Circle className="text-gray-400" size={30} />
+              <Circle className="shrink-0 text-gray-400" size={30} />
             )}
             {choice}
           </button>
@@ -208,7 +208,7 @@ export default function WrittenAssessment() {
         value={selectedAnswer || ""}
         onChange={(event) => saveAnswer(event.target.value)}
         placeholder="Type answer..."
-        className="w-full max-w-lg rounded-xl border border-gray-300 px-6 py-5 text-center text-xl font-bold uppercase tracking-normal outline-none focus:border-[#0B5D8A] focus:ring-4 focus:ring-sky-100"
+        className="w-full max-w-2xl rounded-xl border border-gray-300 px-6 py-6 text-center !text-xl font-bold uppercase leading-7 tracking-normal md:!text-2xl outline-none focus:border-[#0B5D8A] focus:ring-4 focus:ring-sky-100"
       />
     </div>
   );
@@ -218,8 +218,8 @@ export default function WrittenAssessment() {
 
     return (
       <div className="overflow-hidden rounded-xl border border-gray-300">
-        <div className="grid grid-cols-[1.05fr_1.3fr] bg-gray-100 text-lg font-bold">
-          <div className="border-r border-gray-300 px-4 py-3">
+        <div className="grid grid-cols-[1.05fr_1.3fr] bg-gray-100 !text-lg font-bold md:!text-xl">
+          <div className="border-r border-gray-300 px-4 py-2">
             Column A (Item)
           </div>
           <div className="px-4 py-3">Column B (Description)</div>
@@ -228,9 +228,9 @@ export default function WrittenAssessment() {
         {current.pairs.map((pair, index) => (
           <div
             key={`${pair.left}-${index}`}
-            className="grid grid-cols-[1.05fr_1.3fr] border-t border-gray-300 bg-white text-lg"
+            className="grid grid-cols-[1.05fr_1.3fr] border-t border-gray-300 bg-white !text-base leading-6 md:!text-lg"
           >
-            <div className="flex items-center gap-3 border-r border-gray-300 px-4 py-3">
+            <div className="flex min-w-0 items-center gap-2 border-r border-gray-300 px-3 py-2">
               <input
                 value={selectedAnswer?.[index] || ""}
                 onChange={(event) =>
@@ -238,14 +238,14 @@ export default function WrittenAssessment() {
                 }
                 maxLength={1}
                 aria-label={`Answer for ${pair.left}`}
-                className="h-11 w-20 rounded-lg border border-[#0B5D8A] text-center text-lg font-bold uppercase outline-none focus:ring-4 focus:ring-sky-100"
+                className="h-9 w-16 rounded-lg border border-[#0B5D8A] text-center text-base font-bold uppercase outline-none focus:ring-4 focus:ring-sky-100"
               />
-              <span>
+              <span className="min-w-0 break-words">
                 {pair.itemNumber || index + 1}. {pair.left}
               </span>
             </div>
 
-            <div className="px-4 py-3">
+            <div className="break-words px-3 py-2">
               {options[index].letter}. {options[index].description}
             </div>
           </div>
@@ -283,17 +283,17 @@ export default function WrittenAssessment() {
     : `Question ${current.id || currentQuestion + 1} of ${totalItems}`;
 
   return (
-    <div className="min-h-full p-0">
-      <section className="mb-8 flex flex-wrap items-start justify-between gap-5">
+    <div className="flex h-[calc(100vh-7rem)] min-h-0 flex-col overflow-hidden p-0">
+      <section className="mb-3 shrink-0 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-bold text-slate-950">
+          <h1 className="text-3xl font-bold text-slate-950">
             {assessment.qualification}
           </h1>
-          <p className="mt-2 max-w-3xl text-xl font-medium text-slate-800">
+          <p className="mt-1 max-w-3xl text-base font-medium text-slate-800">
             Unit of Competency: {assessment.unitOfCompetency}
           </p>
 
-          <div className="mt-5 flex flex-wrap gap-3">
+          <div className="mt-3 flex flex-wrap gap-3">
             <span className="inline-flex items-center gap-2 rounded-lg bg-green-100 px-4 py-2 font-semibold text-green-800 shadow-sm">
               <Check size={18} />
               Muse 2 Connected
@@ -325,15 +325,35 @@ export default function WrittenAssessment() {
         </div>
       </section>
 
-      <section className="rounded-2xl bg-white p-6 shadow-[0_6px_18px_rgba(15,23,42,0.15)] md:p-8">
-        <h2 className="mb-8 text-2xl font-semibold leading-snug text-slate-950">
-          {current.question}
-        </h2>
+      <section className="flex min-h-0 flex-1 flex-col rounded-2xl bg-white p-4 shadow-[0_6px_18px_rgba(15,23,42,0.15)] md:p-5">
 
-        {renderQuestionBody()}
+        {current.type === "Matching Type" ? (
+          <>
+            <h2 className="mb-5 shrink-0 !text-2xl font-semibold leading-8 text-slate-950 md:!text-3xl">
+              {current.question}
+            </h2>
 
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex min-h-10 items-center gap-3 text-xl text-slate-800">
+            <div className="min-h-0 flex-1 overflow-y-auto pt-1 pr-1">
+              {renderQuestionBody()}
+            </div>
+          </>
+        ) : (
+          <div className="mt-12 flex-1 flex flex-col">
+
+            <h2 className="mb-10 shrink-0 !text-2xl font-semibold leading-8 text-slate-950 md:!text-3xl">
+              {current.question}
+            </h2>
+
+            <div className="flex-1 overflow-y-auto pr-1">
+              {renderQuestionBody()}
+            </div>
+
+          </div>
+        )}
+
+        <div className="mt-6 shrink-0 flex flex-wrap items-center justify-between gap-4">
+
+          <div className="flex min-h-8 items-center gap-3 text-base text-slate-800">
             {answerSaved && (
               <>
                 <Check className="text-green-600" size={28} />
@@ -359,11 +379,13 @@ export default function WrittenAssessment() {
               <ChevronRight size={22} />
             </button>
           )}
+
         </div>
+
       </section>
 
-      <div className="mt-8">
-        <div className="mb-2 flex justify-between text-lg font-medium text-slate-900">
+      <div className="mt-3 shrink-0">
+        <div className="mb-2 flex justify-between text-base font-medium text-slate-900">
           <span>
             {questionProgressLabel}
           </span>

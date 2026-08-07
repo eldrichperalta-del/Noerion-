@@ -445,10 +445,9 @@ export default function Results() {
       />
 
       {/* Filters */}
-      <div className="flex flex-wrap justify-between gap-4 mb-6">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         {/* Search */}
-        <div className="bg-white rounded-xl p-3 shadow-[0_4px_12px_rgba(0,0,0,0.30)]">
-          <div className="relative w-full md:w-80">
+        <div className="relative w-full lg:max-w-md">
             <Search
               size={18}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -456,17 +455,16 @@ export default function Results() {
 
             <input
               type="text"
-              placeholder="Search Results..."
+              placeholder="Search results"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm outline-none shadow-sm focus:border-[#002f86] focus:ring-2 focus:ring-blue-100"
             />
           </div>
-        </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           {/* Status */}
-          <div className="bg-white rounded-xl p-3 shadow-[0_4px_12px_rgba(0,0,0,0.30)]">
+          <div className="rounded-xl bg-white shadow-sm">
             <div className="relative">
               <select
                 value={statusFilter}
@@ -486,7 +484,7 @@ export default function Results() {
           </div>
 
           {/* Date */}
-          <div className="bg-white rounded-xl p-3 shadow-[0_4px_12px_rgba(0,0,0,0.30)]">
+          <div className="rounded-xl bg-white shadow-sm">
             <div className="relative">
               <CalendarDays
                 size={17}
