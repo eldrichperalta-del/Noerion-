@@ -17,9 +17,11 @@ function TraineeManagement() {
   // Fetch Trainees from Profiles
   const fetchTrainees = async () => {
     setLoading(true);
+
+    // FIX: Explicitly target the 'user_id' relationship to resolve ambiguity
     const { data, error } = await supabase
       .from("profiles")
-      .select("*, trainee_profiles(*)")
+      .select("*, trainee_profiles!user_id(*)")
       .ilike("role", "trainee");
 
     if (error) {
@@ -50,7 +52,6 @@ function TraineeManagement() {
           email: item.email || "N/A",
           status: status,
           verificationStatus: verificationStatus,
-          // FIX: Updated to match DB column 'rejected_reason'
           rejected_reason: item.rejected_reason || null,
           ...item,
           ...(training || {}),
@@ -72,7 +73,6 @@ function TraineeManagement() {
       .from("profiles")
       .update({
         registration_status: "Approved",
-        // FIX: Updated to match DB column 'rejected_reason'
         rejected_reason: null, 
       })
       .eq("id", id);
@@ -102,7 +102,6 @@ function TraineeManagement() {
       .from("profiles")
       .update({
         registration_status: "Rejected",
-        // FIX: Updated to match DB column 'rejected_reason'
         rejected_reason: rejectionReason,
       })
       .eq("id", id);

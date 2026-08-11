@@ -13,10 +13,10 @@ export default function SelectedTraineesTable({
 
   const filteredTrainees = useMemo(() => {
     return trainees.filter((trainee) => {
-      // Support different backend field names
+      // Support different property field names
       const fullName =
-        trainee.name ??
         trainee.fullName ??
+        trainee.name ??
         trainee.fullname ??
         "";
 
@@ -24,16 +24,12 @@ export default function SelectedTraineesTable({
       const status = trainee.status ?? "";
 
       const matchesSearch =
-        fullName
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        traineeId
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase());
+        fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        traineeId.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesStatus =
         statusFilter === "All" ||
-        status === statusFilter;
+        status.toLowerCase() === statusFilter.toLowerCase();
 
       return matchesSearch && matchesStatus;
     });
@@ -41,9 +37,9 @@ export default function SelectedTraineesTable({
 
   return (
     <div className="-mt-1 space-y-4">
-      {/* Search & Filter */}
+      {/* Search & Filter Controls */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        {/* Search */}
+        {/* Search Input */}
         <div className="relative w-full lg:max-w-md">
           <Search
             size={18}
@@ -54,12 +50,12 @@ export default function SelectedTraineesTable({
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by Trainee Name..."
+            placeholder="Search by Trainee Name or ID..."
             className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-black placeholder:text-gray-400 caret-black outline-none shadow-sm transition focus:border-[#002f86] focus:ring-2 focus:ring-blue-100"
           />
         </div>
 
-        {/* Filter */}
+        {/* Status Filter Dropdown */}
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium text-gray-700">
             Filter by Status:
@@ -71,31 +67,30 @@ export default function SelectedTraineesTable({
             className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-black outline-none shadow-sm transition focus:border-[#002f86] focus:ring-2 focus:ring-blue-100"
           >
             <option value="All">All Statuses</option>
-            <option value="Pending">Pending</option>
-            <option value="Completed">Completed</option>
+            <option value="Not Started">Not Started</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Submitted">Submitted</option>
+            <option value="Evaluated">Evaluated</option>
           </select>
         </div>
       </div>
 
-      {/* Header */}
+      {/* Table Header */}
       <div className="grid grid-cols-12 items-center rounded-xl bg-gray-200 px-6 py-3 text-xs font-bold uppercase tracking-wide text-gray-600">
         <div className="col-span-4">Trainee Name</div>
-
         <div className="col-span-3">Trainee ID</div>
-
         <div className="col-span-3">Assessment Status</div>
+        <div className="col-span-2 text-right">Action</div>
       </div>
 
-      {/* Rows */}
+      {/* Table Rows */}
       <div className="space-y-4">
         {filteredTrainees.map((trainee) => {
           const fullName =
-            trainee.name ??
             trainee.fullName ??
+            trainee.name ??
             trainee.fullname ??
-            "";
-
-          const isPending = trainee.status === "Pending";
+            "Unnamed Trainee";
 
           return (
             <div
@@ -111,52 +106,19 @@ export default function SelectedTraineesTable({
 
               {/* Trainee ID */}
               <div className="col-span-3">
-                <p className="text-sm text-gray-500">
-                  {trainee.traineeId}
-                </p>
+                <p className="text-sm text-gray-500">{trainee.traineeId}</p>
               </div>
 
-              {/* Status */}
+              {/* Status Badge */}
               <div className="col-span-3">
-                <AssessorStatusBadge
-                  status={trainee.status}
-                />
+                <AssessorStatusBadge status={trainee.status} />
               </div>
 
-              {/* ============================================================================
-                  FRONTEND DEVELOPMENT ONLY
-                  ----------------------------------------------------------------------------
-                  Disable the action button while the trainee's assessment
-                  status is "Pending". Assessors cannot proceed to the next
-                  evaluation page until the assessment has been completed.
-
-                  BACKEND HANDOFF:
-
-                  Replace the mock `status` field with the value returned
-                  by the API.
-
-                  Expected values:
-                  - "Pending"   -> Disable button (gray)
-                  - "Completed" -> Enable button (blue)
-
-                  Backend validation should also prevent direct access to
-                  the evaluation workflow when the trainee's assessment
-                  is still Pending.
-              ============================================================================ */}
-
-              {/* Action */}
+              {/* Action Button */}
               <div className="col-span-2 flex justify-end">
                 <button
-                  disabled={isPending}
-                  onClick={() => {
-                    if (!isPending) {
-                      onAction(trainee);
-                    }
-                  }}
-                  className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-300 ${isPending
-                      ? "cursor-not-allowed bg-gray-300 text-gray-500 shadow-none"
-                      : "bg-[#002f86] text-white shadow-md hover:bg-[#001f59] hover:shadow-lg active:scale-95"
-                    }`}
+                  onClick={() => onAction(trainee)}
+                  className="rounded-xl bg-[#002f86] px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all duration-300 hover:bg-[#001f59] hover:shadow-lg active:scale-95"
                 >
                   {actionLabel}
                 </button>
@@ -167,7 +129,7 @@ export default function SelectedTraineesTable({
 
         {filteredTrainees.length === 0 && (
           <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-12 text-center text-gray-500 shadow-sm">
-            No trainees found.
+            No trainees found for this batch.
           </div>
         )}
       </div>

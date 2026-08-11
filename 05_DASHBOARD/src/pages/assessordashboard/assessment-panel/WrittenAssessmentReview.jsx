@@ -1,9 +1,6 @@
-import { useState } from "react";
-import {
-  useLocation,
-  Navigate,
-  useNavigate,
-} from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useLocation, Navigate, useNavigate } from "react-router-dom";
+import { supabase } from "../../../supabaseClient";
 
 import AssessorBreadcrumbs from "../../../components/assessordashboard/flow/AssessorBreadcrumbs";
 import ConfirmationModal from "../../../components/assessordashboard/flow/ConfirmationModal";
@@ -20,58 +17,20 @@ export default function WrittenAssessmentReview() {
   const { state } = useLocation();
 
   // ==========================================================
-  // Data passed from AssessmentOverview.jsx
+  // Context Data passed from AssessmentOverview.jsx
   // ==========================================================
   const trainee = state?.trainee;
   const assessment = state?.assessment;
-  const selectedCourse =
-    state?.selectedCourse || assessment?.courseName;
+  const selectedCourse = state?.selectedCourse || assessment?.courseName;
+  const batchCode = state?.batchCode || trainee?.batchCode;
 
   // ==========================================================
-  // BACKEND HANDOFF:
-  // Replace with submitted answers from database.
+  // Local Component State
   // ==========================================================
-  const questions =
-    state?.questions ??
-    [
-      {
-        id: 1,
-        question:
-          "What is the primary purpose of calibration before robotic assembly?",
-        traineeAnswer:
-          "To ensure machine accuracy.",
-        correctAnswer:
-          "To ensure machine accuracy.",
-        score: 5,
-        points: 5,
-      },
-      {
-        id: 2,
-        question:
-          "Which sensor detects object proximity?",
-        traineeAnswer:
-          "Infrared Sensor",
-        correctAnswer:
-          "Ultrasonic Sensor",
-        score: 0,
-        points: 5,
-      },
-      {
-        id: 3,
-        question:
-          "Explain the emergency shutdown procedure.",
-        traineeAnswer:
-          "Press emergency stop then disconnect power.",
-        correctAnswer:
-          "Press emergency stop then disconnect power.",
-        score: 10,
-        points: 10,
-      },
-    ];
+  const [questionsData, setQuestionsData] = useState([]);
+  const [submissionId, setSubmissionId] = useState(trainee?.submissionId || trainee?.submission_id || null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // ==========================================================
-  // Local State
-  // ==========================================================
   const [validated, setValidated] = useState(false);
   const [remarks, setRemarks] = useState("");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -79,71 +38,281 @@ export default function WrittenAssessmentReview() {
   const [isFinalized, setIsFinalized] = useState(false);
   const [overrideMode, setOverrideMode] = useState(false);
 
-  // Prevent opening page directly
+  // Dynamic Metrics State
+  const [metrics, setMetrics] = useState({
+    totalScore: 0,
+    totalItems: 0,
+    percentage: 0,
+    result: "In Evaluation",
+  });
+
+  // Guard: Redirect back if opened directly without payload context
   if (!trainee || !assessment) {
-    return (
-      <Navigate
-        to="/assessor/assessment-panel"
-        replace
-      />
-    );
+    return <Navigate to="/assessor/assessment-panel" replace />;
   }
 
   // ==========================================================
-  // Actions
+  // DB HANDOFF: Load Submission Data & Calculate Metrics
   // ==========================================================
-  const handleBack = () => {
-    navigate(-1);
-  };
+  useEffect(() => {
+    async function loadAssessmentReview() {
+      setIsLoading(true);
+      try {
+        let currentSubId = submissionId;
+        let dbTotalScore = null;
+        let dbStatus = "in_progress";
+        let dbResult = null;
 
+        // 1. Fetch Submission Record if ID is missing
+        if (!currentSubId) {
+          const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+          const candidateUuids = [
+            trainee?.user_id,
+            trainee?.userId,
+            trainee?.profile_id,
+            trainee?.id,
+          ].filter((val) => val && typeof val === "string" && uuidRegex.test(val));
+
+          for (const uid of candidateUuids) {
+            const { data: subData } = await supabase
+              .from("assessment_submissions")
+              .select("id, status, total_score, overall_result, passed")
+              .eq("assessment_id", assessment.id)
+              .eq("trainee_id", uid)
+              .maybeSingle();
+
+            if (subData) {
+              currentSubId = subData.id;
+              setSubmissionId(currentSubId);
+              dbStatus = subData.status;
+              dbResult = subData.overall_result;
+              if (subData.total_score !== null && subData.total_score !== undefined) {
+                dbTotalScore = Number(subData.total_score);
+              }
+              break;
+            }
+          }
+
+          if (!currentSubId) {
+            const { data: fallbackSub } = await supabase
+              .from("assessment_submissions")
+              .select("id, status, total_score, overall_result, passed")
+              .eq("assessment_id", assessment.id)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (fallbackSub) {
+              currentSubId = fallbackSub.id;
+              setSubmissionId(currentSubId);
+              dbStatus = fallbackSub.status;
+              dbResult = fallbackSub.overall_result;
+              if (fallbackSub.total_score !== null && fallbackSub.total_score !== undefined) {
+                dbTotalScore = Number(fallbackSub.total_score);
+              }
+            }
+          }
+        }
+
+        // 2. Fetch Questions
+        const { data: questionsList, error: qError } = await supabase
+          .from("questions")
+          .select("id, item_number, question_text, question_type")
+          .eq("assessment_id", assessment.id)
+          .order("item_number", { ascending: true });
+
+        if (qError) throw qError;
+
+        const questionIds = questionsList?.map((q) => q.id) || [];
+
+        // 3. Fetch Answer Keys & Question Options
+        let answerKeysMap = {};
+        let optionsByQuestion = {};
+        let optionsMap = {};
+
+        if (questionIds.length > 0) {
+          const [{ data: keysData }, { data: optData }] = await Promise.all([
+            supabase.from("answer_keys").select("question_id, correct_answer").in("question_id", questionIds),
+            supabase.from("question_options").select("id, question_id, option_letter, option_text").in("question_id", questionIds),
+          ]);
+
+          if (keysData) {
+            keysData.forEach((k) => {
+              answerKeysMap[k.question_id] = k.correct_answer;
+            });
+          }
+
+          if (optData) {
+            optData.forEach((o) => {
+              optionsMap[o.id] = o;
+              if (!optionsByQuestion[o.question_id]) {
+                optionsByQuestion[o.question_id] = [];
+              }
+              optionsByQuestion[o.question_id].push(o);
+            });
+          }
+        }
+
+        // 4. Fetch Trainee Answers
+        let traineeAnswersMap = {};
+        if (currentSubId) {
+          const { data: tAnswers } = await supabase
+            .from("trainee_answers")
+            .select("question_id, text_answer, selected_option_id, is_correct, points_awarded")
+            .eq("submission_id", currentSubId);
+
+          if (tAnswers) {
+            tAnswers.forEach((ta) => {
+              traineeAnswersMap[ta.question_id] = ta;
+            });
+          }
+        }
+
+        // 5. Build Formatted Questions Array and Calculate Score
+        let calculatedScore = 0;
+        const formattedQuestions = (questionsList || []).map((q, idx) => {
+          const tAns = traineeAnswersMap[q.id];
+          const score = tAns ? Number(tAns.points_awarded ?? (tAns.is_correct ? 1 : 0)) : 0;
+          calculatedScore += score;
+
+          let rawTraineeAns = tAns?.text_answer;
+          let isOptionText = false;
+
+          if (!rawTraineeAns && tAns?.selected_option_id && optionsMap[tAns.selected_option_id]) {
+            const opt = optionsMap[tAns.selected_option_id];
+            rawTraineeAns = opt.option_text || opt.option_letter;
+            if (opt.option_text) isOptionText = true;
+          }
+
+          let traineeAnsStr = rawTraineeAns && String(rawTraineeAns).trim() !== "" ? String(rawTraineeAns).trim() : "No Answer";
+          if (traineeAnsStr.toLowerCase() === "true") traineeAnsStr = "TRUE";
+          if (traineeAnsStr.toLowerCase() === "false") traineeAnsStr = "FALSE";
+
+          let rawCorrectKey = answerKeysMap[q.id] || "N/A";
+          let correctAnsStr = rawCorrectKey;
+
+          const qOptions = optionsByQuestion[q.id] || [];
+          if (qOptions.length > 0) {
+            const matchedOpt = qOptions.find(
+              (o) => o.option_letter?.toLowerCase() === String(rawCorrectKey).toLowerCase() || o.id === rawCorrectKey
+            );
+
+            if (matchedOpt) {
+              if (isOptionText || (traineeAnsStr !== "No Answer" && !/^[a-eA-E]$/.test(traineeAnsStr))) {
+                correctAnsStr = matchedOpt.option_text || matchedOpt.option_letter;
+              } else if (/^[a-eA-E]$/.test(traineeAnsStr)) {
+                correctAnsStr = matchedOpt.option_letter?.toUpperCase() || matchedOpt.option_text;
+              } else {
+                correctAnsStr = matchedOpt.option_text || matchedOpt.option_letter;
+              }
+            }
+          }
+
+          if (correctAnsStr.toLowerCase() === "true") correctAnsStr = "TRUE";
+          if (correctAnsStr.toLowerCase() === "false") correctAnsStr = "FALSE";
+
+          return {
+            id: q.id,
+            itemNumber: q.item_number || idx + 1,
+            question: q.question_text,
+            traineeAnswer: traineeAnsStr,
+            correctAnswer: correctAnsStr,
+            isCorrect: Boolean(tAns?.is_correct),
+            score: score,
+            points: 1,
+          };
+        });
+
+        setQuestionsData(formattedQuestions);
+
+        // Dynamic Calculations
+        const finalScore = dbTotalScore !== null ? dbTotalScore : calculatedScore;
+        const totalItemsCount = formattedQuestions.length || assessment?.total_items || assessment?.totalItems || 0;
+        const percentage = totalItemsCount > 0 ? Math.round((finalScore / totalItemsCount) * 100) : 0;
+
+        // Determine Final Status Label
+        let statusResult = "In Evaluation";
+        if (dbStatus?.toLowerCase() === "evaluated") {
+          statusResult = percentage >= 75 ? "Passed" : "Failed";
+          setIsFinalized(true);
+        } else if (dbResult && dbResult !== "In Evaluation") {
+          statusResult = dbResult === "Competent" ? "Passed" : dbResult === "Not Yet Competent" ? "Failed" : dbResult;
+        }
+
+        setMetrics({
+          totalScore: finalScore,
+          totalItems: totalItemsCount,
+          percentage: percentage,
+          result: statusResult,
+        });
+      } catch (err) {
+        console.error("Error loading assessment review data:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadAssessmentReview();
+  }, [assessment?.id, trainee]);
+
+  // ==========================================================
+  // Evaluation Actions
+  // ==========================================================
   const handleFinalize = () => {
     setShowConfirmModal(true);
   };
 
-  const handleConfirmFinalize = () => {
+  const handleConfirmFinalize = async () => {
     setShowConfirmModal(false);
     setIsSubmitting(true);
 
-    // BACKEND HANDOFF:
-    // Save written assessment, remarks, validation,
-    // AI insights, etc.
+    try {
+      const passThreshold = 75; // 75% passing threshold
+      const isPassed = metrics.percentage >= passThreshold;
+      const displayResult = isPassed ? "Passed" : "Failed";
 
-    setTimeout(() => {
-      setIsSubmitting(false);
+      if (submissionId) {
+        await supabase
+          .from("assessment_submissions")
+          .update({
+            status: "evaluated",
+            passed: isPassed,
+            overall_result: displayResult,
+            total_score: metrics.totalScore,
+          })
+          .eq("id", submissionId);
+      }
+
+      setMetrics((prev) => ({
+        ...prev,
+        result: displayResult,
+      }));
+
       setIsFinalized(true);
-    }, 1500);
+    } catch (err) {
+      console.error("Error finalizing evaluation:", err);
+      alert("Failed to finalize evaluation. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
       <AssessorBreadcrumbs
         items={[
+          { label: "Assessment Panel", to: "/assessor/assessment-panel" },
           {
-            label: "Assessment Panel",
-            to: "/assessor/assessment-panel",
-          },
-          {
-            label: selectedCourse,
+            label: `${selectedCourse} ${batchCode ? `(${batchCode})` : ""}`,
             to: "/assessor/assessment-panel/selected-trainees",
-            state: {
-              selectedCourse,
-              courseId: assessment.id,
-              courseCode: assessment.courseCode,
-            },
+            state: { selectedCourse, batchId: state?.batchId, assessmentId: assessment?.id, batchCode },
           },
           {
             label: trainee.fullName,
             to: "/assessor/assessment-panel/assessment-overview",
-            state: {
-              trainee,
-              assessment,
-              selectedCourse,
-            },
+            state: { trainee, assessment, selectedCourse, batchId: state?.batchId, batchCode },
           },
-          {
-            label: "Written Assessment Review",
-          },
+          { label: "Written Assessment Review" },
         ]}
       />
 
@@ -152,24 +321,37 @@ export default function WrittenAssessmentReview() {
         subtitle="Review the trainee's submitted answers before finalizing the evaluation."
       />
 
+      {/* Banner Notice upon Finalization */}
       {isFinalized && (
-        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
-          Written assessment has been finalized successfully.
+        <div
+          className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
+            metrics.result === "Passed" || metrics.result === "Competent"
+              ? "border-green-200 bg-green-50 text-green-700"
+              : "border-red-200 bg-red-50 text-red-700"
+          }`}
+        >
+          Written assessment has been finalized successfully. Result: {metrics.result}
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <TraineeInfoCard
-          trainee={trainee}
-          assessment={assessment}
-        />
+        <TraineeInfoCard trainee={trainee} assessment={assessment} />
 
         <AssessmentSummaryCard
-          assessment={assessment}
+          totalScore={metrics.totalScore}
+          totalItems={metrics.totalItems}
+          percentage={metrics.percentage}
+          result={metrics.result}
         />
       </div>
 
-      <QuestionReviewTable questions={questions} />
+      {isLoading ? (
+        <div className="py-12 text-center text-gray-500 font-medium bg-white rounded-2xl border border-gray-200 shadow-sm">
+          Loading submission data and questions...
+        </div>
+      ) : (
+        <QuestionReviewTable questions={questionsData} />
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
@@ -196,7 +378,7 @@ export default function WrittenAssessmentReview() {
       <ConfirmationModal
         open={showConfirmModal}
         title="Finalize Evaluation?"
-        message="This action will finalize the written assessment review. Please confirm that all answers, remarks, and AI insights have been reviewed."
+        message={`This action will finalize the review with a score of ${metrics.percentage}% (${metrics.percentage >= 75 ? "Passed" : "Failed"}). Please confirm that all answers, remarks, and AI insights have been reviewed.`}
         confirmLabel="Finalize Evaluation"
         onCancel={() => setShowConfirmModal(false)}
         onConfirm={handleConfirmFinalize}

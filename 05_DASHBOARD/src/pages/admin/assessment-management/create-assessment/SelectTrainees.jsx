@@ -1,24 +1,332 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
+import { supabase } from "../../../../supabaseClient";
 
-const trainees = [
-  { id: "TRN-2023-001", fullName: "John Doe", email: "john.doe@example.com", assessmentStatus: "Available" },
-  { id: "TRN-2023-002", fullName: "Jane Smith", email: "jane.smith@example.com", assessmentStatus: "Available" },
-  { id: "TRN-2023-003", fullName: "Alice Brown", email: "alice.brown@example.com", assessmentStatus: "Available" },
-  { id: "TRN-2023-004", fullName: "Bob Green", email: "bob.green@example.com", assessmentStatus: "Available" },
-  { id: "TRN-2023-005", fullName: "Charlie White", email: "charlie.white@example.com", assessmentStatus: "In Another Session" },
-];
-
-export default function SelectTrainees({ assessmentData, setAssessmentData, onNext, onBack }) {
+export default function SelectTrainees({
+  assessmentData,
+  setAssessmentData,
+  onNext,
+  onBack,
+}) {
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("All");
-  const [selectedIds, setSelectedIds] = useState(() => assessmentData.trainees?.map((trainee) => trainee.id) || []);
-  const filtered = useMemo(() => trainees.filter((trainee) => (status === "All" || trainee.assessmentStatus === status) && `${trainee.fullName} ${trainee.id} ${trainee.email}`.toLowerCase().includes(search.toLowerCase())), [search, status]);
-  const available = filtered.filter((trainee) => trainee.assessmentStatus === "Available");
-  const allSelected = available.length > 0 && available.every((trainee) => selectedIds.includes(trainee.id));
-  const toggle = (id) => setSelectedIds((ids) => ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id]);
-  const toggleAll = () => setSelectedIds((ids) => allSelected ? ids.filter((id) => !available.some((trainee) => trainee.id === id)) : [...new Set([...ids, ...available.map((trainee) => trainee.id)])]);
-  const next = () => { setAssessmentData((data) => ({ ...data, trainees: trainees.filter((trainee) => selectedIds.includes(trainee.id)) })); onNext(); };
+  const [qualificationFilter, setQualificationFilter] = useState("All");
+  const [loading, setLoading] = useState(true);
+  const [traineeList, setTraineeList] = useState([]);
+  const [errorMsg, setErrorMsg] = useState(null);
 
-  return <div className="-mt-4 rounded-2xl bg-white px-5 py-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)]"><h2 className="mb-4 text-xl font-semibold text-gray-900">Choose trainees for this assessment session</h2><div className="mb-4 flex flex-col gap-3 md:flex-row"><label className="relative flex-1"><Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search trainee, ID or email" className="w-full rounded-xl border border-gray-400 py-3 pl-12 pr-4" /></label><select value={status} onChange={(event) => setStatus(event.target.value)} className="rounded-xl border border-gray-400 px-4 py-3"><option>All</option><option>Available</option><option>In Another Session</option></select></div><div className="overflow-hidden rounded-xl border-2 border-gray-100"><table className="w-full"><thead className="bg-gray-200"><tr><th className="w-14 px-4 py-4"><input type="checkbox" checked={allSelected} onChange={toggleAll} /></th><th className="px-4 py-4 text-left">Full Name</th><th className="px-4 py-4 text-left">Trainee ID</th><th className="px-4 py-4 text-left">Email</th><th className="px-4 py-4 text-left">Assessment Status</th></tr></thead><tbody>{filtered.map((trainee) => { const disabled = trainee.assessmentStatus !== "Available"; return <tr key={trainee.id} className="border-b border-gray-200 hover:bg-gray-100"><td className="px-4 py-3"><input type="checkbox" disabled={disabled} checked={selectedIds.includes(trainee.id)} onChange={() => toggle(trainee.id)} /></td><td className="px-4 py-3 font-medium">{trainee.fullName}</td><td className="px-4 py-3">{trainee.id}</td><td className="px-4 py-3">{trainee.email}</td><td className="px-4 py-3"><span className={`rounded-full px-3 py-1 text-sm ${disabled ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>{trainee.assessmentStatus}</span></td></tr>; })}</tbody></table></div><div className="mt-4 flex items-start justify-between px-2 py-2 text-sm"><p className="font-medium text-gray-700">Total selected: {selectedIds.length}</p><div className="flex flex-col items-end gap-4"><div className="flex items-center gap-3 text-gray-600"><span>Showing 1-{filtered.length} of {trainees.length} trainees</span><button type="button" className="rounded-md border border-gray-300 px-3 py-1">‹</button><button type="button" className="rounded-md border border-gray-300 bg-gray-100 px-3 py-1 font-medium">1</button><button type="button" className="rounded-md border border-gray-300 px-3 py-1">›</button></div><div className="flex gap-4"><button type="button" onClick={onBack} className="rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 hover:bg-gray-100">Back</button><button type="button" disabled={!selectedIds.length} onClick={next} className={`rounded-lg px-6 py-3 font-semibold text-white ${selectedIds.length ? "bg-[#001F5B] hover:bg-[#001746]" : "cursor-not-allowed bg-gray-300"}`}>Next Step</button></div></div></div></div>;
+  // Safely retrieve currently selected IDs from state
+  const initialSelected =
+    assessmentData?.trainees || assessmentData?.selectedTrainees || [];
+  const [selectedIds, setSelectedIds] = useState(() =>
+    initialSelected.map((t) => String(t.id || t.user_id))
+  );
+
+  // Fetch approved trainees & calculate session status
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchTrainees = async () => {
+      setLoading(true);
+      setErrorMsg(null);
+
+      try {
+        // 1. Fetch ONLY approved trainees from profiles
+        const { data: approvedTrainees, error: profilesError } = await supabase
+          .from("profiles")
+          .select(`
+            id,
+            email,
+            role,
+            first_name,
+            last_name,
+            is_approved,
+            registration_status,
+            trainee_profiles (
+              nc_level,
+              qualification_course,
+              training_center
+            )
+          `)
+          .eq("role", "trainee")
+          .or("is_approved.eq.true,registration_status.eq.Approved");
+
+        if (profilesError) throw profilesError;
+
+        // 2. Fetch all trainee IDs currently assigned to an assessment
+        const { data: activeAssignments, error: assignError } = await supabase
+          .from("assignments")
+          .select("trainee_id");
+
+        if (assignError) throw assignError;
+
+        // Build a Set of assigned trainee IDs for fast O(1) lookup
+        const assignedTraineeIds = new Set(
+          (activeAssignments || []).map((a) => String(a.trainee_id))
+        );
+
+        if (isMounted && approvedTrainees) {
+          const formatted = approvedTrainees.map((item) => {
+            const rawTraineeProf = Array.isArray(item.trainee_profiles)
+              ? item.trainee_profiles[0]
+              : item.trainee_profiles;
+
+            const name = [item.first_name, item.last_name]
+              .filter(Boolean)
+              .join(" ");
+
+            const qualification =
+              rawTraineeProf?.nc_level ||
+              rawTraineeProf?.qualification_course ||
+              "NC II";
+
+            const traineeIdStr = String(item.id);
+
+            // DYNAMIC STATUS CALCULATION
+            const sessionStatus = assignedTraineeIds.has(traineeIdStr)
+              ? "In Another Session"
+              : "Active";
+
+            return {
+              id: traineeIdStr,
+              fullName: name.trim() || item.email || "Unnamed Trainee",
+              email: item.email || "No Email",
+              qualification: qualification,
+              assessmentStatus: sessionStatus,
+              raw: item,
+            };
+          });
+
+          setTraineeList(formatted);
+        }
+      } catch (err) {
+        console.error("Supabase trainees fetch error:", err.message);
+        if (isMounted) {
+          setErrorMsg("Failed to load trainees from DB: " + err.message);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchTrainees();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Filter trainees based on search input & qualification dropdown
+  const filteredTrainees = useMemo(() => {
+    return traineeList.filter((trainee) => {
+      const searchTarget =
+        `${trainee.fullName} ${trainee.id} ${trainee.email}`.toLowerCase();
+      const matchesSearch = searchTarget.includes(search.toLowerCase());
+      const matchesQual =
+        qualificationFilter === "All" ||
+        trainee.qualification.toLowerCase() ===
+          qualificationFilter.toLowerCase();
+
+      return matchesSearch && matchesQual;
+    });
+  }, [traineeList, search, qualificationFilter]);
+
+  // Filter for trainees that are active and available for selection
+  const selectableTrainees = useMemo(() => {
+    return filteredTrainees.filter((t) => t.assessmentStatus === "Active");
+  }, [filteredTrainees]);
+
+  // Bulk check box selection logic (Only active trainees)
+  const allSelected =
+    selectableTrainees.length > 0 &&
+    selectableTrainees.every((t) => selectedIds.includes(String(t.id)));
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      const selectableIds = new Set(selectableTrainees.map((t) => String(t.id)));
+      setSelectedIds((prev) => prev.filter((id) => !selectableIds.has(id)));
+    } else {
+      const newIds = selectableTrainees.map((t) => String(t.id));
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...newIds])));
+    }
+  };
+
+  const toggleSelectOne = (id) => {
+    const targetTrainee = traineeList.find((t) => String(t.id) === String(id));
+    if (targetTrainee && targetTrainee.assessmentStatus !== "Active") return;
+
+    const stringId = String(id);
+    setSelectedIds((prev) =>
+      prev.includes(stringId)
+        ? prev.filter((item) => item !== stringId)
+        : [...prev, stringId]
+    );
+  };
+
+  const handleContinue = () => {
+    const selectedObjects = traineeList.filter((t) =>
+      selectedIds.includes(String(t.id))
+    );
+
+    setAssessmentData((prev) => ({
+      ...prev,
+      trainees: selectedObjects,
+      selectedTrainees: selectedObjects,
+    }));
+
+    onNext();
+  };
+
+  return (
+    <div className="-mt-4 rounded-2xl bg-white px-5 py-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
+      <h2 className="mb-4 text-xl font-semibold text-gray-900">
+        Step 2: Select Trainees
+      </h2>
+
+      {/* Controls: Search Bar + Qualification Select */}
+      <div className="mb-4 flex flex-col gap-3 md:flex-row">
+        <label className="relative flex-1">
+          <Search
+            size={18}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+          />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search trainee name or email"
+            className="w-full rounded-xl border border-gray-400 py-3 pl-12 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-[#001F5B]"
+          />
+        </label>
+        <select
+          value={qualificationFilter}
+          onChange={(e) => setQualificationFilter(e.target.value)}
+          className="rounded-xl border border-gray-400 px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#001F5B]"
+        >
+          <option value="All">All Qualifications</option>
+          <option value="NC II">NC II</option>
+          <option value="IT 2">IT 2</option>
+        </select>
+      </div>
+
+      {/* Error Banner */}
+      {errorMsg && (
+        <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600 border border-red-200">
+          {errorMsg}
+        </div>
+      )}
+
+      {/* Table Container */}
+      <div className="overflow-hidden rounded-xl border-2 border-gray-100">
+        {loading ? (
+          <div className="p-8 text-center text-gray-500">
+            Loading trainees from database...
+          </div>
+        ) : (
+          <table className="w-full text-left">
+            <thead className="bg-gray-200 text-sm text-gray-700">
+              <tr>
+                <th className="w-14 px-4 py-4 text-center">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    disabled={selectableTrainees.length === 0}
+                    onChange={toggleSelectAll}
+                    className="cursor-pointer accent-[#001F5B] disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </th>
+                <th className="px-4 py-4">Trainee Name</th>
+                <th className="px-4 py-4">Email</th>
+                <th className="px-4 py-4">Qualification</th>
+                <th className="px-4 py-4">Status</th>
+              </tr>
+            </thead>
+            <tbody className="text-sm">
+              {filteredTrainees.map((trainee) => {
+                const isChecked = selectedIds.includes(String(trainee.id));
+                const isActive = trainee.assessmentStatus === "Active";
+
+                return (
+                  <tr
+                    key={trainee.id}
+                    onClick={() => toggleSelectOne(trainee.id)}
+                    className={`border-b border-gray-200 transition-colors ${
+                      isActive
+                        ? "cursor-pointer hover:bg-gray-100"
+                        : "cursor-not-allowed opacity-70 bg-gray-50"
+                    }`}
+                  >
+                    <td className="px-4 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        disabled={!isActive}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={() => toggleSelectOne(trainee.id)}
+                        className="cursor-pointer accent-[#001F5B] disabled:cursor-not-allowed disabled:opacity-50"
+                      />
+                    </td>
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      {trainee.fullName}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">{trainee.email}</td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {trainee.qualification}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
+                          isActive
+                            ? "bg-green-100 text-green-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {trainee.assessmentStatus}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {filteredTrainees.length === 0 && !loading && (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-gray-500">
+                    No approved trainees found in database.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Footer / Action Controls */}
+      <div className="mt-4 flex items-center justify-between px-2 py-2 text-sm">
+        <p className="font-medium text-gray-700">
+          Selected trainees:{" "}
+          <span className="font-bold text-[#001F5B]">{selectedIds.length}</span>
+        </p>
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 hover:bg-gray-100 transition"
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            disabled={selectedIds.length === 0}
+            onClick={handleContinue}
+            className={`rounded-lg px-6 py-3 font-semibold text-white transition ${
+              selectedIds.length > 0
+                ? "bg-[#001F5B] hover:bg-[#001746]"
+                : "cursor-not-allowed bg-gray-300"
+            }`}
+          >
+            Continue
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

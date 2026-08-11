@@ -1,41 +1,237 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, MoreVertical, Plus, Search, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { scheduledAssessments } from "../../../data/scheduledAssessments";
+import { supabase } from "../../../supabaseClient";
 
-const parseScheduleTime = (date, time) => {
-  if (!date || !time) return null;
-  const match = time.match(/(\d+):(\d+)\s*(AM|PM)/i);
-  if (!match) return null;
-  let [, hour, minute, period] = match;
-  hour = Number(hour);
-  if (period.toUpperCase() === "PM" && hour !== 12) hour += 12;
-  if (period.toUpperCase() === "AM" && hour === 12) hour = 0;
-  return new Date(`${date}T${String(hour).padStart(2, "0")}:${minute}:00`);
-};
-const scheduleStatus = (item) => {
-  const now = new Date();
-  const date = item.schedule?.date || item.scheduleDate;
-  const start = parseScheduleTime(date, item.schedule?.startTime);
-  const end = parseScheduleTime(date, item.schedule?.endTime);
-  if (end && now > end) return "Done";
-  if (start && now >= start && (!end || now <= end)) return "Ongoing";
-  return now > new Date(`${date}T23:59:59`) ? "Done" : "Pending";
-};
-const statusStyle = (status) => status === "Ongoing" ? "bg-blue-100 text-blue-700" : status === "Done" ? "bg-gray-200 text-gray-700" : "bg-amber-100 text-amber-800";
+// --- VIEW DETAILS MODAL ---
+function DetailsModal({ batch, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
+      <section className="flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <header className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Scheduled Assessment Details</h2>
+            <p className="mt-0.5 text-xs text-gray-500">{batch.assessment_name}</p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100">
+            <X size={18} />
+          </button>
+        </header>
 
-function DetailsModal({ scheduled, onClose }) {
-  const { assessment = {}, trainees = [], assessor = {}, schedule = {} } = scheduled;
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"><section className="flex max-h-[calc(100dvh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"><header className="flex items-center justify-between border-b border-gray-200 px-6 py-5"><div><h2 className="text-xl font-bold">Scheduled Assessment Details</h2><p className="mt-1 text-sm text-gray-600">{scheduled.course}</p></div><button onClick={onClose} aria-label="Close" className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"><X /></button></header><div className="space-y-6 overflow-y-auto p-6"><section><h3 className="text-lg font-bold">Assessment Information</h3><dl className="mt-3 grid gap-3 sm:grid-cols-2"><div><dt className="text-sm text-gray-500">Course</dt><dd className="font-semibold">{scheduled.course}</dd></div><div><dt className="text-sm text-gray-500">Qualification</dt><dd className="font-semibold">{scheduled.qualification}</dd></div><div><dt className="text-sm text-gray-500">Assessment Type</dt><dd className="font-semibold">{scheduled.type}</dd></div><div><dt className="text-sm text-gray-500">Instructions</dt><dd className="font-semibold">{assessment.instructions || "—"}</dd></div></dl></section><section><h3 className="text-lg font-bold">Selected Trainees</h3><ul className="mt-3 divide-y rounded-xl border">{trainees.length ? trainees.map((trainee) => <li key={trainee.id} className="px-4 py-3"><b>{trainee.fullName || trainee.name}</b><p className="text-sm text-gray-500">{trainee.email || trainee.id}</p></li>) : <li className="px-4 py-3 text-gray-500">No trainees selected.</li>}</ul></section><section><h3 className="text-lg font-bold">Assigned Assessor</h3><div className="mt-3 rounded-xl border p-4"><b>{assessor.name || "No assessor assigned"}</b><p className="text-sm text-gray-500">{assessor.assessorId || ""}</p></div></section><section><h3 className="text-lg font-bold">Schedule &amp; Duration</h3><dl className="mt-3 grid gap-3 sm:grid-cols-3"><div><dt className="text-sm text-gray-500">Schedule Date</dt><dd className="font-semibold">{schedule.date || scheduled.scheduleDate}</dd></div><div><dt className="text-sm text-gray-500">Start Time</dt><dd className="font-semibold">{schedule.startTime || "—"}</dd></div><div><dt className="text-sm text-gray-500">End Time</dt><dd className="font-semibold">{schedule.endTime || "—"}</dd></div></dl></section></div></section></div>;
+        <div className="space-y-6 overflow-y-auto p-6 text-sm">
+          {/* Assessment Info */}
+          <div>
+            <h3 className="font-bold text-gray-900 mb-3">Assessment Information</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="text-xs text-gray-400 font-medium">Course</span>
+                <p className="font-semibold text-gray-800">{batch.assessment_name}</p>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400 font-medium">Qualification</span>
+                <p className="font-semibold text-gray-800">{batch.qualification || 'N/A'}</p>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400 font-medium">Assessment Type</span>
+                <p className="font-semibold text-gray-800">{batch.assessment_type || 'Written'}</p>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400 font-medium">Instructions</span>
+                <p className="text-xs text-gray-600 leading-relaxed">{batch.instructions || 'N/A'}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Trainees inside this Batch */}
+          <div>
+            <h3 className="font-bold text-gray-900 mb-3">
+              Selected Trainees <span className="font-normal text-xs text-gray-500">({batch.assignments?.length || 0})</span>
+            </h3>
+            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+              {batch.assignments && batch.assignments.length > 0 ? (
+                batch.assignments.map((item, idx) => (
+                  <div key={idx} className="rounded-xl border border-gray-100 p-3 bg-gray-50/50">
+                    <p className="font-semibold text-gray-900">
+                      {item.trainee_profile ? `${item.trainee_profile.first_name} ${item.trainee_profile.last_name}` : 'Unknown Trainee'}
+                    </p>
+                    <p className="text-xs text-gray-500">{item.trainee_profile?.email}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-gray-400 italic">No trainees assigned.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Assessor Info */}
+          <div>
+            <h3 className="font-bold text-gray-900 mb-3">Assigned Assessor</h3>
+            <div className="rounded-xl border border-gray-100 p-3 bg-gray-50/50">
+              <p className="font-semibold text-gray-900">
+                {batch.assessor_profile ? `${batch.assessor_profile.first_name} ${batch.assessor_profile.last_name}` : 'N/A'}
+              </p>
+              <p className="text-xs text-gray-500">{batch.assessor_profile?.email}</p>
+            </div>
+          </div>
+
+          {/* Schedule */}
+          <div>
+            <h3 className="font-bold text-gray-900 mb-3">Schedule &amp; Duration</h3>
+            <div className="grid grid-cols-3 gap-4 rounded-xl border border-gray-100 p-3 bg-gray-50/50">
+              <div>
+                <span className="text-xs text-gray-400">Schedule Date</span>
+                <p className="font-semibold text-gray-800">{batch.assessment_date}</p>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400">Start Time</span>
+                <p className="font-semibold text-gray-800">{batch.start_time || '09:00 AM'}</p>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400">End Time</span>
+                <p className="font-semibold text-gray-800">{batch.end_time || '10:00 AM'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
 }
 
+// --- MAIN PAGE ---
 export default function ScheduleAssessmentPage() {
   const navigate = useNavigate();
-  const [search, setSearch] = useState(""); const [scheduleDate, setScheduleDate] = useState(""); const [status, setStatus] = useState("All"); const [currentPage, setCurrentPage] = useState(1); const [openMenu, setOpenMenu] = useState(null); const [selectedDetails, setSelectedDetails] = useState(null);
-  const rowsPerPage = 6;
-  const filtered = useMemo(() => scheduledAssessments.filter((item) => `${item.course} ${item.qualification}`.toLowerCase().includes(search.toLowerCase()) && (!scheduleDate || item.scheduleDate === scheduleDate) && (status === "All" || scheduleStatus(item) === status)), [search, scheduleDate, status]);
-  const totalPages = Math.max(Math.ceil(filtered.length / rowsPerPage), 1);
-  const page = Math.min(currentPage, totalPages); const startIndex = (page - 1) * rowsPerPage; const rows = filtered.slice(startIndex, startIndex + rowsPerPage); const showingStart = filtered.length ? startIndex + 1 : 0; const showingEnd = Math.min(startIndex + rowsPerPage, filtered.length);
-  const updateSearch = (value) => { setSearch(value); setCurrentPage(1); }; const updateStatus = (value) => { setStatus(value); setCurrentPage(1); }; const updateDate = (value) => { setScheduleDate(value); setCurrentPage(1); };
-  return <div className="space-y-6"><header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><h1 className="text-4xl font-bold text-gray-900">Schedule Assessment</h1><p className="mt-2 text-gray-600">Organize assessment schedules, participants, and assessor assignments.</p></div><button onClick={() => navigate("/admin/assessments/schedule/choose")} className="flex items-center gap-2 rounded-xl bg-[#002f86] px-5 py-3 font-semibold text-white shadow-md hover:bg-[#001f59]"><Plus size={19} />Choose Assessment</button></header><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><label className="relative w-full lg:max-w-md"><Search size={19} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" /><input value={search} onChange={(event) => updateSearch(event.target.value)} placeholder="Search course and qualification" className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm shadow-sm outline-none focus:border-[#002f86] focus:ring-2 focus:ring-blue-100" /></label><div className="flex flex-col gap-3 sm:flex-row"><select value={status} onChange={(event) => updateStatus(event.target.value)} className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm outline-none focus:border-[#002f86] focus:ring-2 focus:ring-blue-100"><option>All</option><option>Pending</option><option>Ongoing</option><option>Done</option></select><input type="date" value={scheduleDate} onChange={(event) => updateDate(event.target.value)} aria-label="Schedule date" className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm outline-none focus:border-[#002f86] focus:ring-2 focus:ring-blue-100 sm:w-64" /></div></div><section className="overflow-visible rounded-2xl border border-gray-200 bg-white shadow-md"><div className="overflow-x-auto"><table className="w-full min-w-[840px]"><thead className="bg-gray-50 text-left text-sm text-gray-600"><tr><th className="px-6 py-4 font-semibold">Course</th><th className="px-6 py-4 font-semibold">Qualification</th><th className="px-6 py-4 font-semibold">Assessment Type</th><th className="px-6 py-4 font-semibold">Schedule Date</th><th className="px-6 py-4 font-semibold">Status</th><th className="w-16 px-6 py-4"><span className="sr-only">Actions</span></th></tr></thead><tbody>{rows.map((item) => { const itemStatus = scheduleStatus(item); return <tr key={item.id} className="border-t border-gray-200 hover:bg-gray-50"><td className="px-6 py-4 font-semibold">{item.course}</td><td className="px-6 py-4">{item.qualification}</td><td className="px-6 py-4">{item.type}</td><td className="px-6 py-4">{new Date(`${item.scheduleDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</td><td className="px-6 py-4"><span className={`rounded-full px-3 py-1 text-sm font-semibold ${statusStyle(itemStatus)}`}>{itemStatus}</span></td><td className="relative px-6 py-4"><button onClick={() => setOpenMenu(openMenu === item.id ? null : item.id)} aria-label="Scheduled assessment actions" className="rounded-lg p-1 text-gray-600 hover:bg-gray-100"><MoreVertical size={20} /></button>{openMenu === item.id && <div className="absolute right-6 top-12 z-10 w-36 rounded-xl border border-gray-200 bg-white py-1 shadow-lg"><button onClick={() => { setSelectedDetails(item); setOpenMenu(null); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50">View details</button></div>}</td></tr>; })}{!rows.length && <tr><td colSpan="6" className="px-6 py-12 text-center text-gray-500">No scheduled assessments found.</td></tr>}</tbody></table></div><div className="flex items-center justify-between border-t border-gray-200 px-4 py-4 text-sm"><p className="font-medium text-gray-700">Showing {showingStart}-{showingEnd} of {filtered.length} results</p><div className="flex items-center gap-3"><button onClick={() => setCurrentPage((value) => Math.max(value - 1, 1))} disabled={page === 1} className="flex items-center gap-1 text-gray-500 disabled:cursor-not-allowed disabled:opacity-40"><ChevronLeft size={16} />Prev</button><span className="rounded-lg border border-gray-200 px-3 py-2 font-medium text-gray-700 shadow-sm">{page}</span><button onClick={() => setCurrentPage((value) => Math.min(value + 1, totalPages))} disabled={page >= totalPages} className="flex items-center gap-1 text-gray-500 disabled:cursor-not-allowed disabled:opacity-40">Next<ChevronRight size={16} /></button></div></div></section>{selectedDetails && <DetailsModal scheduled={selectedDetails} onClose={() => setSelectedDetails(null)} />}</div>;
+  const [batches, setBatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [openMenu, setOpenMenu] = useState(null);
+  const [selectedDetails, setSelectedDetails] = useState(null);
+
+  useEffect(() => {
+    const fetchBatches = async () => {
+      try {
+        setLoading(true);
+
+        // Fetch directly from assessment_batches table
+        const { data, error } = await supabase
+          .from("assessment_batches")
+          .select(`
+            *,
+            assessor_profile:profiles!assessment_batches_assessor_id_fkey(first_name, last_name, email),
+            assignments(
+              id,
+              trainee_profile:profiles!assignments_trainee_id_fkey(first_name, last_name, email)
+            )
+          `)
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+        setBatches(data || []);
+      } catch (err) {
+        console.error("Fetch error:", err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBatches();
+  }, []);
+
+  const filtered = useMemo(() => {
+    return batches.filter((item) => {
+      const matchesSearch = `${item.assessment_name} ${item.qualification}`.toLowerCase().includes(search.toLowerCase());
+      const matchesDate = !scheduleDate || item.assessment_date === scheduleDate;
+      return matchesSearch && matchesDate;
+    });
+  }, [batches, search, scheduleDate]);
+
+  return (
+    <div className="space-y-6">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Schedule Assessment</h1>
+          <p className="mt-1 text-sm text-gray-600">Organize assessment schedules, participants, and assessor assignments.</p>
+        </div>
+        <button
+          onClick={() => navigate("/admin/assessments/schedule/choose")}
+          className="flex items-center gap-2 rounded-xl bg-[#002f86] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#001f59]"
+        >
+          <Plus size={18} /> Choose Assessment
+        </button>
+      </header>
+
+      {/* Filters */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-md">
+          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search course and qualification"
+            className="w-full rounded-xl border border-gray-200 py-2.5 pl-11 pr-4 text-sm"
+          />
+        </div>
+        <input
+          type="date"
+          value={scheduleDate}
+          onChange={(e) => setScheduleDate(e.target.value)}
+          className="w-full sm:w-64 rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-600"
+        />
+      </div>
+
+      {/* Table */}
+      <section className="overflow-visible rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px]">
+            <thead className="bg-gray-50/80 text-left text-xs font-semibold uppercase text-gray-500 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-4">Course</th>
+                <th className="px-6 py-4">Qualification</th>
+                <th className="px-6 py-4">Assessment Type</th>
+                <th className="px-6 py-4">Schedule Date</th>
+                <th className="w-12 px-6 py-4"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 text-sm">
+              {loading ? (
+                <tr><td colSpan="5" className="px-6 py-12 text-center text-gray-500">Loading schedules...</td></tr>
+              ) : filtered.length > 0 ? (
+                filtered.map((batch) => (
+                  <tr key={batch.id} className="hover:bg-gray-50/60 transition-colors">
+                    <td className="px-6 py-4 font-semibold text-gray-900">{batch.assessment_name}</td>
+                    <td className="px-6 py-4 text-gray-600">{batch.qualification || 'TESDA NC IV IT'}</td>
+                    <td className="px-6 py-4 text-gray-600">{batch.assessment_type || 'Written'}</td>
+                    <td className="px-6 py-4 text-gray-600">
+                      {new Date(`${batch.assessment_date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </td>
+                    <td className="relative px-6 py-4 text-right">
+                      <button onClick={() => setOpenMenu(openMenu === batch.id ? null : batch.id)} className="p-1 text-gray-500 hover:bg-gray-100 rounded-lg">
+                        <MoreVertical size={18} />
+                      </button>
+                      {openMenu === batch.id && (
+                        <div className="absolute right-6 top-12 z-20 w-36 rounded-xl border bg-white py-1 shadow-lg text-left">
+                          <button
+                            onClick={() => { setSelectedDetails(batch); setOpenMenu(null); }}
+                            className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          >
+                            View details
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr><td colSpan="5" className="px-6 py-12 text-center text-gray-500">No scheduled assessments found.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {selectedDetails && <DetailsModal batch={selectedDetails} onClose={() => setSelectedDetails(null)} />}
+    </div>
+  );
 }

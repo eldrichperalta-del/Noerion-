@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import "../../../../styles/ScheduleAssessment.css";
@@ -10,6 +10,18 @@ function ScheduleAssessment({
   onBack,
 }) {
   const schedule = assessmentData?.schedule || {};
+
+  // Safely track trainees across different wizard states
+  const traineeList =
+    assessmentData?.trainees || assessmentData?.selectedTrainees || [];
+
+  // Safely track selected assessor
+  const selectedAssessor =
+    assessmentData?.assessor || assessmentData?.selectedAssessor;
+
+  // Safely track selected assessment course
+  const selectedAssessment =
+    assessmentData?.selectedAssessment || assessmentData?.assessment;
 
   const selectedDate = schedule?.date
     ? new Date(schedule.date + "T00:00:00")
@@ -27,7 +39,7 @@ function ScheduleAssessment({
     "05:00 PM", "05:30 PM",
   ];
 
-  // ✅ SAFE STATE UPDATE: DATE
+  // ✅ SAFE DATE SELECTION
   const handleDateChange = (date) => {
     if (!date) return;
 
@@ -42,24 +54,32 @@ function ScheduleAssessment({
       schedule: {
         ...(prev.schedule || {}),
         date: formatted,
+        assessment_date: formatted,
       },
     }));
   };
 
-  // ✅ SAFE STATE UPDATE: TIME
+  // ✅ SAFE TIME SELECTION
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    setAssessmentData((prev) => ({
-      ...prev,
-      schedule: {
+    setAssessmentData((prev) => {
+      const updatedSchedule = {
         ...(prev.schedule || {}),
         [name]: value,
-      },
-    }));
+      };
+
+      if (name === "startTime") updatedSchedule.start_time = value;
+      if (name === "endTime") updatedSchedule.end_time = value;
+
+      return {
+        ...prev,
+        schedule: updatedSchedule,
+      };
+    });
   };
 
-  // ✅ SINGLE RELIABLE TIME PARSER
+  // ✅ RELIABLE TIME PARSER
   const parseTime = (t) => {
     if (!t) return -1;
 
@@ -78,7 +98,7 @@ function ScheduleAssessment({
     return h * 60 + m;
   };
 
-  // 🚨 VALIDATION (FIXED)
+  // 🚨 OVERLAP CHECK
   const hasOverlapWarning = useMemo(() => {
     const start = parseTime(schedule.startTime);
     const end = parseTime(schedule.endTime);
@@ -88,12 +108,12 @@ function ScheduleAssessment({
     return start >= end;
   }, [schedule.startTime, schedule.endTime]);
 
-  // ⏱ DURATION (FIXED)
+  // ⏱ COMPUTED DURATION (PURE CALCULATION, NO SIDE-EFFECTS)
   const computedDuration = useMemo(() => {
     const start = parseTime(schedule.startTime);
     const end = parseTime(schedule.endTime);
 
-    if (start === null || end === null) return "";
+    if (start === null || start === -1 || end === null || end === -1) return "";
 
     if (end <= start) return "Invalid";
 
@@ -101,7 +121,22 @@ function ScheduleAssessment({
     return `${diff} Hour(s)`;
   }, [schedule.startTime, schedule.endTime]);
 
-  // ✅ FIXED canProceed
+  // ✅ SYNC DURATION SAFELY OUTSIDE RENDER CYCLE
+  useEffect(() => {
+    if (computedDuration && computedDuration !== "Invalid") {
+      if (schedule.duration !== computedDuration) {
+        setAssessmentData((prev) => ({
+          ...prev,
+          schedule: {
+            ...(prev.schedule || {}),
+            duration: computedDuration,
+          },
+        }));
+      }
+    }
+  }, [computedDuration, schedule.duration, setAssessmentData]);
+
+  // ✅ PROCEED VALIDATION
   const canProceed = useMemo(() => {
     return Boolean(
       schedule?.date &&
@@ -152,7 +187,7 @@ function ScheduleAssessment({
                   <div className="bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3">
                     <select
                       name="startTime"
-                      value={schedule.startTime}
+                      value={schedule.startTime || ""}
                       onChange={handleChange}
                       className="w-full bg-transparent focus:outline-none text-sm"
                     >
@@ -171,7 +206,7 @@ function ScheduleAssessment({
                   <div className="bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3">
                     <select
                       name="endTime"
-                      value={schedule.endTime}
+                      value={schedule.endTime || ""}
                       onChange={handleChange}
                       className="w-full bg-transparent focus:outline-none text-sm"
                     >
@@ -234,16 +269,18 @@ function ScheduleAssessment({
 
             <p className="font-semibold mb-2">Selected Course</p>
             <div className="bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3 mb-4 text-sm text-gray-700">
-              {assessmentData?.selectedAssessment?.title || "No assessment selected"}
+              {selectedAssessment?.title || "No assessment selected"}
             </div>
 
-            <p className="font-semibold mb-2">Selected Trainees</p>
-            <div className="bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3 mb-4">
+            <p className="font-semibold mb-2">
+              Selected Trainees ({traineeList.length})
+            </p>
+            <div className="bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3 mb-4 max-h-40 overflow-y-auto">
               <ul className="ml-5 list-disc text-sm text-gray-700">
-                {assessmentData?.trainees?.length > 0 ? (
-                  assessmentData.trainees.map((trainee) => (
-                    <li key={trainee.id}>
-                      {trainee.fullName}
+                {traineeList.length > 0 ? (
+                  traineeList.map((trainee) => (
+                    <li key={trainee.id || trainee.user_id}>
+                      {trainee.fullName || trainee.name || trainee.email || "Trainee"}
                     </li>
                   ))
                 ) : (
@@ -254,7 +291,7 @@ function ScheduleAssessment({
 
             <p className="font-semibold mb-2">Assessor</p>
             <div className="bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3 mb-4 text-sm text-gray-700">
-              {assessmentData?.assessor?.name || "None"}
+              {selectedAssessor?.fullName || selectedAssessor?.name || "None"}
             </div>
 
             <p className="font-semibold mb-2">Date</p>

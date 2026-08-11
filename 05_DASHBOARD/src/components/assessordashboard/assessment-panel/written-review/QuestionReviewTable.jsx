@@ -13,24 +13,24 @@ export default function QuestionReviewTable({
       <div className="overflow-hidden rounded-2xl border border-gray-200">
 
         {/* Header */}
-        <div className="grid grid-cols-12 bg-gray-100 px-6 py-4 text-sm font-semibold text-gray-700 sticky top-0 z-10">
-          <div className="col-span-1">
+        <div className="grid grid-cols-12 items-center bg-gray-100 px-4 py-4 text-sm font-semibold text-gray-700 sticky top-0 z-10">
+          <div className="col-span-1 text-center">
             #
           </div>
 
-          <div className="col-span-4">
+          <div className="col-span-5 pl-2">
             Question
           </div>
 
-          <div className="col-span-2">
+          <div className="col-span-2 text-center">
             Trainee Answer
           </div>
 
-          <div className="col-span-2">
+          <div className="col-span-2 text-center">
             Correct Answer
           </div>
 
-          <div className="col-span-2 text-center">
+          <div className="col-span-1 text-center">
             Result
           </div>
 
@@ -47,45 +47,57 @@ export default function QuestionReviewTable({
             </div>
           ) : (
             questions.map((question, index) => {
+              // Capitalize True/False if needed
+              let displayTraineeAns = question.traineeAnswer;
+              if (typeof displayTraineeAns === "string") {
+                if (displayTraineeAns.toLowerCase() === "true") displayTraineeAns = "TRUE";
+                if (displayTraineeAns.toLowerCase() === "false") displayTraineeAns = "FALSE";
+              }
+
+              let displayCorrectAns = question.correctAnswer;
+              if (typeof displayCorrectAns === "string") {
+                if (displayCorrectAns.toLowerCase() === "true") displayCorrectAns = "TRUE";
+                if (displayCorrectAns.toLowerCase() === "false") displayCorrectAns = "FALSE";
+              }
+
               const correct =
-                question.traineeAnswer ===
-                question.correctAnswer;
+                displayTraineeAns === displayCorrectAns || question.isCorrect;
 
               return (
                 <div
-                  key={question.id}
-                  className="grid grid-cols-12 items-start border-t border-gray-100 px-6 py-4 transition-colors hover:bg-slate-50"
+                  key={question.id || index}
+                  className="grid grid-cols-12 items-center border-t border-gray-100 px-4 py-4 transition-colors hover:bg-slate-50"
                 >
                   {/* Number */}
-                  <div className="col-span-1 pt-1 font-semibold text-[#002f86]">
-                    {index + 1}
+                  <div className="col-span-1 text-center font-semibold text-[#002f86]">
+                    {question.itemNumber || index + 1}
                   </div>
 
                   {/* Question */}
-                  <div className="col-span-4 pr-5">
+                  <div className="col-span-5 pl-2 pr-4">
                     <p className="font-medium leading-6 text-gray-900">
                       {question.question}
                     </p>
                   </div>
 
                   {/* Trainee Answer */}
-                  <div className="col-span-2 pr-5">
+                  <div className="col-span-2 px-2 text-center flex justify-center items-center">
                     <p className="text-sm font-medium leading-6 text-gray-800">
-                      {question.traineeAnswer}
+                      {displayTraineeAns}
                     </p>
                   </div>
 
                   {/* Correct Answer */}
-                  <div className="col-span-2 pr-5">
+                  <div className="col-span-2 px-2 text-center flex justify-center items-center">
                     <p className="text-sm font-medium leading-6 text-gray-800">
-                      {question.correctAnswer}
+                      {displayCorrectAns}
                     </p>
                   </div>
 
                   {/* Result */}
-                  <div className="col-span-2 flex justify-center">
+                  <div className="col-span-1 flex justify-center items-center">
                     <span
-                      className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
                         correct
                           ? "bg-green-100 text-green-700"
                           : "bg-red-100 text-red-700"
@@ -93,12 +105,12 @@ export default function QuestionReviewTable({
                     >
                       {correct ? (
                         <>
-                          <CheckCircle2 size={14} />
+                          <CheckCircle2 size={13} />
                           Correct
                         </>
                       ) : (
                         <>
-                          <XCircle size={14} />
+                          <XCircle size={13} />
                           Incorrect
                         </>
                       )}
@@ -106,9 +118,9 @@ export default function QuestionReviewTable({
                   </div>
 
                   {/* System Score */}
-                  <div className="col-span-1 flex justify-center">
+                  <div className="col-span-1 flex justify-center items-center">
                     <span
-                      className={`inline-flex min-w-[60px] justify-center rounded-full px-3 py-1 text-xs font-semibold ${
+                      className={`inline-flex min-w-[55px] justify-center rounded-full px-2.5 py-1 text-xs font-semibold ${
                         correct
                           ? "bg-blue-100 text-[#002f86]"
                           : "bg-amber-100 text-amber-700"
