@@ -123,26 +123,33 @@ export default function CertificateManagement() {
    * GET /api/certificates
    */
   useEffect(() => {
-    const fetchCertificates = async () => {
-      try {
-        setLoading(true);
+  const loadCertificates = () => {
+    try {
+      setLoading(true);
 
-        // TODO: replace with real API call
-        // const res = await fetch("/api/certificates");
-        // const data = await res.json();
+      const savedCertificates = localStorage.getItem(
+        "noerion_certificates"
+      );
 
-        const data = certificateRecords; // temporary fallback
-
-        setAllCertificates(data);
-      } catch (err) {
-        setError("Failed to load certificates");
-      } finally {
-        setLoading(false);
+      if (savedCertificates) {
+        setAllCertificates(JSON.parse(savedCertificates));
+      } else {
+        setAllCertificates(certificateRecords);
+        localStorage.setItem(
+          "noerion_certificates",
+          JSON.stringify(certificateRecords)
+        );
       }
-    };
+    } catch (err) {
+      console.error("Failed to load certificates:", err);
+      setError("Failed to load certificates");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchCertificates();
-  }, []);
+  loadCertificates();
+}, []);
 
   // =========================
   // FRONTEND FILTERING (TEMPORARY)
@@ -198,17 +205,24 @@ export default function CertificateManagement() {
       // PATCH /api/certificates/:id/revoke
 
       // optimistic UI update
-      setAllCertificates((prev) =>
-        prev.map((c) =>
-          c.certificateId === certificate.certificateId
-            ? {
-                ...c,
-                status: "Revoked",
-                verificationStatus: "Revoked",
-              }
-            : c
-        )
-      );
+      setAllCertificates((prev) => {
+  const updatedCertificates = prev.map((c) =>
+    c.certificateId === certificate.certificateId
+      ? {
+          ...c,
+          status: "Revoked",
+          verificationStatus: "Revoked",
+        }
+      : c
+  );
+
+  localStorage.setItem(
+    "noerion_certificates",
+    JSON.stringify(updatedCertificates)
+  );
+
+  return updatedCertificates;
+});
 
     } catch (err) {
       console.error("Revoke failed:", err);
@@ -302,10 +316,24 @@ export default function CertificateManagement() {
       />
 
       {openUpload && (
-        <CertificateUploadModal
-          onClose={() => setOpenUpload(false)}
-        />
-      )}
+  <CertificateUploadModal
+    onClose={() => setOpenUpload(false)}
+    onSave={(newCertificate) => {
+      setAllCertificates((prev) => {
+        const updatedCertificates = [...prev, newCertificate];
+
+        localStorage.setItem(
+          "noerion_certificates",
+          JSON.stringify(updatedCertificates)
+        );
+
+        return updatedCertificates;
+      });
+
+      setOpenUpload(false);
+    }}
+  />
+)}
     </div>
   );
 }
