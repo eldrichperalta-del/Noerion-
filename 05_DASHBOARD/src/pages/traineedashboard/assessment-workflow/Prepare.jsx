@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { supabase } from "../../../supabaseClient";
 import EEGWave from "../../../components/common/EEGWave";
 import {
     CheckCircle2,
@@ -13,54 +14,179 @@ import {
     Accessibility,
     VolumeX,
     Brain,
+    WifiOff,
+    AlertCircle
 } from "lucide-react";
+
+// --- HELPER: UUID Validation & Cleaning ---
+const isValidUuid = (val) => {
+    if (!val || typeof val !== "string") return false;
+    if (val === "undefined" || val === "null") return false;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(val);
+};
+
+const cleanVal = (val) => {
+    if (!val || val === "undefined" || val === "null") return null;
+    return val;
+};
+
+/**
+ * Clears active assessment completion/draft storage keys to prevent 
+ * immediate auto-redirects when mounting WrittenAssessment.jsx
+ */
+const clearAssessmentStorage = (...idKeys) => {
+    const keysToClean = new Set(["active_assessment", ...idKeys.filter(Boolean)]);
+    
+    keysToClean.forEach((key) => {
+        localStorage.removeItem(`assessment_completed_${key}`);
+        localStorage.removeItem(`assessment_end_time_${key}`);
+        localStorage.removeItem(`trainee_answers_draft_${key}`);
+        localStorage.removeItem(`trainee_current_question_${key}`);
+    });
+};
 
 export default function Prepare() {
     const navigate = useNavigate();
     const { state } = useLocation();
 
-    // Preserve full navigation state with localStorage fallbacks
-    const assignmentId =
+    // Preserve full navigation state with sanitized localStorage fallbacks
+    const assignmentId = cleanVal(
         state?.assignmentId ||
         state?.assessment?.id ||
-        localStorage.getItem("active_assignment_id");
+        localStorage.getItem("active_assignment_id")
+    );
 
-    const assessmentId =
+    const assessmentId = cleanVal(
         state?.assessmentId ||
         state?.assessment?.assessment_id ||
-        localStorage.getItem("active_assignment_id_ref");
+        localStorage.getItem("active_assignment_id_ref")
+    );
 
-    const [assessment, setAssessment] = useState(state?.assessment || null);
+    const traineeId = cleanVal(
+        state?.traineeId ||
+        state?.trainee_id ||
+        localStorage.getItem("trainee_id") ||
+        localStorage.getItem("user_id")
+    );
 
-    // Save IDs into localStorage so state survives reloads or unhandled routes
+    const [assessment] = useState(state?.assessment || null);
+    const [fetchedBaselineId, setFetchedBaselineId] = useState(
+        cleanVal(state?.baselineId) || cleanVal(localStorage.getItem("active_baseline_id"))
+    );
+    const [loadingData, setLoadingData] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
+
+    // Save valid IDs into localStorage so state survives page refreshes
     useEffect(() => {
-        if (assignmentId) {
-            localStorage.setItem("active_assignment_id", assignmentId);
-        }
-        if (assessmentId) {
-            localStorage.setItem("active_assignment_id_ref", assessmentId);
-        }
-    }, [assignmentId, assessmentId]);
+        if (isValidUuid(assignmentId)) localStorage.setItem("active_assignment_id", assignmentId);
+        if (isValidUuid(assessmentId)) localStorage.setItem("active_assignment_id_ref", assessmentId);
+        if (isValidUuid(traineeId)) localStorage.setItem("trainee_id", traineeId);
+    }, [assignmentId, assessmentId, traineeId]);
 
     // ==========================================================
-    // Assessment Status Constants
+    // SUPABASE DATA FETCHING (BASELINE RESOLUTION)
     // ==========================================================
+    useEffect(() => {
+        async function fetchAssessmentAndBaselineData() {
+            setLoadingData(true);
+            try {
+                // Fetch active baseline for trainee if baseline ID isn't set yet
+                if (!fetchedBaselineId && isValidUuid(traineeId)) {
+                    const { data: baselineData, error: baselineError } = await supabase
+                        .from("eeg_baselines")
+                        .select("id")
+                        .eq("trainee_id", traineeId)
+                        .order("created_at", { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
+
+                    if (!baselineError && baselineData?.id) {
+                        setFetchedBaselineId(baselineData.id);
+                        localStorage.setItem("active_baseline_id", baselineData.id);
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching baseline in Prepare.jsx:", err);
+            } finally {
+                setLoadingData(false);
+            }
+        }
+
+        fetchAssessmentAndBaselineData();
+    }, [traineeId, fetchedBaselineId]);
+
+    // ==========================================================
+    // WEBSOCKET REALTIME HARDWARE MONITORING
+    // ==========================================================
+    const MIDDLEWARE_WS_URL = "ws://127.0.0.1:8000/ws/eeg";
+
+    const [wsConnected, setWsConnected] = useState(false);
+    const [deviceConnected, setDeviceConnected] = useState(false);
+    const [signalQuality, setSignalQuality] = useState("No Signal");
+    const wsRef = useRef(null);
+
+    useEffect(() => {
+        let ws;
+
+        const connectWebSocket = () => {
+            ws = new WebSocket(MIDDLEWARE_WS_URL);
+            wsRef.current = ws;
+
+            ws.onopen = () => {
+                setWsConnected(true);
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    setDeviceConnected(!!data.device_connected);
+                    setSignalQuality(data.signal_quality || "No Signal");
+                } catch (err) {
+                    console.error("Error parsing WebSocket packet in Prepare:", err);
+                }
+            };
+
+            ws.onerror = () => {
+                setWsConnected(false);
+                setDeviceConnected(false);
+                setSignalQuality("No Signal");
+            };
+
+            ws.onclose = () => {
+                setWsConnected(false);
+                setDeviceConnected(false);
+                setSignalQuality("No Signal");
+                setTimeout(connectWebSocket, 2000);
+            };
+        };
+
+        connectWebSocket();
+
+        return () => {
+            if (ws) ws.close();
+        };
+    }, []);
+
+    // EEG Readiness evaluates if device is connected & receiving good signal
+    const eegReady = deviceConnected && (signalQuality === "Good" || signalQuality === "Fair");
+
     const ASSESSMENT_STATUS = {
         PENDING: "Pending",
         ONGOING: "Ongoing",
         COMPLETED: "Completed",
     };
 
-    if (!assessment && !assignmentId) {
+    if (!assessment && !assignmentId && !assessmentId) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-                <h2 className="text-2xl font-bold">
-                    Assessment not found.
+                <h2 className="text-2xl font-bold text-slate-800">
+                    Assessment details missing or expired.
                 </h2>
 
                 <button
                     onClick={() => navigate("/trainee/assessment")}
-                    className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800"
+                    className="px-6 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors"
                 >
                     Back to Assessments
                 </button>
@@ -68,32 +194,73 @@ export default function Prepare() {
         );
     }
 
-    const [connected] = useState(true);
-    const [signalQuality] = useState("Good");
-    const [eegReady] = useState(true);
+    // ==========================================================
+    // START WRITTEN ASSESSMENT HANDLER & WS SIGNAL TRIGGER
+    // ==========================================================
+    const handleWrittenAssessment = async () => {
+        setSubmitting(true);
+        try {
+            // Ensure baseline ID is resolved or attempt a quick inline query
+            let activeBaselineId = fetchedBaselineId || cleanVal(localStorage.getItem("active_baseline_id"));
 
-    const handleWrittenAssessment = () => {
-        const targetId = assignmentId || assessmentId || "active_assessment";
+            if (!isValidUuid(activeBaselineId) && isValidUuid(traineeId)) {
+                const { data: baselineData } = await supabase
+                    .from("eeg_baselines")
+                    .select("id")
+                    .eq("trainee_id", traineeId)
+                    .order("created_at", { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
 
-        // Clear stale local storage completion/timer flags to prevent auto-redirect loop
-        localStorage.removeItem(`assessment_completed_${targetId}`);
-        localStorage.removeItem(`assessment_end_time_${targetId}`);
-        localStorage.removeItem(`trainee_answers_draft_${targetId}`);
-        localStorage.removeItem(`trainee_current_question_${targetId}`);
+                if (baselineData?.id) {
+                    activeBaselineId = baselineData.id;
+                    localStorage.setItem("active_baseline_id", activeBaselineId);
+                }
+            }
 
-        // Forward state directly into WrittenAssessment.jsx using the correct registered path
-        navigate("/trainee/assessment/written-assessment", {
-            state: {
-                assignmentId: assignmentId || state?.assignmentId,
-                assessmentId: assessmentId || state?.assessmentId,
-                assessment: {
-                    ...assessment,
-                    id: assignmentId || assessment?.id,
-                    assessment_id: assessmentId || assessment?.assessment_id,
-                    status: ASSESSMENT_STATUS.ONGOING,
+            // Instruct Python Middleware via WebSocket to begin recording active EEG reading session
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                const payload = {
+                    command: "START_ACTIVE_ASSESSMENT",
+                    type: "START_ACTIVE_ASSESSMENT",
+                    assignment_id: assignmentId || null,
+                    assessment_id: assessmentId || null,
+                    baseline_id: activeBaselineId || null,
+                    trainee_id: traineeId || null,
+                    data: {
+                        assignment_id: assignmentId || null,
+                        assessment_id: assessmentId || null,
+                        baseline_id: activeBaselineId || null,
+                        trainee_id: traineeId || null
+                    }
+                };
+
+                wsRef.current.send(JSON.stringify(payload));
+            }
+
+            // Clear previous session completion and timer flags
+            clearAssessmentStorage(assignmentId, assessmentId);
+
+            // Navigate to Written Assessment with all critical UUIDs preserved
+            navigate("/trainee/assessment/written-assessment", {
+                state: {
+                    assignmentId: assignmentId,
+                    assessmentId: assessmentId,
+                    baselineId: activeBaselineId,
+                    traineeId: traineeId,
+                    assessment: {
+                        ...assessment,
+                        id: assignmentId,
+                        assessment_id: assessmentId,
+                        status: ASSESSMENT_STATUS.ONGOING,
+                    },
                 },
-            },
-        });
+            });
+        } catch (err) {
+            console.error("Error launching written assessment:", err);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -122,6 +289,14 @@ export default function Prepare() {
                 <p className="mt-1 text-base text-slate-600">
                     Please verify that your EEG device is connected and ready before beginning the written assessment.
                 </p>
+
+                {/* MIDDLEWARE OFFLINE WARNING */}
+                {!wsConnected && (
+                    <div className="mt-2 flex items-center gap-2 p-3 bg-amber-50 border border-amber-300 rounded-xl text-amber-800 text-sm font-semibold">
+                        <WifiOff size={18} className="shrink-0" />
+                        <span>Python Middleware server offline. Please make sure <code>stream_test.py</code> is running.</span>
+                    </div>
+                )}
             </div>
 
             <div className="mx-auto max-w-[1190px] p-1">
@@ -144,8 +319,10 @@ export default function Prepare() {
                                 {/* Connection */}
                                 <div className="flex items-center gap-4">
 
-                                    <div className="w-11 h-11 rounded-full bg-green-100 flex items-center justify-center">
-                                        <Wifi className="text-green-600" />
+                                    <div className={`w-11 h-11 rounded-full flex items-center justify-center ${
+                                        deviceConnected ? "bg-green-100" : "bg-red-100"
+                                    }`}>
+                                        <Wifi className={deviceConnected ? "text-green-600" : "text-red-500"} />
                                     </div>
 
                                     <div>
@@ -154,12 +331,12 @@ export default function Prepare() {
                                         </p>
 
                                         <p
-                                            className={`text-xl font-bold ${connected
+                                            className={`text-xl font-bold ${deviceConnected
                                                 ? "text-green-600"
                                                 : "text-red-500"
                                                 }`}
                                         >
-                                            {connected
+                                            {deviceConnected
                                                 ? "Connected"
                                                 : "Not Connected"}
                                         </p>
@@ -170,8 +347,10 @@ export default function Prepare() {
                                 {/* Signal */}
                                 <div className="flex items-center gap-4">
 
-                                    <div className="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center">
-                                        <Signal className="text-blue-600" />
+                                    <div className={`w-11 h-11 rounded-full flex items-center justify-center ${
+                                        signalQuality === "Good" ? "bg-blue-100" : "bg-amber-100"
+                                    }`}>
+                                        <Signal className={signalQuality === "Good" ? "text-blue-600" : "text-amber-600"} />
                                     </div>
 
                                     <div>
@@ -180,9 +359,12 @@ export default function Prepare() {
                                         </p>
 
                                         <p
-                                            className={`text-xl font-bold ${signalQuality === "Good"
-                                                ? "text-green-600"
-                                                : "text-red-500"
+                                            className={`text-xl font-bold ${
+                                                signalQuality === "Good"
+                                                    ? "text-green-600"
+                                                    : signalQuality === "Fair"
+                                                    ? "text-amber-600"
+                                                    : "text-red-500"
                                                 }`}
                                         >
                                             {signalQuality}
@@ -266,13 +448,14 @@ export default function Prepare() {
 
                             <div className="flex items-center gap-3 px-4 py-3">
 
-                                <CheckCircle2
-                                    className="text-green-600"
-                                    size={28}
-                                />
+                                {eegReady ? (
+                                    <CheckCircle2 className="text-green-600" size={28} />
+                                ) : (
+                                    <AlertCircle className="text-amber-500" size={28} />
+                                )}
 
                                 <span className="text-2xl font-semibold">
-                                    EEG Ready
+                                    {eegReady ? "EEG Ready" : "Adjust Headband"}
                                 </span>
 
                             </div>
@@ -290,23 +473,27 @@ export default function Prepare() {
 
                             <button
                                 onClick={handleWrittenAssessment}
-                                disabled={!eegReady}
-                                className={`flex w-full items-center justify-center gap-3 rounded-2xl py-3 text-xl font-semibold transition-all
-                                        ${eegReady
+                                disabled={!eegReady || loadingData || submitting}
+                                className={`flex w-full items-center justify-center gap-3 rounded-2xl py-3 text-xl font-semibold transition-all ${
+                                    eegReady && !loadingData && !submitting
                                         ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
                                         : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                    }`}
+                                }`}
                             >
 
-                                Start Written Assessment
+                                {loadingData || submitting ? "Preparing Assessment..." : "Start Written Assessment"}
 
-                                <ArrowRight size={26} />
+                                {!loadingData && !submitting && <ArrowRight size={26} />}
 
                             </button>
 
-                            <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 py-3 text-center text-base font-medium text-blue-800">
+                            <div className={`mt-4 rounded-xl border py-3 text-center text-base font-medium ${
+                                eegReady 
+                                    ? "border-blue-200 bg-blue-50 text-blue-800" 
+                                    : "border-amber-200 bg-amber-50 text-amber-800"
+                            }`}>
 
-                                Adjust device for better contact
+                                {eegReady ? "Device contact optimal. Ready to begin!" : "Adjust device for better contact"}
 
                             </div>
 

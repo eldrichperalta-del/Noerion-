@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import "../../../../styles/ScheduleAssessment.css";
@@ -9,6 +9,8 @@ function ScheduleAssessment({
   onNext,
   onBack,
 }) {
+  const [isCustomTime, setIsCustomTime] = useState(false);
+
   const schedule = assessmentData?.schedule || {};
 
   // Safely track trainees across different wizard states
@@ -27,16 +29,16 @@ function ScheduleAssessment({
     ? new Date(schedule.date + "T00:00:00")
     : null;
 
+  // Expanded Time Options: 12:00 AM to 11:30 PM
   const timeOptions = [
-    "09:00 AM", "09:30 AM",
-    "10:00 AM", "10:30 AM",
-    "11:00 AM", "11:30 AM",
-    "12:00 PM", "12:30 PM",
-    "01:00 PM", "01:30 PM",
-    "02:00 PM", "02:30 PM",
-    "03:00 PM", "03:30 PM",
-    "04:00 PM", "04:30 PM",
-    "05:00 PM", "05:30 PM",
+    "12:00 AM", "12:30 AM", "01:00 AM", "01:30 AM", "02:00 AM", "02:30 AM",
+    "03:00 AM", "03:30 AM", "04:00 AM", "04:30 AM", "05:00 AM", "05:30 AM",
+    "06:00 AM", "06:30 AM", "07:00 AM", "07:30 AM", "08:00 AM", "08:30 AM",
+    "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM",
+    "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM", "02:00 PM", "02:30 PM",
+    "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM", "05:00 PM", "05:30 PM",
+    "06:00 PM", "06:30 PM", "07:00 PM", "07:30 PM", "08:00 PM", "08:30 PM",
+    "09:00 PM", "09:30 PM", "10:00 PM", "10:30 PM", "11:00 PM", "11:30 PM"
   ];
 
   // ✅ SAFE DATE SELECTION
@@ -118,7 +120,8 @@ function ScheduleAssessment({
     if (end <= start) return "Invalid";
 
     const diff = (end - start) / 60;
-    return `${diff} Hour(s)`;
+    const formattedDiff = Number.isInteger(diff) ? diff : diff.toFixed(2);
+    return `${formattedDiff} Hour(s)`;
   }, [schedule.startTime, schedule.endTime]);
 
   // ✅ SYNC DURATION SAFELY OUTSIDE RENDER CYCLE
@@ -154,9 +157,19 @@ function ScheduleAssessment({
         <div className="col-span-6">
           <div className="bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-6">
 
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">
-              Set the assessment date and time.
-            </h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Set the assessment date and time.
+              </h2>
+              {/* TOGGLE CUSTOM TIME MODE */}
+              <button
+                type="button"
+                onClick={() => setIsCustomTime(!isCustomTime)}
+                className="text-xs font-semibold text-[#001F5B] underline hover:text-blue-800"
+              >
+                {isCustomTime ? "Switch to Dropdown" : "Type Custom Time"}
+              </button>
+            </div>
 
             <div className="grid grid-cols-12 gap-6 items-start">
 
@@ -185,17 +198,28 @@ function ScheduleAssessment({
                   <label className="font-medium block mb-2">Start Time</label>
 
                   <div className="bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3">
-                    <select
-                      name="startTime"
-                      value={schedule.startTime || ""}
-                      onChange={handleChange}
-                      className="w-full bg-transparent focus:outline-none text-sm"
-                    >
-                      <option value="">Start with</option>
-                      {timeOptions.map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
+                    {isCustomTime ? (
+                      <input
+                        type="text"
+                        name="startTime"
+                        placeholder="e.g. 09:48 PM"
+                        value={schedule.startTime || ""}
+                        onChange={handleChange}
+                        className="w-full bg-transparent focus:outline-none text-sm"
+                      />
+                    ) : (
+                      <select
+                        name="startTime"
+                        value={schedule.startTime || ""}
+                        onChange={handleChange}
+                        className="w-full bg-transparent focus:outline-none text-sm"
+                      >
+                        <option value="">Start with</option>
+                        {timeOptions.map((t) => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 </div>
 
@@ -204,17 +228,28 @@ function ScheduleAssessment({
                   <label className="font-medium block mb-2">End Time</label>
 
                   <div className="bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3">
-                    <select
-                      name="endTime"
-                      value={schedule.endTime || ""}
-                      onChange={handleChange}
-                      className="w-full bg-transparent focus:outline-none text-sm"
-                    >
-                      <option value="">End with</option>
-                      {timeOptions.map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
+                    {isCustomTime ? (
+                      <input
+                        type="text"
+                        name="endTime"
+                        placeholder="e.g. 10:48 PM"
+                        value={schedule.endTime || ""}
+                        onChange={handleChange}
+                        className="w-full bg-transparent focus:outline-none text-sm"
+                      />
+                    ) : (
+                      <select
+                        name="endTime"
+                        value={schedule.endTime || ""}
+                        onChange={handleChange}
+                        className="w-full bg-transparent focus:outline-none text-sm"
+                      >
+                        <option value="">End with</option>
+                        {timeOptions.map((t) => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 </div>
 

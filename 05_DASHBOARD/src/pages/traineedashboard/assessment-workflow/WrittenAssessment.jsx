@@ -10,6 +10,7 @@ import {
   FileText,
   History,
   AlertTriangle,
+  WifiOff,
 } from "lucide-react";
 import { supabase } from "../../../supabaseClient";
 
@@ -20,6 +21,18 @@ import { supabase } from "../../../supabaseClient";
 // =========================================================================
 const TESTING_TIME_SECONDS = null; // Change to e.g. 10 for rapid testing
 const PASSING_PERCENTAGE = 0.75; // 75% Passing Rate Standard
+
+/**
+ * Helper to ensure valid UUID syntax for PostgreSQL columns.
+ * Prevents '22P02: invalid input syntax for type uuid' errors.
+ */
+const toUUIDOrNull = (val) => {
+  if (!val) return null;
+  const str = String(val).trim();
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str) ? str : null;
+};
 
 const getQuestionKey = (question, index) =>
   question?.id ?? `question-${index}`;
@@ -75,7 +88,11 @@ const formatTime = (totalSeconds) => {
  * Handles full text, option letters, identification variations, true/false, and matching types.
  */
 const evaluateAnswer = (userAnswer, answerKeyObj, questionObj) => {
-  if (!answerKeyObj || answerKeyObj.correct_answer === undefined || answerKeyObj.correct_answer === null) {
+  if (
+    !answerKeyObj ||
+    answerKeyObj.correct_answer === undefined ||
+    answerKeyObj.correct_answer === null
+  ) {
     return { isCorrect: false, points: 0 };
   }
 
@@ -151,8 +168,27 @@ export default function WrittenAssessment() {
   const [loading, setLoading] = useState(true);
 
   // Storage Keys for persistence across refreshes
-  const assessmentIdKey =
-    state?.assignmentId || state?.assessment?.id || "active_assessment";
+  const rawAssignmentId =
+    state?.assignmentId ||
+    state?.assessment?.id ||
+    localStorage.getItem("active_assignment_id");
+  const assessmentIdKey = toUUIDOrNull(rawAssignmentId) || "active_assessment";
+
+  const rawAssessmentIdRef =
+    state?.assessmentId ||
+    state?.assessment?.assessment_id ||
+    localStorage.getItem("active_assignment_id_ref");
+
+  const rawBaselineId =
+    state?.baselineId || localStorage.getItem("active_baseline_id");
+  const baselineId = toUUIDOrNull(rawBaselineId);
+
+  const rawTraineeId =
+    state?.traineeId ||
+    localStorage.getItem("trainee_id") ||
+    localStorage.getItem("user_id");
+  const traineeId = toUUIDOrNull(rawTraineeId);
+
   const answersStorageKey = `trainee_answers_draft_${assessmentIdKey}`;
   const timerStorageKey = `assessment_end_time_${assessmentIdKey}`;
   const questionIndexStorageKey = `trainee_current_question_${assessmentIdKey}`;
@@ -186,12 +222,100 @@ export default function WrittenAssessment() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
 
+  // =========================================================================
+  // 🧠 LIVE EEG WEBSOCKET MONITORING CONNECTION
+  // =========================================================================
+  const MIDDLEWARE_WS_URL = "ws://127.0.0.1:8000/ws/eeg";
+  const wsRef = useRef(null);
+  const [deviceConnected, setDeviceConnected] = useState(false);
+  const [, setSignalQuality] = useState("No Signal");
+  const [isMonitoringActive, setIsMonitoringActive] = useState(false);
+
+  // Helper function to send EEG stop signal to middleware
+  const stopEEGMonitoring = useCallback(() => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        JSON.stringify({
+          command: "STOP_ACTIVE_ASSESSMENT",
+          type: "STOP_ACTIVE_ASSESSMENT",
+          assignment_id: toUUIDOrNull(rawAssignmentId) || null,
+          assessment_id: toUUIDOrNull(rawAssessmentIdRef) || null,
+          submission_id: toUUIDOrNull(assessmentIdKey) || null,
+          trainee_id: traineeId || null,
+        })
+      );
+      setIsMonitoringActive(false);
+    }
+  }, [rawAssignmentId, rawAssessmentIdRef, assessmentIdKey, traineeId]);
+
+  useEffect(() => {
+    let ws;
+
+    const connectActiveEEGStream = () => {
+      ws = new WebSocket(MIDDLEWARE_WS_URL);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        setIsMonitoringActive(true);
+        ws.send(
+          JSON.stringify({
+            command: "START_ACTIVE_ASSESSMENT",
+            type: "START_ACTIVE_ASSESSMENT",
+            assignment_id: toUUIDOrNull(rawAssignmentId) || null,
+            assessment_id: toUUIDOrNull(rawAssessmentIdRef) || null,
+            submission_id: toUUIDOrNull(assessmentIdKey) || null,
+            baseline_id: baselineId || null,
+            trainee_id: traineeId || null,
+          })
+        );
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          setDeviceConnected(!!data.device_connected);
+          setSignalQuality(data.signal_quality || "No Signal");
+        } catch (err) {
+          console.error("Error parsing EEG frame:", err);
+        }
+      };
+
+      ws.onerror = () => {
+        setDeviceConnected(false);
+        setIsMonitoringActive(false);
+        setSignalQuality("No Signal");
+      };
+
+      ws.onclose = () => {
+        setDeviceConnected(false);
+        setIsMonitoringActive(false);
+        setSignalQuality("No Signal");
+      };
+    };
+
+    connectActiveEEGStream();
+
+    return () => {
+      stopEEGMonitoring();
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    };
+  }, [rawAssignmentId, rawAssessmentIdRef, assessmentIdKey, baselineId, traineeId, stopEEGMonitoring]);
+
   // Submission safety lock to avoid duplicate DB calls on timer zero
   const isSubmittingRef = useRef(false);
 
-  // Time tracking refs
+  // Time tracking refs & debounce refs
   const lastInteractionTimeRef = useRef(Date.now());
   const itemInteractionTimeRef = useRef({});
+  const logTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (logTimeoutRef.current) clearTimeout(logTimeoutRef.current);
+    };
+  }, []);
 
   // -----------------------------------------------------------------------
   // 📝 DB SUBMIT & AUTOMATED SCORING LOGIC
@@ -201,23 +325,28 @@ export default function WrittenAssessment() {
     isSubmittingRef.current = true;
     setIsSubmitting(true);
 
+    // Stop EEG Active Monitoring Stream on submission immediately
+    stopEEGMonitoring();
+
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (user) {
-        const assignmentId = assessment?.id || state?.assignmentId;
+        const assignmentId = toUUIDOrNull(assessment?.id || state?.assignmentId);
 
-        // 🛡️ Ensure targetAssessmentId is NEVER null
-        const targetAssessmentId =
+        // 🛡️ Ensure targetAssessmentId is sanitized UUID or null
+        const targetAssessmentId = toUUIDOrNull(
           assessment?.assessment_id ||
-          state?.assessmentId ||
-          questions[0]?.assessment_id ||
-          null;
+            state?.assessmentId ||
+            questions[0]?.assessment_id
+        );
+
+        const validUserUuid = toUUIDOrNull(user.id);
 
         // Fetch Answer Keys for evaluation
-        const questionIds = questions.map((q) => q.id).filter(Boolean);
+        const questionIds = questions.map((q) => toUUIDOrNull(q.id)).filter(Boolean);
         let answerKeysMap = {};
 
         if (questionIds.length > 0) {
@@ -262,12 +391,12 @@ export default function WrittenAssessment() {
                 String(opt.option_letter || "").trim().toLowerCase() === rawAnsStr
             );
             if (matchedOpt) {
-              selectedOptionId = matchedOpt.id;
+              selectedOptionId = toUUIDOrNull(matchedOpt.id);
             }
           }
 
           return {
-            question_id: q.id,
+            question_id: toUUIDOrNull(q.id),
             selected_option_id: selectedOptionId,
             text_answer:
               typeof userAns === "object"
@@ -288,9 +417,9 @@ export default function WrittenAssessment() {
         const { data: subData, error: subErr } = await supabase
           .from("assessment_submissions")
           .insert({
-            assignment_id: assignmentId || null,
+            assignment_id: assignmentId,
             assessment_id: targetAssessmentId,
-            trainee_id: user.id,
+            trainee_id: validUserUuid,
             status: "submitted",
             total_score: totalScore,
             passed: passStatus,
@@ -301,7 +430,7 @@ export default function WrittenAssessment() {
 
         if (subErr) throw subErr;
 
-        const submissionId = subData?.id;
+        const submissionId = toUUIDOrNull(subData?.id);
 
         if (submissionId) {
           // 2. Insert Final Answers
@@ -331,8 +460,8 @@ export default function WrittenAssessment() {
           if (answerLogs.length > 0) {
             const logRows = answerLogs.map((log) => ({
               submission_id: submissionId,
-              trainee_id: user.id,
-              question_id: log.questionId || null,
+              trainee_id: validUserUuid,
+              question_id: toUUIDOrNull(log.questionId),
               question_number: log.questionNumber ? parseInt(log.questionNumber, 10) : null,
               event_type: log.eventType || "ANSWER_SELECTION",
               sub_key: log.subKey || null,
@@ -398,6 +527,7 @@ export default function WrittenAssessment() {
     questions,
     navigate,
     state,
+    stopEEGMonitoring,
   ]);
 
   // Save current active question index to localStorage on change
@@ -437,7 +567,7 @@ export default function WrittenAssessment() {
           data: { user },
         } = await supabase.auth.getUser();
 
-        if (user) {
+        if (user && toUUIDOrNull(user.id)) {
           const { data: profile } = await supabase
             .from("profiles")
             .select("first_name, last_name")
@@ -467,11 +597,14 @@ export default function WrittenAssessment() {
             30;
         } else {
           // Case B: Supabase fetch
-          const assignmentId = state?.assignmentId || state?.assessment?.id;
-          const assessmentId =
+          const assignmentId = toUUIDOrNull(
+            state?.assignmentId || state?.assessment?.id
+          );
+          const assessmentId = toUUIDOrNull(
             state?.assessmentId ||
-            state?.assessment?.assessment_id ||
-            state?.assessment?.assessmentId;
+              state?.assessment?.assessment_id ||
+              state?.assessment?.assessmentId
+          );
 
           if (assignmentId || assessmentId) {
             let assignmentData = null;
@@ -492,7 +625,7 @@ export default function WrittenAssessment() {
             }
 
             const targetAssessmentId =
-              assessmentId || assignmentData?.assessment_id;
+              assessmentId || toUUIDOrNull(assignmentData?.assessment_id);
 
             if (targetAssessmentId) {
               const { data: assessData } = await supabase
@@ -512,7 +645,10 @@ export default function WrittenAssessment() {
                 .order("item_number", { ascending: true });
 
               if (questionsData?.length > 0) {
-                const questionIds = questionsData.map((q) => q.id);
+                const questionIds = questionsData
+                  .map((q) => toUUIDOrNull(q.id))
+                  .filter(Boolean);
+
                 const { data: optionsData } = await supabase
                   .from("question_options")
                   .select("*")
@@ -606,8 +742,9 @@ export default function WrittenAssessment() {
         clearInterval(interval);
         setRemainingSeconds(0);
 
-        // TIME IS UP: Trigger auto submit and redirect immediately
+        // TIME IS UP: Trigger auto submit and stop EEG immediately
         if (!isSubmittingRef.current) {
+          stopEEGMonitoring();
           setShowCompletion(true);
           handleCompletionDone();
         }
@@ -617,7 +754,7 @@ export default function WrittenAssessment() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [loading, questions.length, timerStorageKey, handleCompletionDone]);
+  }, [loading, questions.length, timerStorageKey, handleCompletionDone, stopEEGMonitoring]);
 
   // Save draft answers to localStorage on modification
   useEffect(() => {
@@ -682,7 +819,7 @@ export default function WrittenAssessment() {
       eventType: customType,
       traineeName: traineeName,
       questionNumber: itemNum || currentQuestion + 1,
-      questionId: questionId || current?.id,
+      questionId: toUUIDOrNull(questionId) || toUUIDOrNull(current?.id),
       subKey: subKey,
       answer: answerValue,
       timeSpentSeconds: (timeSpentMs / 1000).toFixed(2),
@@ -698,7 +835,19 @@ export default function WrittenAssessment() {
       [currentKey]: value,
     }));
 
-    logAnswerEvent(current?.itemNumber, value, current?.id);
+    const activeType = normalizeQuestionType(current);
+
+    if (activeType === "Identification") {
+      if (logTimeoutRef.current) clearTimeout(logTimeoutRef.current);
+
+      logTimeoutRef.current = setTimeout(() => {
+        if (value && String(value).trim().length > 0) {
+          logAnswerEvent(current?.itemNumber, String(value).trim(), current?.id);
+        }
+      }, 800);
+    } else {
+      logAnswerEvent(current?.itemNumber, value, current?.id);
+    }
   };
 
   const handleMatchingInputChange = (questionId, itemNumber, value) => {
@@ -709,13 +858,19 @@ export default function WrittenAssessment() {
       [questionId]: formattedVal,
     }));
 
-    logAnswerEvent(
-      itemNumber,
-      formattedVal,
-      questionId,
-      `Item-${itemNumber}`,
-      "MATCHING_ANSWER_INPUT"
-    );
+    if (logTimeoutRef.current) clearTimeout(logTimeoutRef.current);
+
+    logTimeoutRef.current = setTimeout(() => {
+      if (formattedVal.length > 0) {
+        logAnswerEvent(
+          itemNumber,
+          formattedVal,
+          questionId,
+          `Item-${itemNumber}`,
+          "MATCHING_ANSWER_INPUT"
+        );
+      }
+    }, 800);
   };
 
   const handleNext = () => {
@@ -739,6 +894,7 @@ export default function WrittenAssessment() {
   };
 
   const handleSubmit = () => {
+    stopEEGMonitoring(); // Immediately stop active EEG recording on manual submit
     setShowCompletion(true);
   };
 
@@ -833,8 +989,6 @@ export default function WrittenAssessment() {
   );
 
   const renderMatchingType = () => {
-    // 🎯 FIX: Sort Column B options alphabetically (A, B, C, D, E) to ensure
-    // they display in proper sequence while obscuring the correct answer key order.
     const columnBOptions = matchingQuestions
       .map((q) => q.columnBMatch)
       .filter(Boolean)
@@ -981,21 +1135,37 @@ export default function WrittenAssessment() {
             Unit of Competency: {assessment?.unitOfCompetency || "Core Unit"}
           </p>
 
+          {/* Real-time Dynamic Hardware Monitoring Badges */}
           <div className="mt-3 flex flex-wrap gap-3">
-            <span className="inline-flex items-center gap-2 rounded-lg bg-green-100 px-4 py-2 font-semibold text-green-800 shadow-sm">
-              <Check size={18} />
-              Muse 2 Connected
+            <span
+              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 font-semibold shadow-xs transition ${
+                deviceConnected
+                  ? "bg-green-100 text-green-800"
+                  : "bg-red-100 text-red-800"
+              }`}
+            >
+              {deviceConnected ? <Check size={18} /> : <WifiOff size={18} />}
+              {deviceConnected ? "Muse 2 Connected" : "Muse 2 Disconnected"}
             </span>
-            <span className="inline-flex items-center gap-2 rounded-lg bg-rose-100 px-4 py-2 font-semibold text-rose-800 shadow-sm">
+
+            <span
+              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 font-semibold shadow-xs transition ${
+                isMonitoringActive && deviceConnected
+                  ? "bg-rose-100 text-rose-800 animate-pulse"
+                  : "bg-amber-100 text-amber-800"
+              }`}
+            >
               <Brain size={18} />
-              Cognitive Monitoring Active
+              {isMonitoringActive && deviceConnected
+                ? "Cognitive Monitoring Active"
+                : "Cognitive Monitoring Standby"}
             </span>
           </div>
         </div>
 
         <div className="flex flex-col items-end gap-4">
           <div
-            className={`flex items-center gap-3 rounded-xl px-5 py-3 text-right shadow-sm transition ${
+            className={`flex items-center gap-3 rounded-xl px-5 py-3 text-right shadow-xs transition ${
               remainingSeconds < 300
                 ? "bg-rose-50 border border-rose-200 animate-pulse"
                 : "bg-sky-50"
@@ -1020,7 +1190,7 @@ export default function WrittenAssessment() {
             </div>
           </div>
 
-          <div className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 font-semibold text-slate-700 shadow-sm">
+          <div className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 font-semibold text-slate-700 shadow-xs">
             <FileText size={20} className="text-[#0B5D8A]" />
             {normalizeQuestionType(current)}
           </div>
@@ -1068,7 +1238,7 @@ export default function WrittenAssessment() {
           ) : (
             <button
               onClick={handleNext}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#0B4F7A] px-8 py-4 text-lg font-semibold text-white shadow-lg shadow-sky-900/25 hover:bg-[#083E61] transition"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#0B4F7A] px-8 py-4 text-lg font-semibold text-white shadow-lg shadow-sky-900/25 hover:bg-[#083E61] transition cursor-pointer"
             >
               Next Question
               <ChevronRight size={22} />
@@ -1130,7 +1300,7 @@ export default function WrittenAssessment() {
             <button
               disabled={isSubmitting}
               onClick={handleCompletionDone}
-              className="mt-2 w-full rounded-xl bg-[#0B4F7A] px-6 py-4 text-lg font-semibold text-white shadow-lg shadow-sky-900/20 hover:bg-[#083E61] disabled:bg-gray-400 transition"
+              className="mt-2 w-full rounded-xl bg-[#0B4F7A] px-6 py-4 text-lg font-semibold text-white shadow-lg shadow-sky-900/20 hover:bg-[#083E61] disabled:bg-gray-400 transition cursor-pointer"
             >
               {isSubmitting ? "Submitting..." : "Done"}
             </button>
