@@ -1,3 +1,4 @@
+import { verifyHash } from "../../utils/ecdsa";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BadgeCheck, ShieldCheck } from "lucide-react";
@@ -12,6 +13,7 @@ export default function CertificateVerification() {
 
   const token = searchParams.get("token");
   const receivedHash = searchParams.get("hash");
+  const signature = searchParams.get("sig");
 
   const [generatedHash, setGeneratedHash] = useState("");
   const [hashLoading, setHashLoading] = useState(true);
@@ -34,7 +36,7 @@ export default function CertificateVerification() {
 
     let cancelled = false;
 
-    async function verifyHash() {
+    async function verifyCertificateHash() {
       try {
         setHashLoading(true);
 
@@ -51,29 +53,6 @@ export default function CertificateVerification() {
         if (!cancelled) {
           setGeneratedHash(hash);
           setHashLoading(false);
-
-          console.log(
-            "========== NOERION CERTIFICATE VERIFICATION =========="
-          );
-          console.log("Certificate:", certificate.certificateId);
-
-          console.log("--------------------------------");
-          console.log("Expected Token:", certificate.token);
-          console.log("Received Token:", token);
-          console.log(
-            "Token Valid:",
-            certificate.token === token
-          );
-
-          console.log("--------------------------------");
-          console.log("Expected Hash:", hash);
-          console.log("Received Hash:", receivedHash);
-          console.log(
-            "Hash Valid:",
-            hash === receivedHash
-          );
-
-          console.log("================================");
         }
       } catch (error) {
         console.error("Hash verification failed:", error);
@@ -81,147 +60,100 @@ export default function CertificateVerification() {
       }
     }
 
-    verifyHash();
+    verifyCertificateHash();
 
     return () => {
       cancelled = true;
     };
-  }, [certificate, token, receivedHash]);
+  }, [certificate]);
 
   if (!certificate) {
     return (
       <main className="verification-page">
         <div className="verification-grid" aria-hidden="true" />
-        <div
-          className="verification-circuit circuit-left"
-          aria-hidden="true"
-        />
-        <div
-          className="verification-circuit circuit-right"
-          aria-hidden="true"
-        />
+        <div className="verification-circuit circuit-left" aria-hidden="true" />
+        <div className="verification-circuit circuit-right" aria-hidden="true" />
 
-        <section
-          className="verification-content"
-          aria-labelledby="verification-title"
-        >
+        <section className="verification-content" aria-labelledby="verification-title">
           <header className="verification-heading">
             <p className="verification-brand">NOERION</p>
-            <h1 id="verification-title">
-              Certificate Verification
-            </h1>
+            <h1 id="verification-title">Certificate Verification</h1>
           </header>
 
           <article className="verification-card">
-            <div
-              className="verification-status"
-              style={{ color: "#dc2626" }}
-            >
-              <ShieldCheck
-                aria-hidden="true"
-                size={30}
-                strokeWidth={2.3}
-              />
-
+            <div className="verification-status" style={{ color: "#dc2626" }}>
+              <ShieldCheck aria-hidden="true" size={30} strokeWidth={2.3} />
               <span>NOT VERIFIED</span>
             </div>
 
             <p className="verification-note">
-              This certificate could not be found in the
-              NOERION verification records.
+              This certificate could not be found in the NOERION verification
+              records.
             </p>
           </article>
 
           <button
             className="verify-another-button"
             type="button"
-            onClick={() =>
-              navigate("/certificate-verification")
-            }
+            onClick={() => navigate("/certificate-verification")}
           >
             Verify Another Certificate
           </button>
         </section>
 
         <p className="verification-footer">
-          All verified data is securely handled in compliance
-          with global data protection standards.
+          All verified data is securely handled in compliance with global data
+          protection standards.
         </p>
       </main>
     );
   }
 
-  /*
-   * IMPORTANT:
-   * The UI waits until the SHA-256 hash has actually been
-   * generated before deciding whether the certificate is valid.
-   */
+  // Verification checks
   const tokenValid = certificate.token === token;
-
-  const hashValid =
-    !hashLoading &&
-    generatedHash !== "" &&
-    generatedHash === receivedHash;
+  const hashValid = generatedHash === receivedHash;
+  const signatureValid =
+    generatedHash && signature ? verifyHash(generatedHash, signature) : false;
 
   const isVerified =
-    certificate.valid === true &&
-    tokenValid &&
-    hashValid;
+    !hashLoading && tokenValid && hashValid && signatureValid;
 
-  console.log("UI VERIFICATION RESULT:", {
-    certificateValid: certificate.valid,
-    tokenValid,
-    hashValid,
-    isVerified,
-  });
+  // Debug logs
+  if (!hashLoading) {
+  console.log("========== NOERION CERTIFICATE VERIFICATION ==========");
+  console.log("Certificate:", certificate.certificateId);
+  console.log("--------------------------------");
+  console.log("Token Valid:", tokenValid);
+  console.log("Hash Valid:", hashValid);
+  console.log("Signature Valid:", signatureValid);
+  console.log("--------------------------------");
+  console.log(
+    "Overall Verification:",
+    isVerified ? "VERIFIED ✅" : "INVALID ❌"
+  );
+}
 
   return (
     <main className="verification-page">
       <div className="verification-grid" aria-hidden="true" />
+      <div className="verification-circuit circuit-left" aria-hidden="true" />
+      <div className="verification-circuit circuit-right" aria-hidden="true" />
 
-      <div
-        className="verification-circuit circuit-left"
-        aria-hidden="true"
-      />
-
-      <div
-        className="verification-circuit circuit-right"
-        aria-hidden="true"
-      />
-
-      <section
-        className="verification-content"
-        aria-labelledby="verification-title"
-      >
+      <section className="verification-content" aria-labelledby="verification-title">
         <header className="verification-heading">
           <p className="verification-brand">NOERION</p>
-
-          <h1 id="verification-title">
-            Certificate Verification
-          </h1>
+          <h1 id="verification-title">Certificate Verification</h1>
         </header>
 
         <article className="verification-card">
           <div
             className="verification-status"
-            style={{
-              color: isVerified
-                ? "#16a34a"
-                : "#dc2626",
-            }}
+            style={{ color: isVerified ? "#16a34a" : "#dc2626" }}
           >
             {isVerified ? (
-              <BadgeCheck
-                aria-hidden="true"
-                size={30}
-                strokeWidth={2.3}
-              />
+              <BadgeCheck aria-hidden="true" size={30} strokeWidth={2.3} />
             ) : (
-              <ShieldCheck
-                aria-hidden="true"
-                size={30}
-                strokeWidth={2.3}
-              />
+              <ShieldCheck aria-hidden="true" size={30} strokeWidth={2.3} />
             )}
 
             <span>
@@ -247,8 +179,7 @@ export default function CertificateVerification() {
             <div>
               <dt>Qualification / Skill:</dt>
               <dd>
-                {certificate.qualification}:{" "}
-                {certificate.skill}
+                {certificate.qualification}: {certificate.skill}
               </dd>
             </div>
 
@@ -271,27 +202,20 @@ export default function CertificateVerification() {
           <div className="verification-divider" />
 
           <p className="verification-note">
-            <ShieldCheck
-              aria-hidden="true"
-              size={17}
-            />
+            <ShieldCheck aria-hidden="true" size={17} />
 
             {hashLoading ? (
               <>
-                Verifying this certificate through the{" "}
-                <strong>NOERION</strong> system...
+                Verifying this certificate through the <strong>NOERION</strong> system...
               </>
             ) : isVerified ? (
               <>
-                This certificate has been successfully
-                verified through the{" "}
-                <strong>NOERION</strong> system.
+                This certificate has been successfully verified through the <strong>NOERION</strong> system.
               </>
             ) : (
               <>
-                The verification failed because the
-                certificate token or SHA-256 hash does not
-                match our records.
+                The verification failed because the certificate token, SHA-256
+                hash, or ECDSA signature does not match our records.
               </>
             )}
           </p>
@@ -303,23 +227,19 @@ export default function CertificateVerification() {
                 padding: "12px",
                 fontSize: "12px",
                 borderRadius: "8px",
-                background: isVerified
-                  ? "#f0fdf4"
-                  : "#fef2f2",
+                background: isVerified ? "#f0fdf4" : "#fef2f2",
               }}
             >
               <div>
-                Token:{" "}
-                <strong>
-                  {tokenValid ? "VALID" : "INVALID"}
-                </strong>
+                Token: <strong>{tokenValid ? "VALID" : "INVALID"}</strong>
               </div>
 
               <div>
-                SHA-256:{" "}
-                <strong>
-                  {hashValid ? "VALID" : "INVALID"}
-                </strong>
+                SHA-256: <strong>{hashValid ? "VALID" : "INVALID"}</strong>
+              </div>
+
+              <div>
+                ECDSA: <strong>{signatureValid ? "VALID" : "INVALID"}</strong>
               </div>
             </div>
           )}
@@ -328,17 +248,15 @@ export default function CertificateVerification() {
         <button
           className="verify-another-button"
           type="button"
-          onClick={() =>
-            navigate("/certificate-verification")
-          }
+          onClick={() => navigate("/certificate-verification")}
         >
           Verify Another Certificate
         </button>
       </section>
 
       <p className="verification-footer">
-        All verified data is securely handled in compliance
-        with global data protection standards.
+        All verified data is securely handled in compliance with global data
+        protection standards.
       </p>
     </main>
   );
