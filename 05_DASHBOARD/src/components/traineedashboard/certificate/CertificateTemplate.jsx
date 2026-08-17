@@ -1,7 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { hashCertificate } from "../../../utils/hashCertificate";
-import { signHash } from "../../../utils/ecdsa";
 
 import tesdaLogo from "../../../assets/tesda1.png";
 import certificateBorder from "../../../assets/certificate-border-frame.png";
@@ -17,74 +14,21 @@ export default function CertificateTemplate({
   trainingCenter = "NOERION Training Center",
   assessorName = "Assessor Name",
   authorityName = "TESDA Authority",
+
+  // Security values come from Supabase.
+  token = "",
+  certificateHash = "",
+  certificateSignature = "",
 }) {
   const skillName = assessment.replace(" Certificate", "");
+  const normalizedCertificateId = certificateId.replace(/^#/, "");
 
-  // Keep certificate data consistent with the verification page
-  const certificate = useMemo(
-    () => ({
-      certificateId: certificateId.replace(/^#/, ""),
-      traineeName,
-      studentId: traineeId,
-      qualification,
-      skill: skillName,
-      issuedOn: dateIssued,
-      result,
-    }),
-    [
-      certificateId,
-      traineeName,
-      traineeId,
-      qualification,
-      skillName,
-      dateIssued,
-      result,
-    ]
-  );
+  const secureToken = token;
 
-  const [certificateHash, setCertificateHash] = useState("");
-  const [certificateSignature, setCertificateSignature] = useState("");
-
-  // Generate SHA-256 hash and ECDSA signature
-  useEffect(() => {
-    let cancelled = false;
-
-    async function generateSecurityData() {
-      try {
-        const hash = await hashCertificate(certificate);
-        const signature = signHash(hash);
-
-        if (!cancelled) {
-          setCertificateHash(hash);
-          setCertificateSignature(signature);
-
-          console.log("================================");
-          console.log("NOERION CERTIFICATE");
-          console.log("Certificate ID:", certificate.certificateId);
-          console.log("SHA-256:", hash);
-          console.log("ECDSA Signature:", signature);
-          console.log("================================");
-        }
-      } catch (error) {
-        console.error("Failed to generate security data:", error);
-      }
-    }
-
-    generateSecurityData();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [certificate]);
-
-  // Temporary token for the prototype
-  const secureToken = btoa(certificate.certificateId);
-
-  // QR verification URL
   const verificationUrl =
-    certificateHash && certificateSignature
+    secureToken && certificateHash && certificateSignature
       ? `${window.location.origin}/verify/${encodeURIComponent(
-          certificate.certificateId
+          normalizedCertificateId
         )}?token=${encodeURIComponent(
           secureToken
         )}&hash=${encodeURIComponent(
@@ -188,7 +132,7 @@ export default function CertificateTemplate({
 
               <div className="flex flex-col items-center">
                 <div className="certificate-qr border-2 border-[#111827] bg-white p-[3px]">
-                  {certificateHash && certificateSignature ? (
+                  {verificationUrl ? (
                     <QRCodeSVG
                       value={verificationUrl}
                       size={58}
@@ -207,7 +151,7 @@ export default function CertificateTemplate({
                         textAlign: "center",
                       }}
                     >
-                      Signing...
+                      Verification data unavailable
                     </div>
                   )}
                 </div>
