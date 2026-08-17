@@ -139,8 +139,14 @@ export default function Prepare() {
 
             ws.onmessage = (event) => {
                 try {
-                    const data = JSON.parse(event.data);
-                    setDeviceConnected(!!data.device_connected);
+                    const rawData = JSON.parse(event.data);
+                    const data = rawData.type === "STATE_UPDATE" && rawData.data ? rawData.data : rawData;
+
+                    const isConnected = data.device_connected !== undefined 
+                        ? data.device_connected 
+                        : (data.connected_headset !== undefined ? data.connected_headset : false);
+
+                    setDeviceConnected(Boolean(isConnected));
                     setSignalQuality(data.signal_quality || "No Signal");
                 } catch (err) {
                     console.error("Error parsing WebSocket packet in Prepare:", err);
@@ -195,7 +201,7 @@ export default function Prepare() {
     }
 
     // ==========================================================
-    // START WRITTEN ASSESSMENT HANDLER & WS SIGNAL TRIGGER
+    // NAVIGATION HANDLER TO WRITTEN ASSESSMENT
     // ==========================================================
     const handleWrittenAssessment = async () => {
         setSubmitting(true);
@@ -218,30 +224,11 @@ export default function Prepare() {
                 }
             }
 
-            // Instruct Python Middleware via WebSocket to begin recording active EEG reading session
-            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                const payload = {
-                    command: "START_ACTIVE_ASSESSMENT",
-                    type: "START_ACTIVE_ASSESSMENT",
-                    assignment_id: assignmentId || null,
-                    assessment_id: assessmentId || null,
-                    baseline_id: activeBaselineId || null,
-                    trainee_id: traineeId || null,
-                    data: {
-                        assignment_id: assignmentId || null,
-                        assessment_id: assessmentId || null,
-                        baseline_id: activeBaselineId || null,
-                        trainee_id: traineeId || null
-                    }
-                };
-
-                wsRef.current.send(JSON.stringify(payload));
-            }
-
             // Clear previous session completion and timer flags
             clearAssessmentStorage(assignmentId, assessmentId);
 
-            // Navigate to Written Assessment with all critical UUIDs preserved
+            // Navigate to Written Assessment with all critical UUIDs preserved.
+            // WrittenAssessment.jsx handles sending the start signal upon mounting.
             navigate("/trainee/assessment/written-assessment", {
                 state: {
                     assignmentId: assignmentId,
@@ -265,7 +252,7 @@ export default function Prepare() {
 
     return (
         <div className="h-[calc(100vh-7rem)] overflow-hidden p-0">
-            {/* Header */}
+            {/* Header Nav */}
             <div className="mb-3">
                 <nav className="mb-2 flex gap-2 text-sm font-semibold">
                     <Link to="/trainee/assessment" className="text-gray-500 hover:text-[#002f86] hover:underline">
@@ -294,7 +281,7 @@ export default function Prepare() {
                 {!wsConnected && (
                     <div className="mt-2 flex items-center gap-2 p-3 bg-amber-50 border border-amber-300 rounded-xl text-amber-800 text-sm font-semibold">
                         <WifiOff size={18} className="shrink-0" />
-                        <span>Python Middleware server offline. Please make sure <code>stream_test.py</code> is running.</span>
+                        <span>Python Middleware server offline. Please make sure desktop application is running.</span>
                     </div>
                 )}
             </div>
@@ -377,7 +364,7 @@ export default function Prepare() {
 
                         </div>
 
-                        {/* Instructions */}
+                        {/* Quick Instructions */}
                         <div className="rounded-2xl bg-white p-4 shadow-[0_4px_12px_rgba(0,0,0,0.30)]">
 
                             <h2 className="mb-3 text-base font-bold">

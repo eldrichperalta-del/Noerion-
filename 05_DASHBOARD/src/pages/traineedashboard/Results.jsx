@@ -37,6 +37,7 @@ export default function Results() {
           .from("assessment_submissions")
           .select(`
             id,
+            trainee_id,
             total_score,
             passed,
             status,
@@ -54,7 +55,6 @@ export default function Results() {
 
         if (error) throw error;
 
-        // DEBUG LOG: Open Browser F12 Console to see exact Supabase values!
         console.log("Raw Submissions from Supabase:", submissions);
 
         const formatted = (submissions || []).map((sub) => {
@@ -62,7 +62,6 @@ export default function Results() {
 
           let outcome = "In evaluation";
 
-          // ONLY evaluate if status explicitly confirms assessor evaluation is finished
           if (
             statusLower === "evaluated" ||
             statusLower === "completed" ||
@@ -75,7 +74,6 @@ export default function Results() {
           } else if (statusLower === "failed") {
             outcome = "Failed";
           } else {
-            // For 'submitted', 'pending', 'in_progress', null, or anything else
             outcome = "In evaluation";
           }
 
@@ -84,6 +82,7 @@ export default function Results() {
 
           return {
             id: sub.id,
+            trainee_id: sub.trainee_id || user.id,
             title: sub.assignment?.assessment_name || "Assessment Title",
             qualification:
               sub.assignment?.qualification ||

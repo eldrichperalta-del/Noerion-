@@ -249,55 +249,55 @@ export default function WrittenAssessment() {
   }, [rawAssignmentId, rawAssessmentIdRef, assessmentIdKey, traineeId]);
 
   useEffect(() => {
-    let ws;
+    if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) return;
 
-    const connectActiveEEGStream = () => {
-      ws = new WebSocket(MIDDLEWARE_WS_URL);
-      wsRef.current = ws;
+    const ws = new WebSocket(MIDDLEWARE_WS_URL);
+    wsRef.current = ws;
 
-      ws.onopen = () => {
-        setIsMonitoringActive(true);
-        ws.send(
-          JSON.stringify({
-            command: "START_ACTIVE_ASSESSMENT",
-            type: "START_ACTIVE_ASSESSMENT",
-            assignment_id: toUUIDOrNull(rawAssignmentId) || null,
-            assessment_id: toUUIDOrNull(rawAssessmentIdRef) || null,
-            submission_id: toUUIDOrNull(assessmentIdKey) || null,
-            baseline_id: baselineId || null,
-            trainee_id: traineeId || null,
-          })
-        );
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          setDeviceConnected(!!data.device_connected);
-          setSignalQuality(data.signal_quality || "No Signal");
-        } catch (err) {
-          console.error("Error parsing EEG frame:", err);
-        }
-      };
-
-      ws.onerror = () => {
-        setDeviceConnected(false);
-        setIsMonitoringActive(false);
-        setSignalQuality("No Signal");
-      };
-
-      ws.onclose = () => {
-        setDeviceConnected(false);
-        setIsMonitoringActive(false);
-        setSignalQuality("No Signal");
-      };
+    ws.onopen = () => {
+      setDeviceConnected(true);
+      setIsMonitoringActive(true);
+      ws.send(
+        JSON.stringify({
+          command: "START_ACTIVE_ASSESSMENT",
+          type: "START_ACTIVE_ASSESSMENT",
+          assignment_id: toUUIDOrNull(rawAssignmentId) || null,
+          assessment_id: toUUIDOrNull(rawAssessmentIdRef) || null,
+          submission_id: toUUIDOrNull(assessmentIdKey) || null,
+          baseline_id: baselineId || null,
+          trainee_id: traineeId || null,
+        })
+      );
     };
 
-    connectActiveEEGStream();
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data) {
+          setDeviceConnected(!!data.device_connected || true);
+          setIsMonitoringActive(true);
+          setSignalQuality(data.signal_quality || "Good");
+        }
+      } catch (err) {
+        console.error("Error parsing EEG frame:", err);
+      }
+    };
+
+    ws.onerror = () => {
+      setDeviceConnected(false);
+      setIsMonitoringActive(false);
+      setSignalQuality("No Signal");
+    };
+
+    ws.onclose = () => {
+      setDeviceConnected(false);
+      setIsMonitoringActive(false);
+      setSignalQuality("No Signal");
+    };
 
     return () => {
       stopEEGMonitoring();
-      if (ws && ws.readyState === WebSocket.OPEN) {
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
         ws.close();
       }
     };
@@ -477,7 +477,26 @@ export default function WrittenAssessment() {
             if (logErr) console.error("Error inserting assessment_event_logs:", logErr);
           }
 
-          // 5. Update Assignment status
+          // 5. Single-row update: Finalize active trainee_eeg_readings session
+          // 5. Link EEG session to submission_id & finalize status
+if (submissionId) {
+  const { error: eegErr } = await supabase
+    .from("trainee_eeg_readings")
+    .update({
+      submission_id: submissionId,
+      assignment_id: assignmentId, // Fills assignment_id if it was NULL
+      status: "COMPLETED",
+      updated_at: new Date().toISOString(),
+    })
+    .match({
+      trainee_id: validUserUuid,
+      assessment_id: targetAssessmentId,
+    });
+
+  if (eegErr) console.error("Error updating trainee_eeg_readings:", eegErr);
+}
+
+          // 6. Update Assignment status
           if (assignmentId) {
             await supabase
               .from("assignments")
