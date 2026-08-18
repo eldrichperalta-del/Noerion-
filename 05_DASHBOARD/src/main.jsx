@@ -4,6 +4,8 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./index.css";
 
+import "./i18n_language/i18n";
+
 import { AssessmentProvider } from "./context/AssessmentContext";
 import { ThemeProvider } from "./context/ThemeContext";
 
