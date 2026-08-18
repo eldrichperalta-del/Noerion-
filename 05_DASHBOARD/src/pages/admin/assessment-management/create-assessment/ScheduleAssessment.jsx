@@ -27,17 +27,6 @@ function ScheduleAssessment({
     ? new Date(schedule.date + "T00:00:00")
     : null;
 
-  const timeOptions = [
-    "09:00 AM", "09:30 AM",
-    "10:00 AM", "10:30 AM",
-    "11:00 AM", "11:30 AM",
-    "12:00 PM", "12:30 PM",
-    "01:00 PM", "01:30 PM",
-    "02:00 PM", "02:30 PM",
-    "03:00 PM", "03:30 PM",
-    "04:00 PM", "04:30 PM",
-    "05:00 PM", "05:30 PM",
-  ];
 
   // ✅ SAFE DATE SELECTION
   const handleDateChange = (date) => {
@@ -57,6 +46,47 @@ function ScheduleAssessment({
         assessment_date: formatted,
       },
     }));
+  };
+
+  const getTimeParts = (time) => {
+    if (!time) return { value: "", period: "AM" };
+
+    const match = time.match(/^(\d{1,2}:\d{2})\s*(AM|PM)$/i);
+
+    if (!match) {
+      return { value: "", period: "AM" };
+    }
+
+    return {
+      value: match[1],
+      period: match[2].toUpperCase(),
+    };
+  };
+
+  const handleTimeChange = (field, type, value) => {
+    setAssessmentData((prev) => {
+      const currentTime = prev.schedule?.[field] || "";
+      const parts = getTimeParts(currentTime);
+
+      const timeValue = type === "time" ? value : parts.value;
+      const periodValue = type === "period" ? value : parts.period;
+
+      const combinedTime =
+        timeValue && periodValue
+          ? `${timeValue} ${periodValue}`
+          : "";
+
+      return {
+        ...prev,
+        schedule: {
+          ...(prev.schedule || {}),
+          [field]: combinedTime,
+          ...(field === "startTime"
+            ? { start_time: combinedTime }
+            : { end_time: combinedTime }),
+        },
+      };
+    });
   };
 
   // ✅ SAFE TIME SELECTION
@@ -184,18 +214,32 @@ function ScheduleAssessment({
                 <div className="mb-6">
                   <label className="font-medium block mb-2">Start Time</label>
 
-                  <div className="bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3">
-                    <select
-                      name="startTime"
-                      value={schedule.startTime || ""}
-                      onChange={handleChange}
-                      className="w-full bg-transparent focus:outline-none text-sm"
-                    >
-                      <option value="">Start with</option>
-                      {timeOptions.map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
+                  <div className="flex gap-2">
+                    {/* TIME INPUT */}
+                    <div className="flex-1 bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3">
+                      <input
+                        type="time"
+                        value={getTimeParts(schedule.startTime).value}
+                        onChange={(e) =>
+                          handleTimeChange("startTime", "time", e.target.value)
+                        }
+                        className="w-full bg-transparent focus:outline-none text-sm"
+                      />
+                    </div>
+
+                    {/* AM / PM */}
+                    <div className="w-24 bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3">
+                      <select
+                        value={getTimeParts(schedule.startTime).period}
+                        onChange={(e) =>
+                          handleTimeChange("startTime", "period", e.target.value)
+                        }
+                        className="w-full bg-transparent focus:outline-none text-sm"
+                      >
+                        <option value="AM">AM</option>
+                        <option value="PM">PM</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
@@ -203,18 +247,32 @@ function ScheduleAssessment({
                 <div className="mb-4">
                   <label className="font-medium block mb-2">End Time</label>
 
-                  <div className="bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3">
-                    <select
-                      name="endTime"
-                      value={schedule.endTime || ""}
-                      onChange={handleChange}
-                      className="w-full bg-transparent focus:outline-none text-sm"
-                    >
-                      <option value="">End with</option>
-                      {timeOptions.map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
+                  <div className="flex gap-2">
+                    {/* TIME INPUT */}
+                    <div className="flex-1 bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3">
+                      <input
+                        type="time"
+                        value={getTimeParts(schedule.endTime).value}
+                        onChange={(e) =>
+                          handleTimeChange("endTime", "time", e.target.value)
+                        }
+                        className="w-full bg-transparent focus:outline-none text-sm"
+                      />
+                    </div>
+
+                    {/* AM / PM */}
+                    <div className="w-24 bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3">
+                      <select
+                        value={getTimeParts(schedule.endTime).period}
+                        onChange={(e) =>
+                          handleTimeChange("endTime", "period", e.target.value)
+                        }
+                        className="w-full bg-transparent focus:outline-none text-sm"
+                      >
+                        <option value="AM">AM</option>
+                        <option value="PM">PM</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
