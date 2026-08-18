@@ -279,14 +279,11 @@ export default function Login() {
 
                         <input
                             type="email"
+                            autoComplete="email"
                             placeholder="Email"
                             value={email}
-                            onChange={(e) =>
-                                setEmail(
-                                    e.target.value
-                                )
-                            }
-                            className="flex-1 bg-transparent outline-none text-white"
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="auth-input flex-1 bg-transparent outline-none text-white"
                         />
 
                     </div>
@@ -301,19 +298,12 @@ export default function Login() {
                         />
 
                         <input
-                            type={
-                                showPassword
-                                    ? "text"
-                                    : "password"
-                            }
+                            type={showPassword ? "text" : "password"}
+                            autoComplete="current-password"
                             placeholder="Password"
                             value={password}
-                            onChange={(e) =>
-                                setPassword(
-                                    e.target.value
-                                )
-                            }
-                            className="flex-1 bg-transparent outline-none text-white"
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="auth-input flex-1 bg-transparent outline-none text-white"
                         />
 
                         <button

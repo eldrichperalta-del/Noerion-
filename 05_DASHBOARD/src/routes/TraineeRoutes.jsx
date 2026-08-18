@@ -13,7 +13,6 @@ import Results from "../pages/traineedashboard/Results";
 import AssessmentSummary from "../pages/traineedashboard/AssessmentSummary";
 import Certificates from "../pages/traineedashboard/Certificates";
 import ViewCertificate from "../pages/traineedashboard/ViewCertificate";
-import Profile from "../pages/traineedashboard/Profile";
 import Settings from "../pages/traineedashboard/Settings";
 
 export default function TraineeRoutes() {
@@ -153,15 +152,6 @@ export default function TraineeRoutes() {
             {/* ==========================================================
                 PROFILE
             ========================================================== */}
-
-            <Route
-                path="/profile"
-                element={
-                    <TraineeLayout>
-                        <Profile />
-                    </TraineeLayout>
-                }
-            />
 
             {/* ==========================================================
                 SETTINGS

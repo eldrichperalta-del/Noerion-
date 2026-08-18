@@ -54,8 +54,7 @@ function AdminNavbar() {
         "/admin/assessments/schedule/choose": "Assessment Management",
         "/admin/results": "Results Monitoring",
         "/admin/certificates": "Certificate Management",
-        "/admin/profile": "Profile",
-        "/admin/settings": "Settings",
+        "/admin/settings": "My Account",
         "/admin/logout": "Logout",
     };
 

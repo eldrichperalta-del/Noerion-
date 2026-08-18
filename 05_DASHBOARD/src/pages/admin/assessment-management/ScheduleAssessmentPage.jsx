@@ -170,14 +170,14 @@ export default function ScheduleAssessmentPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search course and qualification"
-            className="w-full rounded-xl border border-gray-200 py-2.5 pl-11 pr-4 text-sm"
+            className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-11 pr-4 text-sm text-gray-700 shadow-sm focus:border-[#002f86] focus:outline-none focus:ring-1 focus:ring-[#002f86]"
           />
         </div>
         <input
           type="date"
           value={scheduleDate}
           onChange={(e) => setScheduleDate(e.target.value)}
-          className="w-full sm:w-64 rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-600"
+          className="w-full sm:w-64 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-600 shadow-sm focus:border-[#002f86] focus:outline-none focus:ring-1 focus:ring-[#002f86]"
         />
       </div>
 

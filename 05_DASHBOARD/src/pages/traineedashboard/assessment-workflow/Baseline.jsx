@@ -1,4 +1,3 @@
-// Baseline.jsx
 import { useEffect, useState, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import BaselineInstructionsModal from "../../../components/traineedashboard/assessment-workflow/BaselineInstructionsModal";
@@ -69,7 +68,7 @@ export default function Baseline() {
         DEPLOYMENT STAGE WEBSOCKET CONFIGURATION
     ========================================================================= */
     const MIDDLEWARE_WS_URL = "ws://127.0.0.1:8000/ws/eeg";
-    const BASELINE_DURATION = 30; // 5 minutes calibration (300s)
+    const BASELINE_DURATION = 300; // 5 minutes calibration (300s)
 
     const [timeLeft, setTimeLeft] = useState(BASELINE_DURATION);
     const [recording, setRecording] = useState(false);
@@ -78,6 +77,7 @@ export default function Baseline() {
     const [recordingError, setRecordingError] = useState("");
     const [baselineDbId, setBaselineDbId] = useState(null);
     const [showAlarmModal, setShowAlarmModal] = useState(false);
+    const [isAlarmPlaying, setIsAlarmPlaying] = useState(false);
 
     // Hardware State from Python Middleware
     const [deviceConnected, setDeviceConnected] = useState(false);
@@ -164,9 +164,9 @@ export default function Baseline() {
         checkExistingBaseline();
     }, [traineeId]);
 
-    // ==========================================================
-    // WEBSOCKET REALTIME SYNCHRONIZATION WITH PYTHON MIDDLEWARE
-    // ==========================================================
+    /* =========================================================================
+        WEBSOCKET REALTIME SYNCHRONIZATION WITH PYTHON MIDDLEWARE
+    ========================================================================= */
     useEffect(() => {
         let ws;
         let isMounted = true;
@@ -265,13 +265,14 @@ export default function Baseline() {
                 ws.close();
             }
         };
-    }, [traineeId, assignmentId]);;
+    }, [traineeId, assignmentId]);
 
     /* =========================================================================
-        ALARM SOUND & POPUP CONTROL
+        CONTINUOUS ALARM SOUND & POPUP CONTROL
     ========================================================================= */
     const startAlarm = async () => {
         setShowAlarmModal(true);
+        setIsAlarmPlaying(true);
         try {
             if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
 
@@ -287,7 +288,7 @@ export default function Baseline() {
                 await ctx.resume();
             }
 
-            const playChime = () => {
+            const playChimeSequence = () => {
                 if (ctx.state === "suspended") {
                     ctx.resume();
                 }
@@ -297,7 +298,7 @@ export default function Baseline() {
                     const gain = ctx.createGain();
                     osc.type = "sine";
                     osc.frequency.setValueAtTime(freq, startTime);
-                    gain.gain.setValueAtTime(0.3, startTime);
+                    gain.gain.setValueAtTime(0.35, startTime);
                     gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
                     osc.connect(gain);
                     gain.connect(ctx.destination);
@@ -305,13 +306,16 @@ export default function Baseline() {
                     osc.stop(startTime + duration);
                 };
 
-                playNote(523.25, now, 0.3);        // C5
-                playNote(659.25, now + 0.35, 0.4);  // E5
-                playNote(783.99, now + 0.75, 0.8);  // G5
+                // Continuous Alarm Tone Pattern (C5, E5, G5, C6)
+                playNote(523.25, now, 0.25);        // C5
+                playNote(659.25, now + 0.30, 0.25);  // E5
+                playNote(783.99, now + 0.60, 0.25);  // G5
+                playNote(1046.50, now + 0.90, 0.50); // C6
             };
 
-            playChime();
-            alarmIntervalRef.current = setInterval(playChime, 2000);
+            playChimeSequence();
+            // Loop continuous alarm chime sequence every 1.6 seconds
+            alarmIntervalRef.current = setInterval(playChimeSequence, 1600);
         } catch (err) {
             console.warn("Audio Context error:", err);
         }
@@ -330,6 +334,7 @@ export default function Baseline() {
             }
             audioCtxRef.current = null;
         }
+        setIsAlarmPlaying(false);
         setShowAlarmModal(false);
     };
 
@@ -477,7 +482,7 @@ export default function Baseline() {
             {!wsConnected && (
                 <div className="mt-2 flex items-center gap-2 p-3 bg-amber-50 border border-amber-300 rounded-xl text-amber-800 text-sm font-semibold">
                     <WifiOff size={18} className="shrink-0" />
-                    <span>Python Middleware server offline. Launch <code>stream_test.py</code> on the laptop.</span>
+                    <span>Python Middleware server offline. Launch your desktop application on the system.</span>
                 </div>
             )}
 
@@ -542,6 +547,17 @@ export default function Baseline() {
                                 <Play size={22} />
                                 Start Recording
                             </button>
+
+                            {/* INLINE STOP ALARM BUTTON */}
+                            {isAlarmPlaying && (
+                                <button
+                                    onClick={stopAlarm}
+                                    className="w-full rounded-xl bg-red-600 py-3 text-xl font-semibold text-white hover:bg-red-700 animate-pulse flex items-center justify-center gap-2 transition shadow-md"
+                                >
+                                    <VolumeX size={22} />
+                                    Stop Alarm Sound
+                                </button>
+                            )}
 
                             {recordingError && (
                                 <div className="flex items-center gap-2 text-xs font-semibold text-red-600 bg-red-50 p-2 rounded-lg border border-red-200">
@@ -660,9 +676,9 @@ export default function Baseline() {
 
                         <button
                             onClick={stopAlarm}
-                            className="w-full rounded-xl bg-blue-700 py-3 text-lg font-semibold text-white hover:bg-blue-800 transition flex items-center justify-center gap-2"
+                            className="w-full rounded-xl bg-red-600 py-3 text-lg font-semibold text-white hover:bg-red-700 transition flex items-center justify-center gap-2"
                         >
-                            <Volume2 size={20} />
+                            <VolumeX size={20} />
                             Stop Alarm & Dismiss
                         </button>
                     </div>

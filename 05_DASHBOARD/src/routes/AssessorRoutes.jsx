@@ -6,7 +6,6 @@ import Home from "../pages/assessordashboard/Home";
 import AssessmentPanel from "../pages/assessordashboard/AssessmentPanel";
 import Evaluation from "../pages/assessordashboard/Evaluation";
 import AssessmentHistory from "../pages/assessordashboard/AssessmentHistory";
-import Profile from "../pages/assessordashboard/Profile";
 import Settings from "../pages/assessordashboard/Settings";
 import SelectedTrainees from "../pages/assessordashboard/assessment-panel/SelectedTrainees";
 import AssessmentOverview from "../pages/assessordashboard/assessment-panel/AssessmentOverview";
@@ -116,15 +115,6 @@ export default function AssessorRoutes() {
         element={
           <AssessorLayout>
             <AssessmentHistory />
-          </AssessorLayout>
-        }
-      />
-
-      <Route
-        path="profile"
-        element={
-          <AssessorLayout>
-            <Profile />
           </AssessorLayout>
         }
       />

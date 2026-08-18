@@ -18,7 +18,6 @@ import ScheduleAssessmentWorkflow from "../pages/admin/assessment-management/Sch
 
 import ResultsMonitoring from "../pages/admin/ResultsMonitoring";
 import CertificateManagement from "../pages/admin/CertificateManagement";
-import Profile from "../pages/admin/Profile";
 import Settings from "../pages/admin/Settings";
 
 export default function AdminRoutes() {
@@ -115,16 +114,6 @@ export default function AdminRoutes() {
         element={
           <AdminLayout>
             <CertificateManagement />
-          </AdminLayout>
-        }
-      />
-
-      {/* Profile */}
-      <Route
-        path="/profile"
-        element={
-          <AdminLayout>
-            <Profile />
           </AdminLayout>
         }
       />
