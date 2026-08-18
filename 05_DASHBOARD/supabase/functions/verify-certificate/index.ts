@@ -1,5 +1,5 @@
-import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
+import elliptic from "npm:elliptic";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,26 +8,34 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+const ec = new elliptic.ec("p256");
+
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value);
+
+  const hashBuffer = await crypto.subtle.digest(
+    "SHA-256",
+    bytes
+  );
+
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 export default {
   async fetch(req: Request): Promise<Response> {
-    // =========================
-    // CORS
-    // =========================
-
     if (req.method === "OPTIONS") {
       return new Response("ok", {
         headers: corsHeaders,
       });
     }
 
-    // =========================
-    // POST ONLY
-    // =========================
-
     if (req.method !== "POST") {
       return Response.json(
         {
           success: false,
+          verified: false,
           error: "Method not allowed.",
         },
         {
@@ -38,29 +46,26 @@ export default {
     }
 
     try {
-      // =========================
-      // READ REQUEST
-      // =========================
-
       const body = await req.json();
 
-      const name = String(body.name || "").trim();
-      const studentId = String(body.studentId || "").trim();
-      const qualification = String(
-        body.qualification || ""
-      ).trim();
-      const skill = String(body.skill || "").trim();
-      const result = String(body.result || "").trim();
+      const certificateId =
+        String(body.certificateId || "").trim();
 
-      // =========================
-      // VALIDATION
-      // =========================
+      const receivedToken =
+        String(body.token || "").trim();
 
-      if (!name) {
+      const receivedHash =
+        String(body.hash || "").trim();
+
+      const receivedSignature =
+        String(body.signature || "").trim();
+
+      if (!certificateId) {
         return Response.json(
           {
             success: false,
-            error: "Trainee name is required.",
+            verified: false,
+            error: "Certificate ID is required.",
           },
           {
             status: 400,
@@ -68,62 +73,6 @@ export default {
           }
         );
       }
-
-      if (!studentId) {
-        return Response.json(
-          {
-            success: false,
-            error: "Student ID is required.",
-          },
-          {
-            status: 400,
-            headers: corsHeaders,
-          }
-        );
-      }
-
-      if (!qualification) {
-        return Response.json(
-          {
-            success: false,
-            error: "Qualification is required.",
-          },
-          {
-            status: 400,
-            headers: corsHeaders,
-          }
-        );
-      }
-
-      if (!skill) {
-        return Response.json(
-          {
-            success: false,
-            error: "Skill is required.",
-          },
-          {
-            status: 400,
-            headers: corsHeaders,
-          }
-        );
-      }
-
-      if (!result) {
-        return Response.json(
-          {
-            success: false,
-            error: "Result is required.",
-          },
-          {
-            status: 400,
-            headers: corsHeaders,
-          }
-        );
-      }
-
-      // =========================
-      // SUPABASE SERVER CLIENT
-      // =========================
 
       const supabaseUrl =
         Deno.env.get("SUPABASE_URL");
@@ -133,9 +82,18 @@ export default {
           "SUPABASE_SERVICE_ROLE_KEY"
         );
 
-      if (!supabaseUrl || !serviceRoleKey) {
+      const privateKey =
+        Deno.env.get(
+          "CERTIFICATE_PRIVATE_KEY"
+        );
+
+      if (
+        !supabaseUrl ||
+        !serviceRoleKey ||
+        !privateKey
+      ) {
         throw new Error(
-          "Supabase server environment variables are not configured."
+          "Required Supabase server environment variables are not configured."
         );
       }
 
@@ -144,165 +102,226 @@ export default {
         serviceRoleKey
       );
 
-      // =========================
-      // GENERATE CERTIFICATE ID
-      // =========================
-
-      const year = new Date()
-        .getFullYear();
-
-      const randomPart = Math.floor(
-        100000 + Math.random() * 900000
-      );
-
-      const certificateId =
-        `CERT-${year}-${randomPart}`;
-
-      // =========================
-      // DATE
-      // =========================
-
-      const issuedOn =
-        new Date()
-          .toISOString()
-          .split("T")[0];
-
-      // =========================
-      // TRAINEE ID
-      // =========================
-
-      const traineeId =
-        `TR-${crypto.randomUUID()}`;
-
-      // =========================
-      // INSERT
-      // =========================
-
-      const {
-        data,
-        error,
-      } = await supabase
-        .from("certificates")
-        .insert({
-          certificate_id:
-            certificateId,
-
-          trainee_id:
-            traineeId,
-
-          trainee_name:
-            name,
-
-          student_id:
-            studentId,
-
-          qualification:
+      const { data: certificate, error } =
+        await supabase
+          .from("certificates")
+          .select(`
+            certificate_id,
+            trainee_id,
+            trainee_name,
+            student_id,
             qualification,
-
-          skill:
             skill,
-
-          issued_on:
-            issuedOn,
-
-          result:
+            issued_on,
             result,
-
-          /*
-           * Security values will be generated
-           * by the signing stage.
-           *
-           * DO NOT generate fake values here.
-           */
-          token: null,
-          hash: null,
-          signature: null,
-
-          status: "Valid",
-        })
-        .select(`
-          certificate_id,
-          trainee_id,
-          trainee_name,
-          student_id,
-          qualification,
-          skill,
-          issued_on,
-          result,
-          token,
-          hash,
-          signature,
-          status,
-          created_at
-        `)
-        .single();
+            token,
+            hash,
+            signature,
+            status,
+            created_at
+          `)
+          .eq(
+            "certificate_id",
+            certificateId
+          )
+          .maybeSingle();
 
       if (error) {
         console.error(
-          "Certificate insert failed:",
+          "Certificate lookup failed:",
           error
         );
 
         throw error;
       }
 
-      // =========================
-      // RESPONSE
-      // =========================
+      if (!certificate) {
+        return Response.json(
+          {
+            success: false,
+            verified: false,
+            error:
+              "Certificate could not be found.",
+          },
+          {
+            status: 404,
+            headers: corsHeaders,
+          }
+        );
+      }
+
+      /*
+       * Reconstruct the exact payload that was
+       * signed when the certificate was created.
+       */
+      const signingPayload = [
+        certificate.certificate_id,
+        certificate.trainee_id,
+        certificate.trainee_name,
+        certificate.student_id,
+        certificate.qualification,
+        certificate.skill,
+        certificate.issued_on,
+        certificate.result,
+      ].join("|");
+
+      const calculatedHash =
+        await sha256Hex(signingPayload);
+
+      /*
+       * TOKEN CHECK
+       *
+       * The current creation function stores
+       * certificateId as the token.
+       */
+      const tokenValid =
+        receivedToken ===
+        certificate.token &&
+        certificate.token ===
+        certificate.certificate_id;
+
+      /*
+       * DATABASE HASH CHECK
+       */
+      const databaseHashValid =
+        calculatedHash === certificate.hash;
+
+      /*
+       * QR HASH CHECK
+       */
+      const qrHashValid =
+        receivedHash === certificate.hash &&
+        receivedHash === calculatedHash;
+
+      /*
+       * SIGNATURE STORED IN DATABASE
+       */
+      const signatureMatchesDatabase =
+        receivedSignature ===
+        certificate.signature;
+
+      /*
+       * ECDSA SIGNATURE CHECK
+       *
+       * We derive the public key from the
+       * server-side private key.
+       *
+       * The private key itself is never returned
+       * to the browser.
+       */
+      let signatureValid = false;
+
+      try {
+        if (
+          certificate.signature &&
+          receivedSignature &&
+          calculatedHash
+        ) {
+          const keyPair =
+            ec.keyFromPrivate(
+              privateKey,
+              "hex"
+            );
+
+          const publicKey =
+            keyPair.getPublic(
+              "hex"
+            );
+
+          const publicKeyObject =
+            ec.keyFromPublic(
+              publicKey,
+              "hex"
+            );
+
+          signatureValid =
+            publicKeyObject.verify(
+              calculatedHash,
+              certificate.signature
+            );
+        }
+      } catch (signatureError) {
+        console.error(
+          "Signature verification failed:",
+          signatureError
+        );
+
+        signatureValid = false;
+      }
+
+      const certificateStatusValid =
+        certificate.status === "Valid";
+
+      const verified =
+        tokenValid &&
+        databaseHashValid &&
+        qrHashValid &&
+        signatureMatchesDatabase &&
+        signatureValid &&
+        certificateStatusValid;
 
       return Response.json(
         {
           success: true,
+          verified,
 
           certificate: {
             certificateId:
-              data.certificate_id,
+              certificate.certificate_id,
 
             traineeId:
-              data.trainee_id,
+              certificate.trainee_id,
 
             traineeName:
-              data.trainee_name,
+              certificate.trainee_name,
 
             studentId:
-              data.student_id,
+              certificate.student_id,
 
             qualification:
-              data.qualification,
+              certificate.qualification,
 
             skill:
-              data.skill,
+              certificate.skill,
 
             issuedOn:
-              data.issued_on,
+              certificate.issued_on,
 
             result:
-              data.result,
-
-            token:
-              data.token,
-
-            hash:
-              data.hash,
-
-            signature:
-              data.signature,
+              certificate.result,
 
             status:
-              data.status,
+              certificate.status,
 
             createdAt:
-              data.created_at,
+              certificate.created_at,
           },
+
+          checks: {
+            tokenValid,
+            databaseHashValid,
+            qrHashValid,
+            signatureMatchesDatabase,
+            signatureValid,
+            certificateStatusValid,
+          },
+
+          error: verified
+            ? null
+            : "One or more certificate security checks failed.",
         },
         {
-          status: 201,
-          headers: corsHeaders,
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            "Content-Type":
+              "application/json",
+          },
         }
       );
     } catch (error) {
       console.error(
-        "Create certificate failed:",
+        "Certificate verification failed:",
         error
       );
 
@@ -314,11 +333,16 @@ export default {
       return Response.json(
         {
           success: false,
+          verified: false,
           error: message,
         },
         {
           status: 500,
-          headers: corsHeaders,
+          headers: {
+            ...corsHeaders,
+            "Content-Type":
+              "application/json",
+          },
         }
       );
     }

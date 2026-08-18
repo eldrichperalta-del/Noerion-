@@ -14,30 +14,6 @@ import "../../styles/CertificateManagement.css";
 
 import { supabase } from "../../supabaseClient";
 
-/**
- * ==========================================
- * CERTIFICATE MANAGEMENT
- * ==========================================
- *
- * Supabase is the single source of truth.
- *
- * This page:
- * - Loads certificates from Supabase
- * - Filters certificates on the frontend
- * - Displays certificate information
- * - Revokes certificates directly in Supabase
- *
- * Certificate table:
- *
- * Supabase
- * certificates
- *      ↓
- * CertificateManagement
- *      ↓
- * CertificateTable
- *
- */
-
 export default function CertificateManagement() {
   // =========================
   // FILTER STATE
@@ -53,20 +29,33 @@ export default function CertificateManagement() {
   // UI STATE
   // =========================
 
-  const [selectedCertificate, setSelectedCertificate] = useState(null);
+  const [selectedCertificate, setSelectedCertificate] =
+    useState(null);
 
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showTrackingModal, setShowTrackingModal] = useState(false);
-  const [showRevokeModal, setShowRevokeModal] = useState(false);
-  const [openUpload, setOpenUpload] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] =
+    useState(false);
+
+  const [showTrackingModal, setShowTrackingModal] =
+    useState(false);
+
+  const [showRevokeModal, setShowRevokeModal] =
+    useState(false);
+
+  const [openUpload, setOpenUpload] =
+    useState(false);
 
   // =========================
   // DATA STATE
   // =========================
 
-  const [allCertificates, setAllCertificates] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [allCertificates, setAllCertificates] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [error, setError] =
+    useState(null);
 
   // =========================
   // LOAD CERTIFICATES
@@ -77,7 +66,59 @@ export default function CertificateManagement() {
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
+      console.log(
+        "========================================"
+      );
+
+      console.log(
+        "NOERION CERTIFICATE MANAGEMENT"
+      );
+
+      console.log(
+        "Loading certificates..."
+      );
+
+      console.log(
+        "========================================"
+      );
+
+      // =========================
+      // CHECK AUTHENTICATION
+      // =========================
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      console.log(
+        "Current Supabase user:",
+        user
+      );
+
+      console.log(
+        "Authentication error:",
+        userError
+      );
+
+      if (userError) {
+        throw userError;
+      }
+
+      if (!user) {
+        throw new Error(
+          "You are not authenticated. Please log in again."
+        );
+      }
+
+      // =========================
+      // LOAD DATABASE RECORDS
+      // =========================
+
+      const {
+        data,
+        error: fetchError,
+      } = await supabase
         .from("certificates")
         .select(`
           certificate_id,
@@ -94,66 +135,116 @@ export default function CertificateManagement() {
           status,
           created_at
         `)
-        .order("created_at", { ascending: false });
+        .order("created_at", {
+          ascending: false,
+        });
+
+      console.log(
+        "Supabase certificate data:",
+        data
+      );
+
+      console.log(
+        "Supabase certificate error:",
+        fetchError
+      );
 
       if (fetchError) {
         throw fetchError;
       }
 
-      /**
-       * Convert Supabase database fields
-       * into the field names expected by
-       * the existing certificate management UI.
-       */
-      const formattedCertificates = (data || []).map((certificate) => ({
-        certificateId: certificate.certificate_id,
+      // =========================
+      // FORMAT DATABASE DATA
+      // =========================
 
-        traineeId: certificate.trainee_id,
+      const formattedCertificates =
+        (data || []).map((certificate) => ({
+          certificateId:
+            certificate.certificate_id,
 
-        traineeName: certificate.trainee_name,
+          traineeId:
+            certificate.trainee_id,
 
-        studentId: certificate.student_id,
+          traineeName:
+            certificate.trainee_name,
 
-        course: certificate.qualification,
+          studentId:
+            certificate.student_id,
 
-        qualification: certificate.qualification,
+          course:
+            certificate.qualification,
 
-        skill: certificate.skill,
+          qualification:
+            certificate.qualification,
 
-        dateIssued: certificate.issued_on,
+          skill:
+            certificate.skill,
 
-        issuedOn: certificate.issued_on,
+          dateIssued:
+            certificate.issued_on,
 
-        result: certificate.result,
+          issuedOn:
+            certificate.issued_on,
 
-        token: certificate.token,
+          result:
+            certificate.result,
 
-        hash: certificate.hash,
+          token:
+            certificate.token,
 
-        signature: certificate.signature,
+          hash:
+            certificate.hash,
 
-        status: certificate.status,
+          signature:
+            certificate.signature,
 
-        /**
-         * These fields are kept for compatibility
-         * with the current CertificateTable and
-         * CertificateDetailsModal.
-         */
-        verificationStatus:
-          certificate.status === "Valid"
-            ? "Verified"
-            : certificate.status === "Revoked"
-            ? "Revoked"
-            : certificate.status || "Unknown",
+          status:
+            certificate.status,
 
-        lastVerificationDate: null,
+          verificationStatus:
+            certificate.status === "Valid"
+              ? "Verified"
+              : certificate.status ===
+                "Revoked"
+              ? "Revoked"
+              : certificate.status ||
+                "Unknown",
 
-        createdAt: certificate.created_at,
+          lastVerificationDate:
+            null,
 
-        qrCodeUrl: "",
-      }));
+          createdAt:
+            certificate.created_at,
 
-      setAllCertificates(formattedCertificates);
+          qrCodeUrl:
+            "",
+        }));
+
+      console.log(
+        "Formatted certificates:",
+        formattedCertificates
+      );
+
+      console.log(
+        "Certificate count:",
+        formattedCertificates.length
+      );
+
+      setAllCertificates(
+        formattedCertificates
+      );
+
+      console.log(
+        "========================================"
+      );
+
+      console.log(
+        "Certificate loading complete."
+      );
+
+      console.log(
+        "========================================"
+      );
     } catch (err) {
       console.error(
         "Failed to load certificates:",
@@ -185,92 +276,99 @@ export default function CertificateManagement() {
     const normalizedSearch =
       search.trim().toLowerCase();
 
-    return allCertificates.filter((certificate) => {
-      // -------------------------
-      // SEARCH
-      // -------------------------
+    return allCertificates.filter(
+      (certificate) => {
+        const traineeName =
+          certificate.traineeName || "";
 
-      const traineeName =
-        certificate.traineeName || "";
+        const certificateId =
+          certificate.certificateId || "";
 
-      const certificateId =
-        certificate.certificateId || "";
+        const traineeId =
+          certificate.traineeId || "";
 
-      const traineeId =
-        certificate.traineeId || "";
+        const studentId =
+          certificate.studentId || "";
 
-      const studentId =
-        certificate.studentId || "";
+        const qualification =
+          certificate.qualification ||
+          certificate.course ||
+          "";
 
-      const qualification =
-        certificate.qualification ||
-        certificate.course ||
-        "";
+        // =========================
+        // SEARCH
+        // =========================
 
-      const searchMatch =
-        !normalizedSearch ||
-        traineeName
-          .toLowerCase()
-          .includes(normalizedSearch) ||
-        certificateId
-          .toLowerCase()
-          .includes(normalizedSearch) ||
-        traineeId
-          .toLowerCase()
-          .includes(normalizedSearch) ||
-        studentId
-          .toLowerCase()
-          .includes(normalizedSearch) ||
-        qualification
-          .toLowerCase()
-          .includes(normalizedSearch);
+        const searchMatch =
+          !normalizedSearch ||
+          traineeName
+            .toLowerCase()
+            .includes(normalizedSearch) ||
+          certificateId
+            .toLowerCase()
+            .includes(normalizedSearch) ||
+          traineeId
+            .toLowerCase()
+            .includes(normalizedSearch) ||
+          studentId
+            .toLowerCase()
+            .includes(normalizedSearch) ||
+          qualification
+            .toLowerCase()
+            .includes(normalizedSearch);
 
-      // -------------------------
-      // STATUS
-      // -------------------------
+        // =========================
+        // STATUS
+        // =========================
 
-      const statusMatch =
-        status === "All" ||
-        certificate.status === status;
+        const statusMatch =
+          status === "All" ||
+          certificate.status === status;
 
-      // -------------------------
-      // DATE
-      // -------------------------
+        // =========================
+        // DATE
+        // =========================
 
-      const dateValue =
-        certificate.dateIssued;
+        const dateValue =
+          certificate.dateIssued;
 
-      const date = dateValue
-        ? new Date(dateValue)
-        : null;
+        const date = dateValue
+          ? new Date(dateValue)
+          : null;
 
-      const validDate =
-        date &&
-        !Number.isNaN(date.getTime());
+        const validDate =
+          date &&
+          !Number.isNaN(
+            date.getTime()
+          );
 
-      const dayMatch =
-        !day ||
-        (validDate &&
-          date.getDate() === Number(day));
+        const dayMatch =
+          !day ||
+          (validDate &&
+            date.getDate() ===
+              Number(day));
 
-      const monthMatch =
-        !month ||
-        (validDate &&
-          date.getMonth() + 1 === Number(month));
+        const monthMatch =
+          !month ||
+          (validDate &&
+            date.getMonth() + 1 ===
+              Number(month));
 
-      const yearMatch =
-        !year ||
-        (validDate &&
-          date.getFullYear() === Number(year));
+        const yearMatch =
+          !year ||
+          (validDate &&
+            date.getFullYear() ===
+              Number(year));
 
-      return (
-        searchMatch &&
-        statusMatch &&
-        dayMatch &&
-        monthMatch &&
-        yearMatch
-      );
-    });
+        return (
+          searchMatch &&
+          statusMatch &&
+          dayMatch &&
+          monthMatch &&
+          yearMatch
+        );
+      }
+    );
   }, [
     allCertificates,
     search,
@@ -285,14 +383,6 @@ export default function CertificateManagement() {
   // =========================
 
   const handleApplyFilters = () => {
-    /**
-     * Filtering is currently performed
-     * through useMemo above.
-     *
-     * If the certificate table becomes very large,
-     * these filters can later be moved into
-     * the Supabase query.
-     */
     console.log(
       "Certificate filters applied:",
       {
@@ -317,7 +407,9 @@ export default function CertificateManagement() {
   // REVOKE CERTIFICATE
   // =========================
 
-  const handleRevoke = async (certificate) => {
+  const handleRevoke = async (
+    certificate
+  ) => {
     if (!certificate?.certificateId) {
       console.error(
         "Cannot revoke certificate: missing certificate ID."
@@ -335,47 +427,35 @@ export default function CertificateManagement() {
         certificate.certificateId
       );
 
-      /**
-       * Update the real Supabase certificate.
-       *
-       * IMPORTANT:
-       *
-       * The verification Edge Function checks:
-       *
-       * certificate.status === "Valid"
-       *
-       * Therefore a revoked certificate must
-       * have status = "Revoked".
-       */
-      const { error: revokeError } =
-        await supabase
-          .from("certificates")
-          .update({
-            status: "Revoked",
-          })
-          .eq(
-            "certificate_id",
-            certificate.certificateId
-          );
+      const {
+        error: revokeError,
+      } = await supabase
+        .from("certificates")
+        .update({
+          status: "Revoked",
+        })
+        .eq(
+          "certificate_id",
+          certificate.certificateId
+        );
 
       if (revokeError) {
         throw revokeError;
       }
 
-      /**
-       * Update the local UI immediately.
-       */
-      setAllCertificates((previous) =>
-        previous.map((item) =>
-          item.certificateId ===
-          certificate.certificateId
-            ? {
-                ...item,
-                status: "Revoked",
-                verificationStatus: "Revoked",
-              }
-            : item
-        )
+      setAllCertificates(
+        (previous) =>
+          previous.map((item) =>
+            item.certificateId ===
+            certificate.certificateId
+              ? {
+                  ...item,
+                  status: "Revoked",
+                  verificationStatus:
+                    "Revoked",
+                }
+              : item
+          )
       );
 
       console.log(
@@ -401,33 +481,15 @@ export default function CertificateManagement() {
   };
 
   // =========================
-  // UPLOAD / NEW CERTIFICATE
+  // CERTIFICATE SAVED
   // =========================
 
   const handleCertificateSaved = async (
     newCertificate
   ) => {
-    /**
-     * The current CertificateUploadModal
-     * supplies a certificate object through
-     * onSave().
-     *
-     * If the modal has already inserted the
-     * certificate into Supabase, reload the
-     * database list.
-     *
-     * Otherwise, the modal can be updated next
-     * so that the INSERT happens there.
-     */
     try {
       setError(null);
 
-      /**
-       * If the upload modal returned a certificate
-       * that already has a certificateId, reload
-       * from Supabase so the database remains the
-       * source of truth.
-       */
       if (newCertificate) {
         console.log(
           "Certificate saved:",
@@ -458,20 +520,20 @@ export default function CertificateManagement() {
   return (
     <div className="cert-page">
 
-      {/* ================= HEADER ================= */}
+      {/* HEADER */}
 
       <DashboardPageHeader
         title="Certificate Management"
         subtitle="Issue, monitor, and manage trainee certificates and their verification status."
       />
 
-      {/* ================= OVERVIEW CARDS ================= */}
+      {/* OVERVIEW */}
 
       <CertificateOverviewCards
         data={allCertificates}
       />
 
-      {/* ================= FILTER SECTION ================= */}
+      {/* FILTERS */}
 
       <CertificateFilters
         search={search}
@@ -488,10 +550,11 @@ export default function CertificateManagement() {
         onClear={handleClearFilters}
       />
 
-      {/* ================= ERROR ================= */}
+      {/* ERROR */}
 
       {error && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+
           <p className="font-medium">
             Certificate Management Error
           </p>
@@ -499,10 +562,11 @@ export default function CertificateManagement() {
           <p className="mt-1 text-sm">
             {error}
           </p>
+
         </div>
       )}
 
-      {/* ================= TABLE SECTION ================= */}
+      {/* TABLE */}
 
       <div className="table-section">
 
@@ -515,14 +579,17 @@ export default function CertificateManagement() {
         {!loading && (
           <CertificateTable
             certificates={filtered}
+
             onView={(item) => {
               setSelectedCertificate(item);
               setShowDetailsModal(true);
             }}
+
             onTrack={(item) => {
               setSelectedCertificate(item);
               setShowTrackingModal(true);
             }}
+
             onRevoke={(item) => {
               setSelectedCertificate(item);
               setShowRevokeModal(true);
@@ -532,7 +599,7 @@ export default function CertificateManagement() {
 
       </div>
 
-      {/* ================= DETAILS MODAL ================= */}
+      {/* DETAILS MODAL */}
 
       <CertificateDetailsModal
         open={showDetailsModal}
@@ -543,7 +610,7 @@ export default function CertificateManagement() {
         }}
       />
 
-      {/* ================= TRACKING MODAL ================= */}
+      {/* TRACKING MODAL */}
 
       <CertificateTrackingModal
         open={showTrackingModal}
@@ -554,7 +621,7 @@ export default function CertificateManagement() {
         }}
       />
 
-      {/* ================= REVOKE MODAL ================= */}
+      {/* REVOKE MODAL */}
 
       <RevokeCertificateModal
         open={showRevokeModal}
@@ -566,14 +633,16 @@ export default function CertificateManagement() {
         onRevoke={handleRevoke}
       />
 
-      {/* ================= UPLOAD MODAL ================= */}
+      {/* UPLOAD MODAL */}
 
       {openUpload && (
         <CertificateUploadModal
           onClose={() =>
             setOpenUpload(false)
           }
-          onSave={handleCertificateSaved}
+          onSave={
+            handleCertificateSaved
+          }
         />
       )}
 

@@ -1,16 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-/**
- * ==========================================
- * CERTIFICATE TABLE (BACKEND READY)
- * ==========================================
- * Supports:
- * - frontend pagination (current mode)
- * - backend pagination (future switch-ready)
- * - safe dropdown handling
- */
-
 export default function CertificateTable({
   certificates = [],
   loading = false,
@@ -19,74 +9,112 @@ export default function CertificateTable({
   onTrack,
   onRevoke,
 }) {
-
-  // =========================
-  // UI STATE
-  // =========================
   const [currentPage, setCurrentPage] = useState(1);
   const [openMenuId, setOpenMenuId] = useState(null);
 
   const rowsPerPage = 5;
 
-  // =========================
-  // RESET PAGE WHEN DATA CHANGES
-  // =========================
-  useEffect(() => {
-    setCurrentPage(1);
+  // ==========================================
+  // NORMALIZE CERTIFICATE DATA
+  // ==========================================
+
+  const safeCertificates = useMemo(() => {
+    if (!Array.isArray(certificates)) {
+      console.error(
+        "CertificateTable: certificates is not an array:",
+        certificates
+      );
+
+      return [];
+    }
+
+    return certificates.filter(Boolean);
   }, [certificates]);
 
-  // =========================
-  // CLOSE MENU ON ESC (UX IMPROVEMENT)
-  // =========================
+  // ==========================================
+  // DEBUG
+  // ==========================================
+
   useEffect(() => {
-    const handleEsc = (e) => {
-      if (e.key === "Escape") setOpenMenuId(null);
+    console.log("========================================");
+    console.log("CERTIFICATE TABLE");
+    console.log("Received certificates:", certificates);
+    console.log("Certificate count:", safeCertificates.length);
+
+    if (safeCertificates.length > 0) {
+      console.log(
+        "First certificate:",
+        safeCertificates[0]
+      );
+    }
+
+    console.log("========================================");
+  }, [certificates, safeCertificates]);
+
+  // ==========================================
+  // RESET PAGE WHEN DATA CHANGES
+  // ==========================================
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [safeCertificates.length]);
+
+  // ==========================================
+  // CLOSE MENU ON ESC
+  // ==========================================
+
+  useEffect(() => {
+    const handleEsc = (event) => {
+      if (event.key === "Escape") {
+        setOpenMenuId(null);
+      }
     };
 
     window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
+
+    return () => {
+      window.removeEventListener("keydown", handleEsc);
+    };
   }, []);
 
-  // =========================
-  // BACKEND NOTE:
-  // =========================
-  // If backend sends paginated data,
-  // REMOVE slicing logic below.
+  // ==========================================
+  // PAGINATION
+  // ==========================================
 
-  const isFrontendPaginated = true;
+  const totalPages = Math.max(
+    Math.ceil(
+      safeCertificates.length / rowsPerPage
+    ),
+    1
+  );
 
   const paginatedCertificates = useMemo(() => {
+    const start =
+      (currentPage - 1) * rowsPerPage;
 
-    if (!isFrontendPaginated) return certificates;
-
-    const safe = Array.isArray(certificates) ? certificates : [];
-    const start = (currentPage - 1) * rowsPerPage;
-
-    return safe.slice(start, start + rowsPerPage);
-
-  }, [certificates, currentPage]);
-
-  // =========================
-  // PAGINATION META
-  // =========================
-  const totalPages = useMemo(() => {
-    return Math.max(
-      Math.ceil((certificates?.length || 0) / rowsPerPage),
-      1
+    return safeCertificates.slice(
+      start,
+      start + rowsPerPage
     );
-  }, [certificates]);
+  }, [safeCertificates, currentPage]);
 
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const endIndex = startIndex + rowsPerPage;
+  const startIndex =
+    (currentPage - 1) * rowsPerPage;
 
   const showingStart =
-    certificates.length === 0 ? 0 : startIndex + 1;
+    safeCertificates.length === 0
+      ? 0
+      : startIndex + 1;
 
-  const showingEnd = Math.min(endIndex, certificates.length);
+  const showingEnd = Math.min(
+    startIndex + rowsPerPage,
+    safeCertificates.length
+  );
 
-  // =========================
-  // LOADING STATE
-  // =========================
+  // ==========================================
+  // LOADING
+  // ==========================================
+
   if (loading) {
     return (
       <div className="rounded-2xl bg-white p-5 shadow">
@@ -95,9 +123,10 @@ export default function CertificateTable({
     );
   }
 
-  // =========================
-  // ERROR STATE
-  // =========================
+  // ==========================================
+  // ERROR
+  // ==========================================
+
   if (error) {
     return (
       <div className="rounded-2xl bg-white p-5 shadow text-red-500">
@@ -106,150 +135,255 @@ export default function CertificateTable({
     );
   }
 
+  // ==========================================
+  // RENDER
+  // ==========================================
+
   return (
     <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
 
-      {/* ================= TABLE ================= */}
+      {/* ======================================
+          TABLE
+      ====================================== */}
+
       <div className="overflow-x-auto rounded-xl border-2 border-gray-100 shadow-[0_4px_12px_rgba(0,0,0,0.20)]">
 
         <table className="w-full">
 
-          {/* HEADER */}
           <thead className="bg-gray-200">
             <tr>
-              <th className="px-4 py-4 text-left font-bold">Certificate ID</th>
-              <th className="px-4 py-4 text-left font-bold">Trainee Name</th>
-              <th className="px-4 py-4 text-left font-bold">Course</th>
-              <th className="px-4 py-4 text-left font-bold">Date Issued</th>
-              <th className="px-4 py-4 text-left font-bold">Status</th>
-              <th className="px-4 py-4 text-center font-bold">Actions</th>
+              <th className="px-4 py-4 text-left font-bold">
+                Certificate ID
+              </th>
+
+              <th className="px-4 py-4 text-left font-bold">
+                Trainee Name
+              </th>
+
+              <th className="px-4 py-4 text-left font-bold">
+                Course
+              </th>
+
+              <th className="px-4 py-4 text-left font-bold">
+                Date Issued
+              </th>
+
+              <th className="px-4 py-4 text-left font-bold">
+                Status
+              </th>
+
+              <th className="px-4 py-4 text-center font-bold">
+                Actions
+              </th>
             </tr>
           </thead>
 
           <tbody>
 
-            {paginatedCertificates.length === 0 ? (
+            {/* ==================================
+                EMPTY STATE
+            ================================== */}
+
+            {paginatedCertificates.length === 0 && (
               <tr>
-                <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
+                <td
+                  colSpan={6}
+                  className="px-4 py-10 text-center text-gray-500"
+                >
                   No certificates found.
                 </td>
               </tr>
-            ) : (
+            )}
 
-              paginatedCertificates.map((item, i) => {
+            {/* ==================================
+                CERTIFICATE ROWS
+            ================================== */}
 
-                // =========================
-                // IMPORTANT BACKEND NOTE:
-                // MUST BE REAL ID FROM API
-                // =========================
-                const rowId =
-                  item?.certificateId || `fallback-${i}`;
+            {paginatedCertificates.map(
+              (certificate, index) => {
+
+                const certificateId =
+                  certificate?.certificateId ||
+                  `certificate-${index}`;
+
+                const traineeName =
+                  certificate?.traineeName ||
+                  "—";
+
+                const course =
+                  certificate?.course ||
+                  certificate?.qualification ||
+                  "—";
+
+                const dateIssued =
+                  certificate?.dateIssued ||
+                  certificate?.issuedOn ||
+                  "—";
+
+                const status =
+                  certificate?.status ||
+                  "Unknown";
+
+                const isValid =
+                  status.toLowerCase() === "valid" ||
+                  status.toLowerCase() === "issued";
 
                 return (
                   <tr
-                    key={rowId}
-                    className="border-b hover:bg-gray-100 transition"
+                    key={certificateId}
+                    className="border-b border-gray-200 hover:bg-gray-50 transition"
                   >
 
-                    <td className="px-4 py-3">{item?.certificateId}</td>
-                    <td className="px-4 py-3">{item?.traineeName}</td>
-                    <td className="px-4 py-3">{item?.course}</td>
-                    <td className="px-4 py-3">{item?.dateIssued}</td>
+                    {/* CERTIFICATE ID */}
+
+                    <td className="px-4 py-4 font-medium text-gray-900">
+                      {certificateId}
+                    </td>
+
+                    {/* TRAINEE */}
+
+                    <td className="px-4 py-4 text-gray-700">
+                      {traineeName}
+                    </td>
+
+                    {/* COURSE */}
+
+                    <td className="px-4 py-4 text-gray-700">
+                      {course}
+                    </td>
+
+                    {/* DATE */}
+
+                    <td className="px-4 py-4 text-gray-700">
+                      {dateIssued}
+                    </td>
 
                     {/* STATUS */}
-                    <td className="px-4 py-3">
+
+                    <td className="px-4 py-4">
+
                       <span
-                        className={`px-3 py-1 rounded-full text-sm ${
-                          item?.status === "Issued"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
+                        className={
+                          isValid
+                            ? "inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700"
+                            : status.toLowerCase() ===
+                              "revoked"
+                            ? "inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-700"
+                            : "inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700"
+                        }
                       >
-                        {item?.status}
+                        {status}
                       </span>
+
                     </td>
 
                     {/* ACTIONS */}
-                    <td className="px-4 py-3 text-center relative">
 
-                      {/* 3 DOT MENU */}
+                    <td className="relative px-4 py-4 text-center">
+
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+
                           setOpenMenuId(
-                            openMenuId === rowId ? null : rowId
+                            openMenuId === certificateId
+                              ? null
+                              : certificateId
                           );
                         }}
-                        className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-gray-200"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-gray-200"
+                        aria-label="Certificate actions"
                       >
                         <div className="flex flex-col gap-[2px]">
-                          <span className="h-1 w-1 bg-gray-700 rounded-full" />
-                          <span className="h-1 w-1 bg-gray-700 rounded-full" />
-                          <span className="h-1 w-1 bg-gray-700 rounded-full" />
+                          <span className="h-1 w-1 rounded-full bg-gray-700" />
+                          <span className="h-1 w-1 rounded-full bg-gray-700" />
+                          <span className="h-1 w-1 rounded-full bg-gray-700" />
                         </div>
                       </button>
 
                       {/* DROPDOWN */}
-                      {openMenuId === rowId && (
+
+                      {openMenuId === certificateId && (
                         <div
-                          className="absolute right-0 mt-2 z-30 w-36 rounded-lg bg-white shadow"
-                          onClick={(e) => e.stopPropagation()}
+                          className="absolute right-2 top-12 z-50 w-36 rounded-lg border border-gray-200 bg-white py-1 text-left shadow-xl"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                          }}
                         >
 
                           <button
+                            type="button"
                             onClick={() => {
-                              onView?.(item);
+                              onView?.(certificate);
                               setOpenMenuId(null);
                             }}
-                            className="w-full px-4 py-2 text-left hover:bg-gray-100"
+                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
                           >
                             Details
                           </button>
 
                           <button
+                            type="button"
                             onClick={() => {
-                              onTrack?.(item);
+                              onTrack?.(certificate);
                               setOpenMenuId(null);
                             }}
-                            className="w-full px-4 py-2 text-left hover:bg-gray-100"
+                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
                           >
                             Track
                           </button>
 
-                          <button
-                            onClick={() => {
-                              onRevoke?.(item);
-                              setOpenMenuId(null);
-                            }}
-                            className="w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100"
-                          >
-                            Revoke
-                          </button>
+                          {status.toLowerCase() !==
+                            "revoked" && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onRevoke?.(certificate);
+                                setOpenMenuId(null);
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                            >
+                              Revoke
+                            </button>
+                          )}
 
                         </div>
                       )}
 
                     </td>
+
                   </tr>
                 );
-              })
+              }
             )}
+
           </tbody>
 
         </table>
+
       </div>
 
-      {/* ================= PAGINATION ================= */}
+      {/* ======================================
+          PAGINATION
+      ====================================== */}
+
       <div className="flex items-center justify-between border-t border-gray-200 px-4 py-4 text-sm">
 
         <p className="font-medium text-gray-700">
-          Showing {showingStart}-{showingEnd} of {certificates.length}
+          Showing {showingStart}-{showingEnd} of{" "}
+          {safeCertificates.length}
         </p>
 
         <div className="flex items-center gap-3">
 
           <button
-            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            type="button"
+            onClick={() => {
+              setCurrentPage((page) =>
+                Math.max(page - 1, 1)
+              );
+            }}
             disabled={currentPage === 1}
             className="flex items-center gap-1 text-gray-500 disabled:opacity-40"
           >
@@ -257,13 +391,23 @@ export default function CertificateTable({
             Prev
           </button>
 
-          <span className="px-3 py-2 border rounded-lg">
+          <span className="rounded-lg border px-3 py-2">
             {currentPage}
           </span>
 
           <button
-            onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-            disabled={currentPage >= totalPages}
+            type="button"
+            onClick={() => {
+              setCurrentPage((page) =>
+                Math.min(
+                  page + 1,
+                  totalPages
+                )
+              );
+            }}
+            disabled={
+              currentPage >= totalPages
+            }
             className="flex items-center gap-1 text-gray-500 disabled:opacity-40"
           >
             Next
@@ -273,6 +417,7 @@ export default function CertificateTable({
         </div>
 
       </div>
+
     </div>
   );
 }

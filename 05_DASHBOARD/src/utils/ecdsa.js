@@ -2,21 +2,53 @@ import { ec as EC } from "elliptic";
 
 const ec = new EC("p256");
 
-// Fixed local key pair for the prototype
-const PRIVATE_KEY =
-  "519b423d715f8b5d5491f8b6e3f7b5b7b1f3d8a5b9c6d7e8f9a0b1c2d3e4f5a6";
+/**
+ * NOERION ECDSA
+ *
+ * IMPORTANT:
+ * The private signing key MUST NOT exist in frontend code.
+ *
+ * Certificate signing is performed by the Supabase Edge Function:
+ *
+ * supabase/functions/create-certificate/index.ts
+ *
+ * Certificate verification is performed by:
+ *
+ * supabase/functions/verify-certificate/index.ts
+ *
+ * The browser only needs the public key if local verification
+ * is ever required.
+ */
 
-const keyPair = ec.keyFromPrivate(PRIVATE_KEY, "hex");
+/**
+ * Verify a SHA-256 hash using a supplied public key.
+ *
+ * @param {string} hash
+ * @param {string} signature
+ * @param {string} publicKey
+ * @returns {boolean}
+ */
+export function verifyHash(hash, signature, publicKey) {
+  try {
+    if (!hash || !signature || !publicKey) {
+      return false;
+    }
 
-export const publicKey = keyPair.getPublic("hex");
+    const publicKeyObj = ec.keyFromPublic(
+      publicKey,
+      "hex"
+    );
 
-// Sign a SHA-256 hash
-export function signHash(hash) {
-  return keyPair.sign(hash).toDER("hex");
-}
+    return publicKeyObj.verify(
+      hash,
+      signature
+    );
+  } catch (error) {
+    console.error(
+      "ECDSA verification failed:",
+      error
+    );
 
-// Verify a SHA-256 hash
-export function verifyHash(hash, signature) {
-  const publicKeyObj = ec.keyFromPublic(publicKey, "hex");
-  return publicKeyObj.verify(hash, signature);
+    return false;
+  }
 }
