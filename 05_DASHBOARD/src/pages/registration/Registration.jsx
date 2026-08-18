@@ -7,7 +7,7 @@ import {
 import AnimatedWave from "../login/AnimatedWave";
 import { supabase } from "../../supabaseClient";
 
-const inputClass = "w-full h-11 rounded-xl border border-cyan-300/30 bg-slate-800/70 px-3 text-sm text-white outline-none placeholder:text-slate-400 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20";
+const inputClass = "auth-input w-full h-11 rounded-xl border border-cyan-300/30 bg-slate-800/70 px-3 text-sm text-white outline-none placeholder:text-slate-400 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20";
 
 function Progress({ step }) {
   return (

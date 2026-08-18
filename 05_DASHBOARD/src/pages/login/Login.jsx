@@ -135,10 +135,11 @@ export default function Login() {
                         <Mail size={18} className="text-cyan-300 mr-3" />
                         <input
                             type="email"
+                            autoComplete="email"
                             placeholder="Email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="flex-1 bg-transparent outline-none text-white"
+                            className="auth-input flex-1 bg-transparent outline-none text-white"
                         />
                     </div>
 
@@ -147,10 +148,11 @@ export default function Login() {
                         <Lock size={18} className="text-cyan-300 mr-3" />
                         <input
                             type={showPassword ? "text" : "password"}
+                            autoComplete="current-password"
                             placeholder="Password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="flex-1 bg-transparent outline-none text-white"
+                            className="auth-input flex-1 bg-transparent outline-none text-white"
                         />
                         <button
                             type="button"

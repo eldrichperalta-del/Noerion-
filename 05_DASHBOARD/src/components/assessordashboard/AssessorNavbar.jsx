@@ -55,8 +55,7 @@ function AssessorNavbar() {
     "/assessor/evaluation/ai-analysis": "AI Analysis & Insights",
     "/assessor/evaluation/finalize": "Finalize Evaluation",
     "/assessor/history": "Assessment History",
-    "/assessor/profile": "Profile",
-    "/assessor/settings": "Settings",
+    "/assessor/settings": "My Account",
     "/assessor/logout": "Logout",
   };
 

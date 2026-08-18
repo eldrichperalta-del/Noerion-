@@ -5,7 +5,6 @@ import {
   ClipboardList,
   BarChart3,
   Award,
-  User,
   Settings,
   LogOut,
   X,
@@ -52,9 +51,6 @@ function AdminSidebar({ isOpen, setIsOpen }) {
     { icon: ClipboardList, label: "Assessment Management", path: "/admin/assessments" },
     { icon: BarChart3, label: "Results Monitoring", path: "/admin/results" },
     { icon: Award, label: "Certificate Management", path: "/admin/certificates" },
-    { icon: User, label: "Profile", path: "/admin/profile" },
-    { icon: Settings, label: "Settings", path: "/admin/settings" },
-    { icon: LogOut, label: "Logout", action: "logout" },
   ];
 
   return (
@@ -183,11 +179,17 @@ function AdminSidebar({ isOpen, setIsOpen }) {
         </nav>
 
         {/* FOOTER */}
-        {isOpen && (
-          <div className="p-4 text-xs text-gray-300 text-center">
-            &copy; 2026 NOERION.
-          </div>
-        )}
+        <div className="px-3 pb-4">
+          <NavLink to="/admin/settings" className={({ isActive }) => `flex w-full items-center gap-4 rounded-xl px-4 py-3 transition ${isActive ? "bg-blue-800" : "hover:bg-blue-700"}`}>
+            <Settings size={22} />
+            {isOpen && <span className="text-sm font-medium">Settings</span>}
+          </NavLink>
+          <button onClick={handleLogout} className="flex w-full items-center gap-4 rounded-xl px-4 py-3 text-left transition hover:bg-blue-700">
+            <LogOut size={22} />
+            {isOpen && <span className="text-sm font-medium">Logout</span>}
+          </button>
+          {isOpen && <div className="pt-4 text-center text-xs text-gray-300">&copy; 2026 NOERION.</div>}
+        </div>
       </aside>
     </>
   );

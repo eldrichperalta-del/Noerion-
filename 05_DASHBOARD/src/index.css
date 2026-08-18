@@ -7,6 +7,74 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Prevent Chromium autofill from replacing dark authentication fields with white. */
+.auth-input:-webkit-autofill,
+.auth-input:-webkit-autofill:hover,
+.auth-input:-webkit-autofill:focus,
+.auth-input:-webkit-autofill:active {
+  background-color: transparent !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  caret-color: #f8fafc;
+  -webkit-box-shadow: 0 0 0 1000px rgba(15, 23, 42, 0.9) inset !important;
+  box-shadow: 0 0 0 1000px rgba(15, 23, 42, 0.9) inset !important;
+  border-color: rgba(103, 232, 249, 0.4) !important;
+}
+
+.auth-input:-moz-autofill {
+  background-color: rgba(15, 23, 42, 0.9) !important;
+  box-shadow: 0 0 0 1000px rgba(15, 23, 42, 0.9) inset !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+html[data-theme="dark"] body,
+html[data-theme="dark"] #root {
+  background: #0f172a;
+}
+
+html[data-theme="dark"] .bg-white,
+html[data-theme="dark"] .bg-slate-50 {
+  background-color: #1e293b !important;
+}
+
+html[data-theme="dark"] .bg-gray-100,
+html[data-theme="dark"] .bg-gray-200 {
+  background-color: #334155 !important;
+}
+
+html[data-theme="dark"] .text-slate-950,
+html[data-theme="dark"] .text-slate-900,
+html[data-theme="dark"] .text-slate-800,
+html[data-theme="dark"] .text-slate-700,
+html[data-theme="dark"] .text-gray-800,
+html[data-theme="dark"] .text-gray-700 {
+  color: #e2e8f0 !important;
+}
+
+html[data-theme="dark"] .text-slate-600,
+html[data-theme="dark"] .text-gray-600,
+html[data-theme="dark"] .text-gray-500 {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] .border-slate-100,
+html[data-theme="dark"] .border-slate-200,
+html[data-theme="dark"] .border-gray-200,
+html[data-theme="dark"] .border-gray-300 {
+  border-color: #475569 !important;
+}
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select {
+  background-color: #0f172a !important;
+  color: #e2e8f0 !important;
+}
+
 /* Schedule Assessment controls mirror the Assessor Assessment Panel dimensions. */
 div:has(> label > input[placeholder="Search course and qualification"]) {
   justify-content: space-between;
@@ -184,4 +252,16 @@ input[aria-label="Schedule date"] {
     font-size: 14px !important;
     transform: translateY(-1.25rem) !important;
   }
+}
+/* Keep security sub-view headings left-aligned while centering their content. */
+.security-subview > .max-w-2xl,
+.security-subview > .max-w-3xl {
+  max-width: none;
+}
+
+.security-subview > .max-w-2xl > :nth-child(n + 3),
+.security-subview > .max-w-3xl > :nth-child(n + 3) {
+  width: min(100%, 42rem);
+  margin-left: auto;
+  margin-right: auto;
 }

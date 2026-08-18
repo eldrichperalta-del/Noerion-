@@ -21,8 +21,7 @@ function TraineeNavbar() {
     "/trainee/assessment-summary": "Assessment Summary",
     "/trainee/certificate": "Certificate",
     "/trainee/certificates": "Certificates",
-    "/trainee/profile": "Profile",
-    "/trainee/settings": "Settings",
+    "/trainee/settings": "My Account",
   };
 
   const currentTitle = /^\/trainee\/certificates\/[^/]+$/.test(location.pathname)

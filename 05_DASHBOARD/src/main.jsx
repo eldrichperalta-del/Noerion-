@@ -5,11 +5,14 @@ import App from "./App";
 import "./index.css";
 
 import { AssessmentProvider } from "./context/AssessmentContext";
+import { ThemeProvider } from "./context/ThemeContext";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <AssessmentProvider>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </AssessmentProvider>
+  <BrowserRouter>
+    <ThemeProvider>
+      <AssessmentProvider>
+        <App />
+      </AssessmentProvider>
+    </ThemeProvider>
+  </BrowserRouter>
 );

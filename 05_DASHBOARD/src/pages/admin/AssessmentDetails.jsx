@@ -333,7 +333,7 @@ export default function AssessmentDetails() {
             <span>&gt;</span>
             <span className="text-[#002f86]">Assessment Details</span>
           </nav>
-          <h1 className="mt-2 text-4xl font-bold">{assessment.title}</h1>
+          <h1 className="mt-2 text-2xl font-bold">{assessment.title}</h1>
           <p className="mt-2 text-gray-600">Review and manage assessment questions and settings.</p>
         </div>
         <button onClick={() => setModal("add")} className="flex items-center gap-2 rounded-lg bg-[#002f86] px-4 py-3 font-semibold text-white hover:bg-[#001f59]">

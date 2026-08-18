@@ -4,7 +4,6 @@ import {
   ClipboardList,
   ClipboardCheck,
   History,
-  User,
   Settings,
   LogOut,
   X,
@@ -64,21 +63,6 @@ function AssessorSidebar({ isOpen, setIsOpen }) {
       icon: History,
       label: "Assessment History",
       path: "/assessor/history",
-    },
-    {
-      icon: User,
-      label: "Profile",
-      path: "/assessor/profile",
-    },
-    {
-      icon: Settings,
-      label: "Settings",
-      path: "/assessor/settings",
-    },
-    {
-      icon: LogOut,
-      label: "Logout",
-      action: "logout",
     },
   ];
 
@@ -185,11 +169,17 @@ function AssessorSidebar({ isOpen, setIsOpen }) {
         </nav>
 
         {/* FOOTER */}
-        {isOpen && (
-          <div className="p-4 text-xs text-gray-300 text-center">
-            &copy; 2026 NOERION.
-          </div>
-        )}
+        <div className="px-3 pb-4">
+          <NavLink to="/assessor/settings" className={({ isActive }) => `flex w-full items-center gap-4 rounded-xl px-4 py-3 transition ${isActive ? "bg-blue-800" : "hover:bg-blue-700"}`}>
+            <Settings size={22} />
+            {isOpen && <span className="text-sm font-medium">Settings</span>}
+          </NavLink>
+          <button onClick={handleLogout} className="flex w-full items-center gap-4 rounded-xl px-4 py-3 text-left transition hover:bg-blue-700">
+            <LogOut size={22} />
+            {isOpen && <span className="text-sm font-medium">Logout</span>}
+          </button>
+          {isOpen && <div className="pt-4 text-center text-xs text-gray-300">&copy; 2026 NOERION.</div>}
+        </div>
       </aside>
     </>
   );
