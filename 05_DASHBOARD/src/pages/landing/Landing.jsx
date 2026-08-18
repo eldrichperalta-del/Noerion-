@@ -335,9 +335,12 @@ export default function Landing() {
 
                         <div className="flex flex-wrap justify-center gap-4">
 
-                            <button className="bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 text-white font-bold px-8 py-3 rounded-full hover:opacity-90 shadow-[0_0_25px_rgba(0,242,254,0.45)] transition-all">
+                            <Link
+                                to="/register"
+                                className="bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 text-white font-bold px-8 py-3 rounded-full hover:opacity-90 shadow-[0_0_25px_rgba(0,242,254,0.45)] transition-all"
+                            >
                                 Get Started
-                            </button>
+                            </Link>
 
                             <Link to="/certificate-verification" className="bg-transparent border border-gray-700 text-gray-300 font-semibold px-8 py-3 rounded-full hover:border-cyan-400/50 hover:text-cyan-400 transition-all">
                                 Verify Certificate
