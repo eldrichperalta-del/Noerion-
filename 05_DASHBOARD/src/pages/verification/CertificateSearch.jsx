@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Camera } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Html5QrcodeScanner } from "html5-qrcode";
@@ -6,7 +6,6 @@ import "./certificateVerification.css";
 
 export default function CertificateSearch() {
   const navigate = useNavigate();
-  const scannerRef = useRef(null);
   const [certificateNumber, setCertificateNumber] = useState("");
 
   useEffect(() => {
