@@ -477,26 +477,46 @@ export default function WrittenAssessment() {
             if (logErr) console.error("Error inserting assessment_event_logs:", logErr);
           }
 
-          // 5. Single-row update: Finalize active trainee_eeg_readings session
           // 5. Link EEG session to submission_id & finalize status
-if (submissionId) {
-  const { error: eegErr } = await supabase
-    .from("trainee_eeg_readings")
-    .update({
-      submission_id: submissionId,
-      assignment_id: assignmentId, // Fills assignment_id if it was NULL
-      status: "COMPLETED",
-      updated_at: new Date().toISOString(),
-    })
-    .match({
-      trainee_id: validUserUuid,
-      assessment_id: targetAssessmentId,
-    });
+          const { error: eegErr } = await supabase
+            .from("trainee_eeg_readings")
+            .update({
+              submission_id: submissionId,
+              assignment_id: assignmentId,
+              status: "COMPLETED",
+              updated_at: new Date().toISOString(),
+            })
+            .match({
+              trainee_id: validUserUuid,
+              assessment_id: targetAssessmentId,
+            });
 
-  if (eegErr) console.error("Error updating trainee_eeg_readings:", eegErr);
-}
+          if (eegErr) console.error("Error updating trainee_eeg_readings:", eegErr);
 
-          // 6. Update Assignment status
+          // 🤖 6. Trigger AI Insights Edge Function
+         /* try {
+            const { data: aiData, error: aiErr } = await supabase.functions.invoke(
+              "generate-ai-insights",
+              {
+                body: {
+                  submission_id: submissionId,
+                  submissionId: submissionId,
+                  trainee_id: validUserUuid,
+                  record: {
+                    id: submissionId,
+                    trainee_id: validUserUuid,
+                    assignment_id: assignmentId,
+                  },
+                },
+              }
+            ); 
+            if (aiErr) console.error("Error invoking AI Insights function:", aiErr);
+            else console.log("AI Insights generated successfully:", aiData);
+          } catch (aiInvokeErr) {
+            console.error("Failed to invoke AI Edge Function:", aiInvokeErr);
+          }*/
+
+          // 7. Update Assignment status
           if (assignmentId) {
             await supabase
               .from("assignments")

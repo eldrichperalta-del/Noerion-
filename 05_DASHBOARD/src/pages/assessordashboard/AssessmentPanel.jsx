@@ -72,7 +72,7 @@ export default function AssessmentPanel() {
             const batchCode =
               batch.batch_code ||
               batch.batch_id ||
-              (batch.id ? `#BATCH-${batch.id.slice(0, 8).toUpperCase()}` : "N/A");
+              (batch.id ? `BATCH-${batch.id.slice(0, 8).toUpperCase()}` : "N/A");
 
             return {
               id: batch.id,

@@ -21,10 +21,33 @@ export default function AssessmentSummary() {
 
   const assessment = state.assessment;
 
+  // Log the object so you can inspect its keys in the browser console
+  console.log("Assessment object loaded:", assessment);
+
+  // Fallback chain checking common key variations
+  const submissionId =
+    assessment?.submission_id ||
+    assessment?.submissionId ||
+    assessment?.id ||
+    assessment?.assessment_id;
+
   return (
     <div className="space-y-6">
-      <nav className="flex gap-2 text-sm font-semibold"><Link to="/trainee/results" className="text-gray-500 hover:text-[#002f86] hover:underline">Results</Link><span>&gt;</span><span className="text-[#002f86]">Assessment Summary</span></nav>
-      <DashboardPageHeader title="Assessment Summary" subtitle="Review your performance, cognitive insights, and assessment feedback." />
+      <nav className="flex gap-2 text-sm font-semibold">
+        <Link
+          to="/trainee/results"
+          className="text-gray-500 hover:text-[#002f86] hover:underline"
+        >
+          Results
+        </Link>
+        <span>&gt;</span>
+        <span className="text-[#002f86]">Assessment Summary</span>
+      </nav>
+
+      <DashboardPageHeader
+        title="Assessment Summary"
+        subtitle="Review your performance, cognitive insights, and assessment feedback."
+      />
 
       <SummaryInfoCards assessment={assessment} />
 
@@ -35,19 +58,26 @@ export default function AssessmentSummary() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-6">
         <CognitiveMetrics assessment={assessment} />
-        <AICognitiveInsights assessment={assessment} />
-        <AssessorFeedback assessment={assessment} />
-        <AIRecommendations assessment={assessment} />
+        <AICognitiveInsights submissionId={submissionId} assessment={assessment} />
+        
+        {/* Fixed AssessorFeedback call passing explicit IDs and the full assessment object */}
+        <AssessorFeedback 
+          submissionId={submissionId}
+          traineeId={assessment?.trainee_id}
+          assessmentId={assessment?.assessment_id}
+          assessment={assessment}
+        />
+
+        <AIRecommendations submissionId={submissionId} assessment={assessment} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div className="xl:col-span-3">
-          <KeyInsights assessment={assessment} />
+          <KeyInsights submissionId={submissionId} assessment={assessment} />
         </div>
 
         <ActionsCard assessment={assessment} />
       </div>
-
     </div>
   );
 }

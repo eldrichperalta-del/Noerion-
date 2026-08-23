@@ -16,23 +16,22 @@ export default function WrittenAssessmentReview() {
   const navigate = useNavigate();
   const { state } = useLocation();
 
-  // ==========================================================
   // Context Data passed from AssessmentOverview.jsx
-  // ==========================================================
   const trainee = state?.trainee;
   const assessment = state?.assessment;
   const selectedCourse = state?.selectedCourse || assessment?.courseName;
   const batchCode = state?.batchCode || trainee?.batchCode;
 
-  // ==========================================================
   // Local Component State
-  // ==========================================================
   const [questionsData, setQuestionsData] = useState([]);
   const [submissionId, setSubmissionId] = useState(trainee?.submissionId || trainee?.submission_id || null);
   const [isLoading, setIsLoading] = useState(true);
 
   const [validated, setValidated] = useState(false);
   const [remarks, setRemarks] = useState("");
+  const [newScore, setNewScore] = useState("");
+  const [justification, setJustification] = useState("");
+
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFinalized, setIsFinalized] = useState(false);
@@ -51,9 +50,11 @@ export default function WrittenAssessmentReview() {
     return <Navigate to="/assessor/assessment-panel" replace />;
   }
 
-  // ==========================================================
-  // DB HANDOFF: Load Submission Data & Calculate Metrics
-  // ==========================================================
+  // Determine button validity state
+  const isRemarksEmpty = !remarks || remarks.trim() === "";
+  const isOverrideInvalid = overrideMode && (!newScore || String(newScore).trim() === "" || !justification || justification.trim() === "");
+  const isFormInvalid = isRemarksEmpty || isOverrideInvalid || isSubmitting;
+
   useEffect(() => {
     async function loadAssessmentReview() {
       setIsLoading(true);
@@ -62,6 +63,8 @@ export default function WrittenAssessmentReview() {
         let dbTotalScore = null;
         let dbStatus = "in_progress";
         let dbResult = null;
+        let dbRemarks = "";
+        let dbJustification = "";
 
         // 1. Fetch Submission Record if ID is missing
         if (!currentSubId) {
@@ -76,7 +79,7 @@ export default function WrittenAssessmentReview() {
           for (const uid of candidateUuids) {
             const { data: subData } = await supabase
               .from("assessment_submissions")
-              .select("id, status, total_score, overall_result, passed")
+              .select("id, status, total_score, overall_result, passed, remarks, justification")
               .eq("assessment_id", assessment.id)
               .eq("trainee_id", uid)
               .maybeSingle();
@@ -86,6 +89,8 @@ export default function WrittenAssessmentReview() {
               setSubmissionId(currentSubId);
               dbStatus = subData.status;
               dbResult = subData.overall_result;
+              dbRemarks = subData.remarks || "";
+              dbJustification = subData.justification || "";
               if (subData.total_score !== null && subData.total_score !== undefined) {
                 dbTotalScore = Number(subData.total_score);
               }
@@ -96,7 +101,7 @@ export default function WrittenAssessmentReview() {
           if (!currentSubId) {
             const { data: fallbackSub } = await supabase
               .from("assessment_submissions")
-              .select("id, status, total_score, overall_result, passed")
+              .select("id, status, total_score, overall_result, passed, remarks, justification")
               .eq("assessment_id", assessment.id)
               .order("created_at", { ascending: false })
               .limit(1)
@@ -107,12 +112,33 @@ export default function WrittenAssessmentReview() {
               setSubmissionId(currentSubId);
               dbStatus = fallbackSub.status;
               dbResult = fallbackSub.overall_result;
+              dbRemarks = fallbackSub.remarks || "";
+              dbJustification = fallbackSub.justification || "";
               if (fallbackSub.total_score !== null && fallbackSub.total_score !== undefined) {
                 dbTotalScore = Number(fallbackSub.total_score);
               }
             }
           }
+        } else {
+          const { data: subData } = await supabase
+            .from("assessment_submissions")
+            .select("status, total_score, overall_result, remarks, justification")
+            .eq("id", currentSubId)
+            .maybeSingle();
+
+          if (subData) {
+            dbStatus = subData.status;
+            dbResult = subData.overall_result;
+            dbRemarks = subData.remarks || "";
+            dbJustification = subData.justification || "";
+            if (subData.total_score !== null && subData.total_score !== undefined) {
+              dbTotalScore = Number(subData.total_score);
+            }
+          }
         }
+
+        if (dbRemarks) setRemarks(dbRemarks);
+        if (dbJustification) setJustification(dbJustification);
 
         // 2. Fetch Questions
         const { data: questionsList, error: qError } = await supabase
@@ -255,10 +281,16 @@ export default function WrittenAssessmentReview() {
     loadAssessmentReview();
   }, [assessment?.id, trainee]);
 
-  // ==========================================================
-  // Evaluation Actions
-  // ==========================================================
+  // Callback to receive updated score & justification from AssessorValidationCard
+  const handleOverrideChange = (overrideData) => {
+    if (overrideData) {
+      setNewScore(overrideData.score);
+      setJustification(overrideData.justification);
+    }
+  };
+
   const handleFinalize = () => {
+    if (isFormInvalid) return;
     setShowConfirmModal(true);
   };
 
@@ -267,24 +299,37 @@ export default function WrittenAssessmentReview() {
     setIsSubmitting(true);
 
     try {
-      const passThreshold = 75; // 75% passing threshold
-      const isPassed = metrics.percentage >= passThreshold;
+      const hasOverride = overrideMode && newScore !== "" && newScore !== null;
+      const activeScore = hasOverride ? Number(newScore) : metrics.totalScore;
+
+      const passThreshold = 75;
+      const activePercentage = metrics.totalItems > 0 ? Math.round((activeScore / metrics.totalItems) * 100) : 0;
+      const isPassed = activePercentage >= passThreshold;
       const displayResult = isPassed ? "Passed" : "Failed";
 
       if (submissionId) {
-        await supabase
+        const updatePayload = {
+          status: "evaluated",
+          passed: isPassed,
+          overall_result: displayResult,
+          total_score: activeScore,
+          remarks: remarks.trim(),
+          justification: hasOverride ? justification.trim() : null,
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error } = await supabase
           .from("assessment_submissions")
-          .update({
-            status: "evaluated",
-            passed: isPassed,
-            overall_result: displayResult,
-            total_score: metrics.totalScore,
-          })
+          .update(updatePayload)
           .eq("id", submissionId);
+
+        if (error) throw error;
       }
 
       setMetrics((prev) => ({
         ...prev,
+        totalScore: activeScore,
+        percentage: activePercentage,
         result: displayResult,
       }));
 
@@ -321,7 +366,6 @@ export default function WrittenAssessmentReview() {
         subtitle="Review the trainee's submitted answers before finalizing the evaluation."
       />
 
-      {/* Banner Notice upon Finalization */}
       {isFinalized && (
         <div
           className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
@@ -362,14 +406,20 @@ export default function WrittenAssessmentReview() {
             setOverrideMode={setOverrideMode}
             remarks={remarks}
             setRemarks={setRemarks}
+            systemScore={metrics.totalScore}
+            onOverrideChange={handleOverrideChange}
           />
         </div>
 
         <div>
           <AICognitiveInsightsCard
+            submissionId={submissionId}
+            traineeId={trainee?.id || trainee?.trainee_id || trainee?.user_id}
+            assessment={assessment}
             validated={validated}
             overrideMode={overrideMode}
             isSubmitting={isSubmitting}
+            isDisabled={isFormInvalid}
             onFinalize={handleFinalize}
           />
         </div>
@@ -378,7 +428,17 @@ export default function WrittenAssessmentReview() {
       <ConfirmationModal
         open={showConfirmModal}
         title="Finalize Evaluation?"
-        message={`This action will finalize the review with a score of ${metrics.percentage}% (${metrics.percentage >= 75 ? "Passed" : "Failed"}). Please confirm that all answers, remarks, and AI insights have been reviewed.`}
+        message={`This action will finalize the review with a score of ${
+          overrideMode && newScore !== ""
+            ? Math.round((Number(newScore) / metrics.totalItems) * 100)
+            : metrics.percentage
+        }% (${
+          (overrideMode && newScore !== ""
+            ? Math.round((Number(newScore) / metrics.totalItems) * 100)
+            : metrics.percentage) >= 75
+            ? "Passed"
+            : "Failed"
+        }). Please confirm that all answers, remarks, and AI insights have been reviewed.`}
         confirmLabel="Finalize Evaluation"
         onCancel={() => setShowConfirmModal(false)}
         onConfirm={handleConfirmFinalize}

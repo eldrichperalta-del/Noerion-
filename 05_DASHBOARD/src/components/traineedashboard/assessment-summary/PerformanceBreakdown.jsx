@@ -2,19 +2,26 @@ import { useEffect, useState } from "react";
 import { BarChart3, PenSquare } from "lucide-react";
 
 export default function PerformanceBreakdown({ assessment }) {
-  // Live score from assessment prop (defaulting to 0 if absent)
-  const writtenScore = assessment?.score ?? 0;
+  // Extract raw score and total items from assessment object
+  const rawScore = assessment?.total_score ?? assessment?.score ?? 0;
+  const totalItems = assessment?.total_items ?? assessment?.totalItems ?? 40;
 
-  // Animated Progress
+  // Calculate percentage: (37 / 40) * 100 = 92.5 => 93%
+  const computedPercentage =
+    rawScore > totalItems
+      ? Math.round(rawScore)
+      : Math.min(Math.round((rawScore / totalItems) * 100), 100);
+
+  // Animated Progress State
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setProgress(writtenScore);
+      setProgress(computedPercentage);
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [writtenScore]);
+  }, [computedPercentage]);
 
   // Bar Heights matching original ratio calculation
   const blueHeight = progress * 0.5;

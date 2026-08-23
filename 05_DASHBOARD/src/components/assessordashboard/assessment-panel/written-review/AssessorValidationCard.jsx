@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CheckCircle2 } from "lucide-react";
 
 export default function AssessorValidationCard({
@@ -8,11 +8,30 @@ export default function AssessorValidationCard({
   setOverrideMode,
   remarks,
   setRemarks,
+  systemScore = 32,
+  onOverrideChange,
 }) {
-
-  const systemScore = 42;
   const [overrideScore, setOverrideScore] = useState("");
   const [justification, setJustification] = useState("");
+
+  // Keep parent in sync whenever override values change
+  useEffect(() => {
+    if (onOverrideChange) {
+      onOverrideChange({
+        score: overrideMode && overrideScore !== "" ? Number(overrideScore) : systemScore,
+        justification: overrideMode ? justification : "",
+      });
+    }
+  }, [overrideMode, overrideScore, justification, systemScore, onOverrideChange]);
+
+  const handleConfirmSystemScore = () => {
+    setValidated(!validated);
+  };
+
+  const handleToggleOverride = () => {
+    const nextOverrideMode = !overrideMode;
+    setOverrideMode(nextOverrideMode);
+  };
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-6">
@@ -31,11 +50,12 @@ export default function AssessorValidationCard({
       <div className="grid grid-cols-2 gap-4">
         <button
           type="button"
-          onClick={() => setValidated(!validated)}
-          className={`rounded-lg py-2.5 text-sm font-bold transition-all ${validated
+          onClick={handleConfirmSystemScore}
+          className={`rounded-lg py-2.5 text-sm font-bold transition-all ${
+            validated
               ? "bg-green-600 text-white"
               : "bg-[#0A67D8] text-white hover:bg-[#0057b8]"
-            }`}
+          }`}
         >
           {validated ? (
             <span className="flex items-center justify-center gap-2">
@@ -48,13 +68,14 @@ export default function AssessorValidationCard({
 
         <button
           type="button"
-          onClick={() => setOverrideMode(!overrideMode)}
-          className={`rounded-lg py-2.5 text-sm font-bold transition-all ${overrideMode
-              ? "bg-gray-600 text-white"
+          onClick={handleToggleOverride}
+          className={`rounded-lg py-2.5 text-sm font-bold transition-all ${
+            overrideMode
+              ? "bg-amber-600 text-white"
               : "bg-white text-[#0A67D8] border-2 border-[#0A67D8] hover:bg-blue-50"
-            }`}
+          }`}
         >
-          {overrideMode ? "Cancel Override" : "Override System Score"}
+          {overrideMode ? "Override Active" : "Override System Score"}
         </button>
       </div>
 
@@ -67,6 +88,8 @@ export default function AssessorValidationCard({
             </label>
             <input
               type="number"
+              min="0"
+              placeholder="Enter new score"
               value={overrideScore}
               onChange={(e) => setOverrideScore(e.target.value)}
               className="w-full rounded-lg border border-gray-400 px-4 py-2 text-sm text-gray-900 outline-none focus:border-[#0A67D8]"
@@ -80,6 +103,7 @@ export default function AssessorValidationCard({
               rows={3}
               value={justification}
               onChange={(e) => setJustification(e.target.value)}
+              placeholder="Reason for changing score..."
               className="w-full resize-none rounded-lg border border-gray-400 px-4 py-2 text-sm text-gray-900 outline-none focus:border-[#0A67D8]"
             />
           </div>

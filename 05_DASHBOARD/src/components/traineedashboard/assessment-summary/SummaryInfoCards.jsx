@@ -20,16 +20,37 @@ export default function SummaryInfoCards({ assessment }) {
       })
     : "N/A";
 
-  const score = assessment?.score ?? 0;
-  const resultStatus = assessment?.result || "In evaluation";
+  // Score & Percentage Calculation (37 / 40 * 100 = 93%)
+  const rawScore = assessment?.total_score ?? assessment?.score ?? 0;
+  const totalItems = assessment?.total_items ?? assessment?.totalItems ?? 40;
+  
+  const scorePercentage =
+    rawScore > totalItems
+      ? Math.round(rawScore)
+      : Math.min(Math.round((rawScore / totalItems) * 100), 100);
+
+  const rawStatus = assessment?.result || "In evaluation";
+
+  // Standardize classification display (e.g. Pass -> Passed)
+  const formatResultStatus = (status) => {
+    if (!status) return "In evaluation";
+    const str = status.toString().trim();
+    if (str.toLowerCase() === "pass") return "Passed";
+    if (str.toLowerCase() === "fail") return "Failed";
+    return str;
+  };
+
+  const displayStatus = formatResultStatus(rawStatus);
 
   // Dynamic badge styling
   const getBadgeClass = (status) => {
     switch (status) {
       case "Pass":
+      case "Passed":
       case "Competent":
       case "Completed":
         return "bg-green-100 text-green-700";
+      case "Fail":
       case "Failed":
       case "Not Yet Competent":
         return "bg-red-100 text-red-700";
@@ -57,12 +78,12 @@ export default function SummaryInfoCards({ assessment }) {
     },
     {
       title: "Final Score",
-      value: `${score}%`, // 👈 Always display the calculated score percentage
+      value: `${scorePercentage}%`,
       icon: Trophy,
     },
     {
       title: "Overall Classification",
-      value: resultStatus,
+      value: displayStatus,
       icon: BadgeCheck,
       badge: true,
     },

@@ -119,8 +119,8 @@ export default function SelectedTrainees() {
               assessmentId: assignment.assessment_id || assessmentId,
               fullName,
               traineeId: assignment.trainee_id
-                ? `#TRA-${assignment.trainee_id.slice(0, 6).toUpperCase()}`
-                : `#ASSIGN-${assignment.id.slice(0, 6).toUpperCase()}`,
+                ? `#TR-${assignment.trainee_id.slice(0, 8).toUpperCase()}` /* trainee ID format */
+                : `#ASSIGN-${assignment.id.slice(0, 6).toUpperCase()}`, 
               course: selectedCourse,
               status,
               submission: submission || null,
