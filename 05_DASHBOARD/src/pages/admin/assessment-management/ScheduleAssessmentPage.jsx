@@ -3,6 +3,26 @@ import { ChevronLeft, ChevronRight, MoreVertical, Plus, Search, X } from "lucide
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../../supabaseClient";
 
+// --- TIME FORMATTER HELPER ---
+function formatTime12Hour(timeStr) {
+  if (!timeStr) return "N/A";
+
+  // Clean string from any pre-existing AM/PM tags or trailing whitespace
+  const cleanStr = timeStr.replace(/(AM|PM)/gi, "").trim();
+  const [hourStr, minuteStr] = cleanStr.split(":");
+
+  let hours = parseInt(hourStr, 10);
+  const minutes = minuteStr ? minuteStr.substring(0, 2) : "00";
+
+  if (isNaN(hours)) return timeStr;
+
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12 || 12; // Convert 0 to 12 for midnight, 16 to 04, etc.
+
+  const formattedHours = String(hours).padStart(2, "0");
+  return `${formattedHours}:${minutes} ${ampm}`;
+}
+
 // --- VIEW DETAILS MODAL ---
 function DetailsModal({ batch, onClose }) {
   return (
@@ -29,15 +49,15 @@ function DetailsModal({ batch, onClose }) {
               </div>
               <div>
                 <span className="text-xs text-gray-400 font-medium">Qualification</span>
-                <p className="font-semibold text-gray-800">{batch.qualification || 'N/A'}</p>
+                <p className="font-semibold text-gray-800">{batch.qualification || "N/A"}</p>
               </div>
               <div>
                 <span className="text-xs text-gray-400 font-medium">Assessment Type</span>
-                <p className="font-semibold text-gray-800">{batch.assessment_type || 'Written'}</p>
+                <p className="font-semibold text-gray-800">{batch.assessment_type || "Written"}</p>
               </div>
               <div>
                 <span className="text-xs text-gray-400 font-medium">Instructions</span>
-                <p className="text-xs text-gray-600 leading-relaxed">{batch.instructions || 'N/A'}</p>
+                <p className="text-xs text-gray-600 leading-relaxed">{batch.instructions || "N/A"}</p>
               </div>
             </div>
           </div>
@@ -52,7 +72,7 @@ function DetailsModal({ batch, onClose }) {
                 batch.assignments.map((item, idx) => (
                   <div key={idx} className="rounded-xl border border-gray-100 p-3 bg-gray-50/50">
                     <p className="font-semibold text-gray-900">
-                      {item.trainee_profile ? `${item.trainee_profile.first_name} ${item.trainee_profile.last_name}` : 'Unknown Trainee'}
+                      {item.trainee_profile ? `${item.trainee_profile.first_name} ${item.trainee_profile.last_name}` : "Unknown Trainee"}
                     </p>
                     <p className="text-xs text-gray-500">{item.trainee_profile?.email}</p>
                   </div>
@@ -68,7 +88,7 @@ function DetailsModal({ batch, onClose }) {
             <h3 className="font-bold text-gray-900 mb-3">Assigned Assessor</h3>
             <div className="rounded-xl border border-gray-100 p-3 bg-gray-50/50">
               <p className="font-semibold text-gray-900">
-                {batch.assessor_profile ? `${batch.assessor_profile.first_name} ${batch.assessor_profile.last_name}` : 'N/A'}
+                {batch.assessor_profile ? `${batch.assessor_profile.first_name} ${batch.assessor_profile.last_name}` : "N/A"}
               </p>
               <p className="text-xs text-gray-500">{batch.assessor_profile?.email}</p>
             </div>
@@ -84,11 +104,11 @@ function DetailsModal({ batch, onClose }) {
               </div>
               <div>
                 <span className="text-xs text-gray-400">Start Time</span>
-                <p className="font-semibold text-gray-800">{batch.start_time || '09:00 AM'}</p>
+                <p className="font-semibold text-gray-800">{formatTime12Hour(batch.start_time)}</p>
               </div>
               <div>
                 <span className="text-xs text-gray-400">End Time</span>
-                <p className="font-semibold text-gray-800">{batch.end_time || '10:00 AM'}</p>
+                <p className="font-semibold text-gray-800">{formatTime12Hour(batch.end_time)}</p>
               </div>
             </div>
           </div>

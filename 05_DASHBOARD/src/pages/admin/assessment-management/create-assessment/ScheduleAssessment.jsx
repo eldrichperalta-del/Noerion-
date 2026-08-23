@@ -27,7 +27,6 @@ function ScheduleAssessment({
     ? new Date(schedule.date + "T00:00:00")
     : null;
 
-
   // ✅ SAFE DATE SELECTION
   const handleDateChange = (date) => {
     if (!date) return;
@@ -48,33 +47,52 @@ function ScheduleAssessment({
     }));
   };
 
+  // ✅ RELIABLE TIME PARSER FOR INPUT CONVERSION
   const getTimeParts = (time) => {
     if (!time) return { value: "", period: "AM" };
 
-    const match = time.match(/^(\d{1,2}:\d{2})\s*(AM|PM)$/i);
+    const match = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match) {
+      let hours = parseInt(match[1], 10);
+      const minutes = match[2];
+      const period = match[3].toUpperCase();
 
-    if (!match) {
-      return { value: "", period: "AM" };
+      // Convert back to 24-hour string for <input type="time" />
+      if (period === "PM" && hours < 12) hours += 12;
+      if (period === "AM" && hours === 12) hours = 0;
+
+      const formatted24 = `${String(hours).padStart(2, "0")}:${minutes}`;
+      return { value: formatted24, period };
     }
 
-    return {
-      value: match[1],
-      period: match[2].toUpperCase(),
-    };
+    return { value: time, period: "AM" };
   };
 
+  // ✅ SAFE TIME SELECTION WITH AUTOMATIC 12-HOUR FORMATTING
   const handleTimeChange = (field, type, value) => {
     setAssessmentData((prev) => {
       const currentTime = prev.schedule?.[field] || "";
       const parts = getTimeParts(currentTime);
 
       const timeValue = type === "time" ? value : parts.value;
-      const periodValue = type === "period" ? value : parts.period;
+      let periodValue = type === "period" ? value : parts.period;
 
-      const combinedTime =
-        timeValue && periodValue
-          ? `${timeValue} ${periodValue}`
-          : "";
+      let combinedTime = "";
+
+      if (timeValue) {
+        const [hStr, mStr] = timeValue.split(":");
+        let hours = parseInt(hStr, 10);
+        const minutes = mStr || "00";
+
+        if (type === "time") {
+          periodValue = hours >= 12 ? "PM" : "AM";
+        }
+
+        let displayHours = hours % 12 || 12;
+        const formattedHours = String(displayHours).padStart(2, "0");
+
+        combinedTime = `${formattedHours}:${minutes} ${periodValue}`;
+      }
 
       return {
         ...prev,
@@ -89,27 +107,7 @@ function ScheduleAssessment({
     });
   };
 
-  // ✅ SAFE TIME SELECTION
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    setAssessmentData((prev) => {
-      const updatedSchedule = {
-        ...(prev.schedule || {}),
-        [name]: value,
-      };
-
-      if (name === "startTime") updatedSchedule.start_time = value;
-      if (name === "endTime") updatedSchedule.end_time = value;
-
-      return {
-        ...prev,
-        schedule: updatedSchedule,
-      };
-    });
-  };
-
-  // ✅ RELIABLE TIME PARSER
+  // ✅ RELIABLE TIME PARSER FOR DURATION & OVERLAP
   const parseTime = (t) => {
     if (!t) return -1;
 
@@ -138,7 +136,7 @@ function ScheduleAssessment({
     return start >= end;
   }, [schedule.startTime, schedule.endTime]);
 
-  // ⏱ COMPUTED DURATION (PURE CALCULATION, NO SIDE-EFFECTS)
+  // ⏱ COMPUTED DURATION
   const computedDuration = useMemo(() => {
     const start = parseTime(schedule.startTime);
     const end = parseTime(schedule.endTime);
@@ -215,7 +213,6 @@ function ScheduleAssessment({
                   <label className="font-medium block mb-2">Start Time</label>
 
                   <div className="flex gap-2">
-                    {/* TIME INPUT */}
                     <div className="flex-1 bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3">
                       <input
                         type="time"
@@ -227,7 +224,6 @@ function ScheduleAssessment({
                       />
                     </div>
 
-                    {/* AM / PM */}
                     <div className="w-24 bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3">
                       <select
                         value={getTimeParts(schedule.startTime).period}
@@ -248,7 +244,6 @@ function ScheduleAssessment({
                   <label className="font-medium block mb-2">End Time</label>
 
                   <div className="flex gap-2">
-                    {/* TIME INPUT */}
                     <div className="flex-1 bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3">
                       <input
                         type="time"
@@ -260,7 +255,6 @@ function ScheduleAssessment({
                       />
                     </div>
 
-                    {/* AM / PM */}
                     <div className="w-24 bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3">
                       <select
                         value={getTimeParts(schedule.endTime).period}
@@ -289,8 +283,6 @@ function ScheduleAssessment({
                 )}
 
                 <div className="mt-auto flex justify-end gap-4 pt-6">
-
-                  {/* BACK BUTTON */}
                   <button
                     onClick={onBack}
                     className="px-6 py-3 rounded-lg font-semibold text-gray-700 border border-gray-300 hover:bg-gray-100 transition"
@@ -298,18 +290,17 @@ function ScheduleAssessment({
                     Back
                   </button>
 
-                  {/* NEXT BUTTON */}
                   <button
                     disabled={!canProceed}
                     onClick={onNext}
-                    className={`px-6 py-3 rounded-lg font-semibold text-white transition ${canProceed
-                      ? "bg-[#001F5B] hover:bg-[#001746]"
-                      : "bg-gray-300 cursor-not-allowed"
-                      }`}
+                    className={`px-6 py-3 rounded-lg font-semibold text-white transition ${
+                      canProceed
+                        ? "bg-[#001F5B] hover:bg-[#001746]"
+                        : "bg-gray-300 cursor-not-allowed"
+                    }`}
                   >
                     Next Step
                   </button>
-
                 </div>
 
               </div>
