@@ -1,3 +1,5 @@
+import { QRCodeSVG } from "qrcode.react";
+
 import tesdaLogo from "../../../assets/tesda1.png";
 import certificateBorder from "../../../assets/certificate-border-frame.png";
 
@@ -12,10 +14,27 @@ export default function CertificateTemplate({
   trainingCenter = "NOERION Training Center",
   assessorName = "Assessor Name",
   authorityName = "TESDA Authority",
+
+  // Security values come from Supabase.
+  token = "",
+  certificateHash = "",
+  certificateSignature = "",
 }) {
   const skillName = assessment.replace(" Certificate", "");
-  const qrCells =
-    "1111111010011011111111000001011101010000011011101010111010111011011101010111010101011011101010111011011101010000011000101000001111111010101011111110000000011110000000001101001110010111010100110101010110001010011110101110110101110010100011011001010100010011010111010001011110010101001010101110101011100010011101000000011010101011001111111011100010111111";
+  const normalizedCertificateId = certificateId.replace(/^#/, "");
+
+  const secureToken = token;
+
+  const verificationUrl =
+    secureToken && certificateHash && certificateSignature
+      ? `${window.location.origin}/verify/${encodeURIComponent(
+          normalizedCertificateId
+        )}?token=${encodeURIComponent(
+          secureToken
+        )}&hash=${encodeURIComponent(
+          certificateHash
+        )}&sig=${encodeURIComponent(certificateSignature)}`
+      : "";
 
   return (
     <div className="flex justify-center py-4">
@@ -28,26 +47,39 @@ export default function CertificateTemplate({
           />
 
           <div className="relative z-10 flex h-full flex-col items-center px-12 pb-10 pt-8 text-center">
-            <img src={tesdaLogo} alt="TESDA" className="certificate-logo h-14 w-14 object-contain" />
+            <img
+              src={tesdaLogo}
+              alt="TESDA"
+              className="certificate-logo h-14 w-14 object-contain"
+            />
 
             <p className="certificate-logo-text mt-1 text-[14px] font-extrabold leading-none text-[#102a6c]">
               TESDA
             </p>
+
             <p className="certificate-subtitle text-[18px] font-semibold uppercase leading-tight">
               National Certificate
             </p>
+
             <h2 className="certificate-title mt-1 text-[32px] font-extrabold uppercase leading-tight text-[#071d5b]">
-              Certificate of Competency
+              CERTIFICATE OF COMPETENCY
             </h2>
 
             <div className="certificate-body mt-2 max-w-[680px] text-[15px] font-medium leading-6">
-              <p>This is to certify that the individual has demonstrated competency in</p>
+              <p>
+                This is to certify that the individual has demonstrated
+                competency in
+              </p>
+
               <p>
                 This is to certify that{" "}
                 <span className="font-extrabold">[{traineeName}]</span>, with
-                Student ID <span className="font-extrabold">{traineeId}</span>,
+                Student ID{" "}
+                <span className="font-extrabold">{traineeId}</span>,
               </p>
+
               <p>has demonstrated competency in</p>
+
               <p>
                 [Qualification / Skill:{" "}
                 <span className="font-extrabold">
@@ -55,15 +87,22 @@ export default function CertificateTemplate({
                 </span>
                 ].
               </p>
+
               <p>
-                Assessment Result: <span className="font-extrabold">{result}</span>
+                Assessment Result:{" "}
+                <span className="font-extrabold">{result}</span>
               </p>
+
               <p>
-                Date Issued: <span className="font-extrabold">{dateIssued}</span>
+                Date Issued:{" "}
+                <span className="font-extrabold">{dateIssued}</span>
               </p>
+
               <p>
-                Certificate Number: <span className="font-medium">{certificateId}</span>
+                Certificate Number:{" "}
+                <span className="font-medium">{certificateId}</span>
               </p>
+
               <p>
                 Name of Training Center:{" "}
                 <span className="font-extrabold">[{trainingCenter}]</span>
@@ -75,6 +114,7 @@ export default function CertificateTemplate({
                 <p className="certificate-signature-script font-['Brush_Script_MT',cursive] text-2xl leading-none">
                   Signature
                 </p>
+
                 <div className="certificate-signature-label mt-1 border-t-2 border-[#111827] pt-1 text-[11px] font-extrabold">
                   {assessorName} &amp; Signature
                 </div>
@@ -84,20 +124,38 @@ export default function CertificateTemplate({
                 <p className="certificate-signature-script font-['Brush_Script_MT',cursive] text-2xl leading-none">
                   Signature
                 </p>
+
                 <div className="certificate-signature-label mt-1 border-t-2 border-[#111827] pt-1 text-[11px] font-extrabold">
                   {authorityName} Signature
                 </div>
               </div>
 
               <div className="flex flex-col items-center">
-                <div className="certificate-qr grid h-[66px] w-[66px] grid-cols-[repeat(17,1fr)] gap-[1px] border-2 border-[#111827] bg-white p-[3px]">
-                  {qrCells.split("").map((cell, index) => (
-                    <span
-                      key={index}
-                      className={cell === "1" ? "bg-[#111827]" : "bg-white"}
+                <div className="certificate-qr border-2 border-[#111827] bg-white p-[3px]">
+                  {verificationUrl ? (
+                    <QRCodeSVG
+                      value={verificationUrl}
+                      size={58}
+                      level="M"
+                      includeMargin={false}
                     />
-                  ))}
+                  ) : (
+                    <div
+                      style={{
+                        width: "58px",
+                        height: "58px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "8px",
+                        textAlign: "center",
+                      }}
+                    >
+                      Verification data unavailable
+                    </div>
+                  )}
                 </div>
+
                 <p className="certificate-qr-label mt-1 text-[10px] font-extrabold leading-tight">
                   Scan to Verify
                   <br />
@@ -107,7 +165,8 @@ export default function CertificateTemplate({
             </div>
 
             <p className="certificate-verification mt-2 text-[10px] font-medium">
-              This certificate is digitally verified through the NOERION system.
+              This certificate is digitally verified through the NOERION
+              system.
             </p>
           </div>
         </div>
@@ -115,5 +174,3 @@ export default function CertificateTemplate({
     </div>
   );
 }
-
-

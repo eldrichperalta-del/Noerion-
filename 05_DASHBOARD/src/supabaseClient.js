@@ -1,10 +1,17 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Log them temporarily to your terminal/browser console to test if Vite reads them
-console.log("Supabase URL checking:", supabaseUrl);
-console.log("Supabase Key checking:", supabaseAnonKey);
+if (!supabaseUrl) {
+  throw new Error("VITE_SUPABASE_URL is not configured.");
+}
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+if (!supabaseAnonKey) {
+  throw new Error("VITE_SUPABASE_ANON_KEY is not configured.");
+}
+
+export const supabase = createClient(
+  supabaseUrl,
+  supabaseAnonKey
+);
