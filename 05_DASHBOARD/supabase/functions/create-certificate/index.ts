@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import elliptic from "npm:elliptic";
+import elliptic from "elliptic";
 
 const ec = new elliptic.ec("p256");
 
