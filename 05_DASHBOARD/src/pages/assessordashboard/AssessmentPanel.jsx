@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../supabaseClient";
+import { supabase } from "../../supabaseClient.js";
 
-import CourseListTable from "../../components/assessordashboard/assessment-panel/CourseListTable";
-import AssessorPageHeader from "../../components/assessordashboard/shared/AssessorPageHeader";
+import CourseListTable from "../../components/assessordashboard/assessment-panel/CourseListTable.jsx";
+
+import AssessorPageHeader from "../../components/assessordashboard/shared/AssessorPageHeader.jsx";
 
 export default function AssessmentPanel() {
   const navigate = useNavigate();

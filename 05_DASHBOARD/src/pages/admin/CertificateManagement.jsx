@@ -1,18 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
-
-import CertificateOverviewCards from "../../components/admin/certificate-management/CertificateOverviewCards";
-import CertificateFilters from "../../components/admin/certificate-management/CertificateFilters";
-import CertificateTable from "../../components/admin/certificate-management/CertificateTable";
-
-import CertificateDetailsModal from "../../components/admin/certificate-management/CertificateDetailsModal";
-import CertificateTrackingModal from "../../components/admin/certificate-management/CertificateTrackingModal";
-import RevokeCertificateModal from "../../components/admin/certificate-management/RevokeCertificateModal";
-import CertificateUploadModal from "../../components/admin/certificate-management/CertificateUploadModal";
-import DashboardPageHeader from "../../components/common/DashboardPageHeader";
-
-import "../../styles/CertificateManagement.css";
-
-import { supabase } from "../../supabaseClient";
+import CertificateOverviewCards from "../../components/admin/certificate-management/CertificateOverviewCards.jsx";
+import CertificateFilters from "../../components/admin/certificate-management/CertificateFilters.jsx";
+import CertificateTable from "../../components/admin/certificate-management/CertificateTable.jsx";
+import CertificateDetailsModal from "../../components/admin/certificate-management/CertificateDetailsModal.jsx";
+import CertificateTrackingModal from "../../components/admin/certificate-management/CertificateTrackingModal.jsx";
+import RevokeCertificateModal from "../../components/admin/certificate-management/RevokeCertificateModal.jsx";
+import DashboardPageHeader from "../../components/common/DashboardPageHeader.jsx";
+import { supabase } from "../../supabaseClient.js";
 
 export default function CertificateManagement() {
   // =========================

@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { supabase } from "../../../supabaseClient";
 
-import AssessorBreadcrumbs from "../../../components/assessordashboard/flow/AssessorBreadcrumbs";
-import SelectedTraineesTable from "../../../components/assessordashboard/flow/SelectedTraineesTable";
-import AssessorPageHeader from "../../../components/assessordashboard/shared/AssessorPageHeader";
-import { useAssessments } from "../../../context/AssessmentContext";
+import { supabase } from "../../../supabaseClient.js";
+
+import AssessorBreadcrumbs from "../../../components/assessordashboard/flow/AssessorBreadcrumbs.jsx";
+import SelectedTraineesTable from "../../../components/assessordashboard/flow/SelectedTraineesTable.jsx";
+import AssessorPageHeader from "../../../components/assessordashboard/shared/AssessorPageHeader.jsx";
+
+import { useAssessments } from "../../../context/AssessmentContext.jsx";
 
 export default function SelectedTrainees() {
   const navigate = useNavigate();
@@ -20,14 +22,21 @@ export default function SelectedTrainees() {
   const [trainees, setTrainees] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const { setSelectedAssessment, setSelectedTrainee } = useAssessments();
+  const { setSelectedAssessment, setSelectedTrainee } =
+    useAssessments();
 
   useEffect(() => {
     async function fetchAssignedTrainees() {
       setLoading(true);
+
       try {
-        // 1. Fetch assigned trainees from `assignments` table
-        let query = supabase.from("assignments").select("*");
+        // =====================================================
+        // 1. FETCH ASSIGNED TRAINEES
+        // =====================================================
+
+        let query = supabase
+          .from("assignments")
+          .select("*");
 
         if (batchId) {
           query = query.eq("batch_id", batchId);
@@ -35,135 +44,372 @@ export default function SelectedTrainees() {
           query = query.eq("assessment_id", assessmentId);
         }
 
-        const { data: assignmentsData, error: assignError } = await query;
+        const {
+          data: assignmentsData,
+          error: assignError,
+        } = await query;
 
-        if (assignError) throw assignError;
+        if (assignError) {
+          throw assignError;
+        }
 
-        if (assignmentsData && assignmentsData.length > 0) {
-          // Extract unique trainee IDs and assignment IDs
+        if (
+          assignmentsData &&
+          assignmentsData.length > 0
+        ) {
+          // ===================================================
+          // EXTRACT IDs
+          // ===================================================
+
           const traineeIds = [
-            ...new Set(assignmentsData.map((a) => a.trainee_id).filter(Boolean)),
+            ...new Set(
+              assignmentsData
+                .map((a) => a.trainee_id)
+                .filter(Boolean)
+            ),
           ];
-          const assignmentIds = assignmentsData.map((a) => a.id).filter(Boolean);
 
-          // 2. Fetch trainee profile names from `profiles`
-          let profilesMap = {};
+          const assignmentIds = assignmentsData
+            .map((a) => a.id)
+            .filter(Boolean);
+
+          // ===================================================
+          // 2. FETCH TRAINEE PROFILES
+          // ===================================================
+
+          const profilesMap = {};
+
           if (traineeIds.length > 0) {
-            const { data: profilesData } = await supabase
+            const {
+              data: profilesData,
+              error: profilesError,
+            } = await supabase
               .from("profiles")
-              .select("id, first_name, last_name, email")
+              .select(
+                "id, first_name, last_name, email"
+              )
               .in("id", traineeIds);
 
+            if (profilesError) {
+              console.error(
+                "Profiles error:",
+                profilesError
+              );
+            }
+
             if (profilesData) {
-              profilesData.forEach((p) => {
-                profilesMap[p.id] = p;
+              profilesData.forEach((profile) => {
+                profilesMap[profile.id] = profile;
               });
             }
           }
 
-          // 3. Fetch submission statuses from `assessment_submissions`
-          let submissionsMap = {};
-          if (assignmentIds.length > 0 || traineeIds.length > 0) {
-            let subQuery = supabase.from("assessment_submissions").select("*");
+          // ===================================================
+          // 3. FETCH ASSESSMENT SUBMISSIONS
+          // ===================================================
+
+          const submissionsMap = {};
+
+          if (
+            assignmentIds.length > 0 ||
+            traineeIds.length > 0
+          ) {
+            let subQuery = supabase
+              .from("assessment_submissions")
+              .select("*");
 
             if (assignmentIds.length > 0) {
-              subQuery = subQuery.in("assignment_id", assignmentIds);
+              subQuery = subQuery.in(
+                "assignment_id",
+                assignmentIds
+              );
             } else if (traineeIds.length > 0) {
-              subQuery = subQuery.in("trainee_id", traineeIds);
+              subQuery = subQuery.in(
+                "trainee_id",
+                traineeIds
+              );
             }
 
-            const { data: subsData } = await subQuery;
+            const {
+              data: subsData,
+              error: subsError,
+            } = await subQuery;
+
+            // DEBUG
+            console.log(
+              "=== SUBMISSION DEBUG ==="
+            );
+            console.log("Batch ID:", batchId);
+            console.log(
+              "Assessment ID:",
+              assessmentId
+            );
+            console.log(
+              "Assignment IDs:",
+              assignmentIds
+            );
+            console.log(
+              "Trainee IDs:",
+              traineeIds
+            );
+            console.log(
+              "Submissions:",
+              subsData
+            );
+            console.log(
+              "Submission Error:",
+              subsError
+            );
+
+            if (subsError) {
+              console.error(
+                "Submission query error:",
+                subsError
+              );
+            }
 
             if (subsData) {
-              subsData.forEach((s) => {
-                const key = s.assignment_id || s.trainee_id;
-                submissionsMap[key] = s;
+              subsData.forEach((submission) => {
+                const key =
+                  submission.assignment_id ||
+                  submission.trainee_id;
+
+                if (key) {
+                  submissionsMap[key] =
+                    submission;
+                }
               });
             }
           }
 
-          // 4. Combine into formatted list expected by SelectedTraineesTable
-          const formatted = assignmentsData.map((assignment) => {
-            const profile = profilesMap[assignment.trainee_id];
-            const submission =
-              submissionsMap[assignment.id] || submissionsMap[assignment.trainee_id];
+          // ===================================================
+          // 4. FORMAT TRAINEES
+          // ===================================================
 
-            // Resolve Name
-            const fullName = profile
-              ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() ||
-                profile.email
-              : assignment.trainee_id
-              ? `Trainee #${assignment.trainee_id.slice(0, 8)}`
-              : "Assigned Trainee";
+          const formatted = assignmentsData.map(
+            (assignment) => {
+              const profile =
+                profilesMap[
+                  assignment.trainee_id
+                ];
 
-            // Resolve Status
-            let status = "Not Started";
-            if (submission) {
-              if (submission.status === "evaluated" || submission.status === "completed") {
+              const submission =
+                submissionsMap[assignment.id] ||
+                submissionsMap[
+                  assignment.trainee_id
+                ];
+
+              // =================================================
+              // RESOLVE NAME
+              // =================================================
+
+              const fullName = profile
+                ? `${profile.first_name || ""} ${
+                    profile.last_name || ""
+                  }`.trim() || profile.email
+                : assignment.trainee_id
+                  ? `Trainee #${assignment.trainee_id.slice(
+                      0,
+                      8
+                    )}`
+                  : "Assigned Trainee";
+
+              // =================================================
+              // RESOLVE STATUS
+              // =================================================
+
+              let status = "Not Started";
+
+              if (submission) {
+                const rawStatus = String(
+                  submission.status || ""
+                )
+                  .trim()
+                  .toLowerCase();
+
+                const rawOverallResult = String(
+                  submission.overall_result || ""
+                )
+                  .trim()
+                  .toLowerCase();
+
+                console.log(
+                  "Trainee:",
+                  fullName,
+                  "Status:",
+                  rawStatus,
+                  "Overall Result:",
+                  rawOverallResult
+                );
+
+                // Finalized
+                if (
+                  rawStatus === "evaluated" ||
+                  rawStatus === "completed" ||
+                  rawStatus === "in evaluated"
+                ) {
+                  status = "Evaluated";
+                }
+
+                // Submitted / ready for evaluation
+                else if (
+                  rawStatus === "submitted" ||
+                  rawOverallResult === "submitted"
+                ) {
+                  status = "Submitted";
+                }
+
+                // Currently being evaluated
+                else if (
+                  rawStatus === "in evaluation" ||
+                  rawStatus === "in_evaluation" ||
+                  rawStatus === "in evaluate"
+                ) {
+                  status = "In Evaluation";
+                }
+
+                // Currently taking assessment
+                else if (
+                  rawStatus === "in_progress" ||
+                  rawStatus === "in progress"
+                ) {
+                  status = "In Progress";
+                }
+              } else if (
+                assignment.status === "completed"
+              ) {
                 status = "Evaluated";
-              } else if (submission.status === "submitted") {
-                status = "Submitted";
-              } else if (submission.status === "in_progress") {
+              } else if (
+                assignment.status === "in_progress" ||
+                assignment.status === "in progress"
+              ) {
                 status = "In Progress";
               }
-            } else if (assignment.status === "completed") {
-              status = "Evaluated";
-            } else if (assignment.status === "in_progress") {
-              status = "In Progress";
-            }
 
-            return {
-              id: assignment.trainee_id || assignment.id,
-              assignmentId: assignment.id,
-              batchId: assignment.batch_id || batchId,
-              assessmentId: assignment.assessment_id || assessmentId,
-              fullName,
-              traineeId: assignment.trainee_id
-                ? `#TR-${assignment.trainee_id.slice(0, 8).toUpperCase()}` /* trainee ID format */
-                : `#ASSIGN-${assignment.id.slice(0, 6).toUpperCase()}`, 
-              course: selectedCourse,
-              status,
-              submission: submission || null,
-              assignment: assignment,
-            };
-          });
+              return {
+                id:
+                  assignment.trainee_id ||
+                  assignment.id,
+
+                assignmentId: assignment.id,
+
+                batchId:
+                  assignment.batch_id || batchId,
+
+                assessmentId:
+                  assignment.assessment_id ||
+                  assessmentId,
+
+                fullName,
+
+                traineeId:
+                  assignment.trainee_id
+                    ? `#TR-${assignment.trainee_id
+                        .slice(0, 8)
+                        .toUpperCase()}`
+                    : `#ASSIGN-${String(
+                        assignment.id
+                      )
+                        .slice(0, 6)
+                        .toUpperCase()}`,
+
+                course: selectedCourse,
+
+                status,
+
+                submission:
+                  submission || null,
+
+                // Keep the original DB records available
+                // to the next pages.
+                assignment,
+
+                submissionId:
+                  submission?.id || null,
+
+                submission_id:
+                  submission?.id || null,
+              };
+            }
+          );
 
           setTrainees(formatted);
         } else {
           setTrainees([]);
         }
       } catch (err) {
-        console.error("Error fetching assigned trainees:", err);
+        console.error(
+          "Error fetching assigned trainees:",
+          err
+        );
+
+        setTrainees([]);
       } finally {
         setLoading(false);
       }
     }
 
     fetchAssignedTrainees();
-  }, [batchId, assessmentId, selectedCourse]);
+  }, [
+    batchId,
+    assessmentId,
+    selectedCourse,
+  ]);
+
+  // =========================================================
+  // VIEW ASSESSMENT
+  // =========================================================
 
   const handleViewAssessment = (trainee) => {
     const assessmentInfo = {
-      id: trainee.assessmentId || assessmentId,
-      batchId: trainee.batchId || batchId,
+      id:
+        trainee.assessmentId ||
+        assessmentId,
+
+      batchId:
+        trainee.batchId ||
+        batchId,
+
       courseCode: batchCode,
+
       courseName: selectedCourse,
     };
 
-    setSelectedAssessment(assessmentInfo);
+    setSelectedAssessment(
+      assessmentInfo
+    );
+
     setSelectedTrainee(trainee);
 
-    navigate("/assessor/assessment-panel/assessment-overview", {
-      state: {
-        trainee,
-        assessment: assessmentInfo,
-        selectedCourse,
-        batchId: trainee.batchId || batchId,
-        batchCode,
-        assignmentId: trainee.assignmentId,
-      },
-    });
+    navigate(
+      "/assessor/assessment-panel/assessment-overview",
+      {
+        state: {
+          trainee,
+
+          assessment: assessmentInfo,
+
+          selectedCourse,
+
+          batchId:
+            trainee.batchId ||
+            batchId,
+
+          batchCode,
+
+          assignmentId:
+            trainee.assignmentId,
+
+          submissionId:
+            trainee.submissionId,
+        },
+      }
+    );
   };
+
+  // =========================================================
+  // RENDER
+  // =========================================================
 
   return (
     <div className="space-y-6">
@@ -173,6 +419,7 @@ export default function SelectedTrainees() {
             label: "Assessment Panel",
             to: "/assessor/assessment-panel",
           },
+
           {
             label: `${selectedCourse} (${batchCode})`,
           },

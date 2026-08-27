@@ -5,7 +5,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { supabase } from "../../supabaseClient";
+import { supabase } from "../../supabaseClient.js";
 import "./certificateVerification.css";
 
 function formatIssuedDate(dateValue) {

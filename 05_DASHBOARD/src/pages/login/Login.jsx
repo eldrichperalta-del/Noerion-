@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
-import AnimatedWave from "./AnimatedWave";
-import { supabase } from "../../supabaseClient";
+import AnimatedWave from "./AnimatedWave.jsx";
+import { supabase } from "../../supabaseClient.js";
 
 export default function Login() {
     const navigate = useNavigate();
