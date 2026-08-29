@@ -4,7 +4,11 @@ import {
   ShieldCheck,
   AlertCircle,
 } from "lucide-react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import { supabase } from "../../supabaseClient.js";
 import "./certificateVerification.css";
 
@@ -26,43 +30,11 @@ function formatIssuedDate(dateValue) {
   });
 }
 
-/*
- * Mask the student ID for public display.
- *
- * Example:
- * #NOE-TRAINEE-001
- * becomes:
- * #NOE-TRA****-001
- */
-function maskStudentId(studentId) {
-  if (!studentId) {
-    return "—";
-  }
-
-  const value = String(studentId);
-
-  if (value.length <= 8) {
-    return value;
-  }
-
-  const visibleStart = value.slice(0, 7);
-  const visibleEnd = value.slice(-4);
-
-  return `${visibleStart}****${visibleEnd}`;
-}
-
 export default function CertificateVerification() {
   const navigate = useNavigate();
   const { certificateId } = useParams();
   const [searchParams] = useSearchParams();
 
-  /*
-   * These values may exist when the certificate was opened
-   * through a QR code.
-   *
-   * They are sent to the server for verification but are
-   * NEVER displayed on the public verification page.
-   */
   const token = searchParams.get("token") || "";
   const receivedHash = searchParams.get("hash") || "";
   const signature = searchParams.get("sig") || "";
@@ -84,13 +56,6 @@ export default function CertificateVerification() {
         setChecks(null);
         setIsVerified(false);
 
-        console.log("========================================");
-        console.log(
-          "NOERION SERVER-SIDE CERTIFICATE VERIFICATION"
-        );
-        console.log("Certificate ID:", certificateId);
-        console.log("========================================");
-
         if (!certificateId) {
           if (!cancelled) {
             setErrorMessage(
@@ -102,13 +67,16 @@ export default function CertificateVerification() {
           return;
         }
 
-        /*
-         * All verification is performed by the
-         * Supabase Edge Function.
-         *
-         * The browser only submits the verification
-         * information and displays the server result.
-         */
+        console.log("========================================");
+        console.log(
+          "NOERION SERVER-SIDE CERTIFICATE VERIFICATION"
+        );
+        console.log(
+          "Certificate ID:",
+          certificateId
+        );
+        console.log("========================================");
+
         const { data, error } =
           await supabase.functions.invoke(
             "verify-certificate",
@@ -143,6 +111,8 @@ export default function CertificateVerification() {
         console.log("========================================");
         console.log("NOERION SERVER RESPONSE");
         console.log("Response:", data);
+        console.log("CERTIFICATE DATA:", data?.certificate);
+        console.log("TRAINEE NAME FROM SERVER:", data?.certificate?.traineeName);
         console.log("========================================");
 
         if (!data) {
@@ -162,12 +132,6 @@ export default function CertificateVerification() {
           setErrorMessage(data.error);
         }
 
-        /*
-         * Security information is logged only in the
-         * browser console for development/testing.
-         *
-         * It is NOT displayed as raw values in the UI.
-         */
         console.log(
           "Token Valid:",
           data.checks?.tokenValid
@@ -236,9 +200,6 @@ export default function CertificateVerification() {
     signature,
   ]);
 
-  /*
-   * LOADING SCREEN
-   */
   if (loading) {
     return (
       <main className="verification-page">
@@ -293,16 +254,13 @@ export default function CertificateVerification() {
         </section>
 
         <p className="verification-footer">
-          All verified data is securely handled in compliance
-          with global data protection standards.
+          All verified data is securely handled in
+          compliance with global data protection standards.
         </p>
       </main>
     );
   }
 
-  /*
-   * CERTIFICATE NOT FOUND / VERIFICATION ERROR
-   */
   if (!certificate) {
     return (
       <main className="verification-page">
@@ -367,16 +325,13 @@ export default function CertificateVerification() {
         </section>
 
         <p className="verification-footer">
-          All verified data is securely handled in compliance
-          with global data protection standards.
+          All verified data is securely handled in
+          compliance with global data protection standards.
         </p>
       </main>
     );
   }
 
-  /*
-   * PUBLIC VERIFICATION RESULT
-   */
   return (
     <main className="verification-page">
       <div
@@ -409,7 +364,6 @@ export default function CertificateVerification() {
         </header>
 
         <article className="verification-card">
-          {/* STATUS */}
           <div
             className="verification-status"
             style={{
@@ -439,7 +393,6 @@ export default function CertificateVerification() {
             </span>
           </div>
 
-          {/* CERTIFICATE INFORMATION */}
           <dl className="certificate-details">
             <div>
               <dt>Name:</dt>
@@ -450,28 +403,10 @@ export default function CertificateVerification() {
             </div>
 
             <div>
-              <dt>Student ID:</dt>
-
-              <dd>
-                {maskStudentId(
-                  certificate.studentId
-                )}
-              </dd>
-            </div>
-
-            <div>
               <dt>Qualification:</dt>
 
               <dd>
                 {certificate.qualification || "—"}
-              </dd>
-            </div>
-
-            <div>
-              <dt>Skill:</dt>
-
-              <dd>
-                {certificate.skill || "—"}
               </dd>
             </div>
 
@@ -504,7 +439,6 @@ export default function CertificateVerification() {
 
           <div className="verification-divider" />
 
-          {/* VERIFICATION MESSAGE */}
           <p className="verification-note">
             <ShieldCheck
               aria-hidden="true"
@@ -526,7 +460,6 @@ export default function CertificateVerification() {
             )}
           </p>
 
-          {/* SECURITY CHECK SUMMARY */}
           {checks && (
             <div
               style={{
@@ -619,8 +552,8 @@ export default function CertificateVerification() {
       </section>
 
       <p className="verification-footer">
-        All verified data is securely handled in compliance
-        with global data protection standards.
+        All verified data is securely handled in
+        compliance with global data protection standards.
       </p>
     </main>
   );
