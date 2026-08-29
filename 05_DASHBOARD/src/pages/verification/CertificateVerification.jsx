@@ -111,8 +111,14 @@ export default function CertificateVerification() {
         console.log("========================================");
         console.log("NOERION SERVER RESPONSE");
         console.log("Response:", data);
-        console.log("CERTIFICATE DATA:", data?.certificate);
-        console.log("TRAINEE NAME FROM SERVER:", data?.certificate?.traineeName);
+        console.log(
+          "CERTIFICATE DATA:",
+          data?.certificate
+        );
+        console.log(
+          "TRAINEE NAME FROM SERVER:",
+          data?.certificate?.traineeName
+        );
         console.log("========================================");
 
         if (!data) {
@@ -248,7 +254,8 @@ export default function CertificateVerification() {
 
             <p className="verification-note">
               Verifying this certificate through the{" "}
-              <strong>NOERION</strong> server...
+              <strong>NOERION</strong>{" "}
+              server...
             </p>
           </article>
         </section>
@@ -314,8 +321,8 @@ export default function CertificateVerification() {
           </article>
 
           <button
-            className="verify-another-button"
             type="button"
+            className="verify-another-button"
             onClick={() =>
               navigate("/certificate-verification")
             }
@@ -396,7 +403,6 @@ export default function CertificateVerification() {
           <dl className="certificate-details">
             <div>
               <dt>Name:</dt>
-
               <dd>
                 {certificate.traineeName || "—"}
               </dd>
@@ -404,7 +410,6 @@ export default function CertificateVerification() {
 
             <div>
               <dt>Qualification:</dt>
-
               <dd>
                 {certificate.qualification || "—"}
               </dd>
@@ -412,7 +417,6 @@ export default function CertificateVerification() {
 
             <div>
               <dt>Date Issued:</dt>
-
               <dd>
                 {formatIssuedDate(
                   certificate.issuedOn
@@ -422,7 +426,6 @@ export default function CertificateVerification() {
 
             <div>
               <dt>Result:</dt>
-
               <dd>
                 {certificate.result || "—"}
               </dd>
@@ -430,35 +433,41 @@ export default function CertificateVerification() {
 
             <div>
               <dt>Certificate Number:</dt>
-
               <dd>
-                #{certificate.certificateId}
+                {certificate.certificateId}
               </dd>
             </div>
           </dl>
 
           <div className="verification-divider" />
 
-          <p className="verification-note">
+          {/* =========================
+              VERIFICATION MESSAGE
+              ========================= */}
+
+          <div className="verification-note">
             <ShieldCheck
               aria-hidden="true"
               size={17}
             />
 
-            {isVerified ? (
-              <>
-                This certificate has been successfully
-                verified through the{" "}
-                <strong>NOERION</strong> system.
-              </>
-            ) : (
-              <>
-                The verification failed because one or
-                more security checks do not match the
-                NOERION records.
-              </>
-            )}
-          </p>
+            <span>
+              {isVerified ? (
+                <>
+                  This certificate has been successfully
+                  verified through the{" "}
+                  <strong>NOERION</strong>{" "}
+                  system.
+                </>
+              ) : (
+                <>
+                  The verification failed because one or
+                  more security checks do not match the
+                  NOERION records.
+                </>
+              )}
+            </span>
+          </div>
 
           {checks && (
             <div
@@ -541,8 +550,8 @@ export default function CertificateVerification() {
         </article>
 
         <button
-          className="verify-another-button"
           type="button"
+          className="verify-another-button"
           onClick={() =>
             navigate("/certificate-verification")
           }

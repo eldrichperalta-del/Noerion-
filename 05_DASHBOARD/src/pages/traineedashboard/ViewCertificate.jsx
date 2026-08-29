@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import CertificateTemplate from "../../components/traineedashboard/certificate/CertificateTemplate";
-import { getCertificateById } from "../../services/certificateVerificationService";
+
+import CertificateTemplate from "../../components/traineedashboard/certificate/CertificateTemplate.jsx";
+import { getCertificateById } from "../../services/certificateVerificationService.js";
 
 const certificateFallbacks = [
   {
     id: 1,
     name: "Advanced Robotics Assembly Certificate",
-    certificateId: "#NOE-NNC-001",
+    certificateId: "NOE-NNC-001",
     qualification: "TESDA NC III Electronics",
     issued: "2025-04-14",
     status: "Valid",
@@ -16,7 +17,7 @@ const certificateFallbacks = [
   {
     id: 2,
     name: "Web Application Development Certificate",
-    certificateId: "#NOE-WD-002",
+    certificateId: "NOE-WD-002",
     qualification: "TESDA NC IV IT",
     issued: "2025-04-16",
     status: "Valid",
@@ -24,7 +25,7 @@ const certificateFallbacks = [
   {
     id: 3,
     name: "Culinary Arts Technique Certificate",
-    certificateId: "#NOE-CA-003",
+    certificateId: "NOE-CA-003",
     qualification: "TESDA NC II Cookery",
     issued: "2025-04-10",
     status: "Valid",
@@ -32,7 +33,7 @@ const certificateFallbacks = [
   {
     id: 4,
     name: "Industrial Electronics Certificate",
-    certificateId: "#NOE-IE-004",
+    certificateId: "NOE-IE-004",
     qualification: "TESDA NC III Electronics",
     issued: "2025-04-17",
     status: "Valid",
@@ -40,7 +41,7 @@ const certificateFallbacks = [
   {
     id: 5,
     name: "Mechatronics Systems Certificate",
-    certificateId: "#NOE-MS-005",
+    certificateId: "NOE-MS-005",
     qualification: "TESDA NC IV Mechatronics",
     issued: "2025-04-18",
     status: "Valid",
@@ -48,7 +49,7 @@ const certificateFallbacks = [
   {
     id: 6,
     name: "Computer System Servicing Certificate",
-    certificateId: "#NOE-CS-006",
+    certificateId: "NOE-CS-006",
     qualification: "TESDA NC II CSS",
     issued: "2025-03-28",
     status: "Invalid",
@@ -153,7 +154,7 @@ export default function ViewCertificate() {
       traineeId={
         certificate.studentId ||
         certificate.traineeId ||
-        "#NOE-TRAINEE-001"
+        "NOE-TRAINEE-001"
       }
       qualification={
         certificate.qualification ||
@@ -161,14 +162,11 @@ export default function ViewCertificate() {
       }
       assessment={title}
       result={certificate.result || "Competent"}
-      certificateId={
-        certificate.certificateId
-      }
+      certificateId={certificate.certificateId}
       dateIssued={displayDate}
       trainingCenter="Training Center Name"
 
-      // IMPORTANT:
-      // These values come directly from Supabase.
+      // Security values come directly from Supabase.
       token={certificate.token}
       certificateHash={certificate.hash}
       certificateSignature={certificate.signature}
@@ -178,10 +176,9 @@ export default function ViewCertificate() {
   const handlePrint = () => {
     const previousTitle = document.title;
 
-    document.title =
-      "Certificate of Competency";
+    document.title = "Certificate of Competency";
 
-    window.print();
+    globalThis.print();
 
     setTimeout(() => {
       document.title = previousTitle;
@@ -212,6 +209,7 @@ export default function ViewCertificate() {
           </nav>
 
           <button
+            type="button"
             onClick={handlePrint}
             className="flex items-center gap-2 rounded-lg bg-[#002f86] px-5 py-2.5 text-sm font-medium text-white shadow-[0_4px_10px_rgba(0,47,134,0.35)] hover:bg-[#00266b]"
           >
