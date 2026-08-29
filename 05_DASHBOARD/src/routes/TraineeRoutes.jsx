@@ -1,19 +1,19 @@
 import { Routes, Route } from "react-router-dom";
-import TraineeLayout from "../layouts/TraineeLayout";
+import TraineeLayout from "../layouts/TraineeLayout.jsx";
 
-import Home from "../pages/traineedashboard/Home";
-import Assessment from "../pages/traineedashboard/Assessment";
+import Home from "../pages/traineedashboard/Home.jsx";
+import Assessment from "../pages/traineedashboard/Assessment.jsx";
 
-import AssessmentOverview from "../pages/traineedashboard/assessment-workflow/AssessmentOverview";
-import Baseline from "../pages/traineedashboard/assessment-workflow/Baseline";
-import Prepare from "../pages/traineedashboard/assessment-workflow/Prepare";
-import WrittenAssessment from "../pages/traineedashboard/assessment-workflow/WrittenAssessment";
+import AssessmentOverview from "../pages/traineedashboard/assessment-workflow/AssessmentOverview.jsx";
+import Baseline from "../pages/traineedashboard/assessment-workflow/Baseline.jsx";
+import Prepare from "../pages/traineedashboard/assessment-workflow/Prepare.jsx";
+import WrittenAssessment from "../pages/traineedashboard/assessment-workflow/WrittenAssessment.jsx";
 
-import Results from "../pages/traineedashboard/Results";
-import AssessmentSummary from "../pages/traineedashboard/AssessmentSummary";
-import Certificates from "../pages/traineedashboard/Certificates";
-import ViewCertificate from "../pages/traineedashboard/ViewCertificate";
-import Settings from "../pages/traineedashboard/Settings";
+import Results from "../pages/traineedashboard/Results.jsx";
+import AssessmentSummary from "../pages/traineedashboard/AssessmentSummary.jsx";
+import Certificates from "../pages/traineedashboard/Certificates.jsx";
+import ViewCertificate from "../pages/traineedashboard/ViewCertificate.jsx";
+import Settings from "../pages/traineedashboard/Settings.jsx";
 
 export default function TraineeRoutes() {
     return (

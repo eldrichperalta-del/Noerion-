@@ -1,73 +1,16 @@
 import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 import CertificateTemplate from "../../components/traineedashboard/certificate/CertificateTemplate.jsx";
 import { getCertificateById } from "../../services/certificateVerificationService.js";
 
-const certificateFallbacks = [
-  {
-    id: 1,
-    name: "Advanced Robotics Assembly Certificate",
-    certificateId: "NOE-NNC-001",
-    qualification: "TESDA NC III Electronics",
-    issued: "2025-04-14",
-    status: "Valid",
-  },
-  {
-    id: 2,
-    name: "Web Application Development Certificate",
-    certificateId: "NOE-WD-002",
-    qualification: "TESDA NC IV IT",
-    issued: "2025-04-16",
-    status: "Valid",
-  },
-  {
-    id: 3,
-    name: "Culinary Arts Technique Certificate",
-    certificateId: "NOE-CA-003",
-    qualification: "TESDA NC II Cookery",
-    issued: "2025-04-10",
-    status: "Valid",
-  },
-  {
-    id: 4,
-    name: "Industrial Electronics Certificate",
-    certificateId: "NOE-IE-004",
-    qualification: "TESDA NC III Electronics",
-    issued: "2025-04-17",
-    status: "Valid",
-  },
-  {
-    id: 5,
-    name: "Mechatronics Systems Certificate",
-    certificateId: "NOE-MS-005",
-    qualification: "TESDA NC IV Mechatronics",
-    issued: "2025-04-18",
-    status: "Valid",
-  },
-  {
-    id: 6,
-    name: "Computer System Servicing Certificate",
-    certificateId: "NOE-CS-006",
-    qualification: "TESDA NC II CSS",
-    issued: "2025-03-28",
-    status: "Invalid",
-  },
-];
-
 export default function ViewCertificate() {
   const { id } = useParams();
-  const { state } = useLocation();
-
-  const fallbackCertificate =
-    state?.certificate ||
-    certificateFallbacks.find(
-      (item) => String(item.id) === String(id)
-    );
 
   const [certificate, setCertificate] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -75,21 +18,28 @@ export default function ViewCertificate() {
     async function loadCertificate() {
       try {
         setLoading(true);
+        setErrorMessage("");
 
-        const certificateId =
-          fallbackCertificate?.certificateId || id;
+        console.log("========================================");
+        console.log("VIEW CERTIFICATE");
+        console.log("Certificate route ID:", id);
+        console.log("========================================");
 
-        const data = await getCertificateById(certificateId);
+        const data = await getCertificateById(id);
 
         if (cancelled) {
           return;
         }
 
-        if (data) {
-          setCertificate(data);
-        } else {
-          setCertificate(fallbackCertificate || null);
+        console.log("Certificate data returned:", data);
+
+        if (!data) {
+          setCertificate(null);
+          setErrorMessage("Certificate not found.");
+          return;
         }
+
+        setCertificate(data);
       } catch (error) {
         console.error(
           "Failed to load certificate:",
@@ -97,7 +47,11 @@ export default function ViewCertificate() {
         );
 
         if (!cancelled) {
-          setCertificate(fallbackCertificate || null);
+          setCertificate(null);
+          setErrorMessage(
+            error?.message ||
+              "Unable to load certificate."
+          );
         }
       } finally {
         if (!cancelled) {
@@ -106,12 +60,21 @@ export default function ViewCertificate() {
       }
     }
 
-    loadCertificate();
+    if (id) {
+      loadCertificate();
+    } else {
+      setLoading(false);
+      setErrorMessage("Certificate ID is missing.");
+    }
 
     return () => {
       cancelled = true;
     };
-  }, [id, fallbackCertificate]);
+  }, [id]);
+
+  // ---------------------------------------------------------
+  // LOADING
+  // ---------------------------------------------------------
 
   if (loading) {
     return (
@@ -123,60 +86,120 @@ export default function ViewCertificate() {
     );
   }
 
-  if (!certificate) {
+  // ---------------------------------------------------------
+  // ERROR
+  // ---------------------------------------------------------
+
+  if (errorMessage || !certificate) {
     return (
       <div className="rounded-xl bg-white p-10 text-center shadow">
-        <p className="text-gray-600">
-          Certificate not found.
+        <p className="font-semibold text-red-600">
+          Unable to load certificate
         </p>
+
+        <p className="mt-2 text-sm text-gray-600">
+          {errorMessage || "Certificate not found."}
+        </p>
+
+        <Link
+          to="/trainee/certificates"
+          className="mt-5 inline-block font-semibold text-[#002f86] hover:underline"
+        >
+          Back to My Certificates
+        </Link>
       </div>
     );
   }
 
-  const displayDate = new Date(
-    certificate.issuedOn || certificate.issued
-  ).toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
+  // ---------------------------------------------------------
+  // FORMAT DATE
+  // ---------------------------------------------------------
+
+  const rawDate =
+    certificate.issuedOn ||
+    certificate.issued_on;
+
+  let displayDate = "—";
+
+  if (rawDate) {
+    const parsedDate = new Date(rawDate);
+
+    if (!Number.isNaN(parsedDate.getTime())) {
+      displayDate = parsedDate.toLocaleDateString(
+        "en-US",
+        {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        }
+      );
+    }
+  }
+
+  // ---------------------------------------------------------
+  // CERTIFICATE VALUES
+  // ---------------------------------------------------------
+
+  const traineeName =
+    certificate.traineeName ||
+    "Trainee Name";
+
+  const qualification =
+    certificate.qualification ||
+    "Qualification";
+
+  const result =
+    certificate.result ||
+    "Passed";
+
+  const certificateId =
+    certificate.certificateId ||
+    id ||
+    "";
+
+  const assessorName =
+    certificate.assessorName ||
+    "Assessor Name";
+
+  const authorityName =
+    certificate.authorityName ||
+    "TESDA Authority";
+
+  console.log("Certificate display values:", {
+    traineeName,
+    qualification,
+    result,
+    certificateId,
+    displayDate,
+    assessorName,
+    authorityName,
   });
 
-  const title = certificate.skill
-    ? `${certificate.skill} Certificate`
-    : certificate.name;
+  // ---------------------------------------------------------
+  // CERTIFICATE TEMPLATE
+  // ---------------------------------------------------------
 
   const certificatePreview = (
     <CertificateTemplate
-      traineeName={
-        certificate.traineeName ||
-        "Trainee's Full Name"
-      }
-      traineeId={
-        certificate.studentId ||
-        certificate.traineeId ||
-        "NOE-TRAINEE-001"
-      }
-      qualification={
-        certificate.qualification ||
-        "Qualification"
-      }
-      assessment={title}
-      result={certificate.result || "Competent"}
-      certificateId={certificate.certificateId}
+      traineeName={traineeName}
+      qualification={qualification}
+      result={result}
+      certificateId={certificateId}
       dateIssued={displayDate}
-      trainingCenter="Training Center Name"
-
-      // Security values come directly from Supabase.
-      token={certificate.token}
-      certificateHash={certificate.hash}
-      certificateSignature={certificate.signature}
+      assessorName={assessorName}
+      authorityName={authorityName}
     />
   );
+
+  // ---------------------------------------------------------
+  // PRINT / DOWNLOAD
+  // ---------------------------------------------------------
 
   const handlePrint = () => {
     const previousTitle = document.title;
 
-    document.title = "Certificate of Competency";
+    document.title =
+      `Certificate of Competency - ${traineeName}`;
 
     globalThis.print();
 
@@ -185,14 +208,22 @@ export default function ViewCertificate() {
     }, 500);
   };
 
+  // ---------------------------------------------------------
+  // PAGE
+  // ---------------------------------------------------------
+
   return (
     <>
+      {/* PRINT VERSION */}
       <div className="certificate-print-only">
         {certificatePreview}
       </div>
 
+      {/* SCREEN VERSION */}
       <div className="certificate-view-page min-h-[calc(100vh-7rem)] py-2">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3 print:hidden">
+
+          {/* BREADCRUMB */}
           <nav className="flex gap-2 text-sm font-semibold">
             <Link
               to="/trainee/certificates"
@@ -204,20 +235,23 @@ export default function ViewCertificate() {
             <span>&gt;</span>
 
             <span className="text-[#002f86]">
-              {title}
+              {qualification}
             </span>
           </nav>
 
+          {/* DOWNLOAD */}
           <button
             type="button"
             onClick={handlePrint}
             className="flex items-center gap-2 rounded-lg bg-[#002f86] px-5 py-2.5 text-sm font-medium text-white shadow-[0_4px_10px_rgba(0,47,134,0.35)] hover:bg-[#00266b]"
           >
             <Download size={17} />
+
             Download PDF
           </button>
         </div>
 
+        {/* CERTIFICATE */}
         <div className="certificate-print-area certificate-screen-preview">
           {certificatePreview}
         </div>

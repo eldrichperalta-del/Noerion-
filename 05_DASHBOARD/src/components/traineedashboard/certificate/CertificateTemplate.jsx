@@ -4,184 +4,291 @@ import tesdaLogo from "../../../assets/tesda1.png";
 import certificateBorder from "../../../assets/certificate-border-frame.png";
 
 export default function CertificateTemplate({
-  traineeName = "Juan Dela Cruz",
-  traineeId = "#NOE-TRAINEE-001",
-  qualification = "TESDA NC III Electronics",
-  assessment = "Advanced Robotics Assembly",
-  result = "Competent",
-  certificateId = "#NOE-NNC-001",
-  dateIssued = "April 14, 2025",
-  trainingCenter = "NOERION Training Center",
-  assessorName = "Assessor Name",
-  authorityName = "TESDA Authority",
+  traineeName = "",
+  qualification = "",
+  result = "",
+  certificateId = "",
+  dateIssued = "",
+
 }) {
-  const skillName = assessment.replace(" Certificate", "");
+  const normalizedCertificateId = String(
+    certificateId || ""
+  ).replace(/^#/, "");
 
-  const normalizedCertificateId =
-    certificateId.replace(/^#/, "");
-
-  // =========================
-  // QR VERIFICATION URL
-  //
-  // Only the certificate ID is exposed.
-  // Token, hash, and signature remain
-  // server-side in Supabase.
-  // =========================
-
-  const verificationUrl =
-    normalizedCertificateId
-      ? `${globalThis.location.origin}/verify/${encodeURIComponent(
-          normalizedCertificateId
-        )}`
-      : "";
+  const verificationUrl = normalizedCertificateId
+    ? `${globalThis.location.origin}/verify/${encodeURIComponent(
+        normalizedCertificateId
+      )}`
+    : "";
 
   return (
-    <div className="flex justify-center py-4">
-      <section className="certificate-print-sheet relative w-full max-w-[880px] aspect-[599/399] bg-white p-[10px] text-[#111827] shadow-[0_12px_24px_rgba(15,23,42,0.32)]">
-        <div className="certificate-frame relative h-full bg-white p-[5px]">
+    <div className="flex w-full justify-center py-4">
+      <section
+        className="
+          certificate-print-sheet
+          relative
+          w-full
+          max-w-[1100px]
+          aspect-[599/399]
+          overflow-hidden
+          bg-white
+          p-[10px]
+          text-[#111827]
+          shadow-[0_12px_24px_rgba(15,23,42,0.32)]
+        "
+      >
+        {/* Certificate Border */}
+        <div className="certificate-frame relative h-full w-full bg-white p-[5px]">
           <img
             src={certificateBorder}
             alt=""
-            className="certificate-border-image pointer-events-none absolute inset-0 h-full w-full object-fill"
+            className="
+              certificate-border-image
+              pointer-events-none
+              absolute
+              inset-0
+              h-full
+              w-full
+              object-fill
+            "
           />
 
-          <div className="relative z-10 flex h-full flex-col items-center px-12 pb-10 pt-8 text-center">
+          {/* Certificate Content */}
+          <div
+            className="
+              relative
+              z-10
+              flex
+              h-full
+              flex-col
+              items-center
+              px-14
+              pb-8
+              pt-7
+              text-center
+            "
+          >
+            {/* TESDA LOGO */}
             <img
               src={tesdaLogo}
               alt="TESDA"
-              className="certificate-logo h-14 w-14 object-contain"
+              className="
+                certificate-logo
+                h-16
+                w-16
+                shrink-0
+                object-contain
+              "
             />
 
-            <p className="certificate-logo-text mt-1 text-[14px] font-extrabold leading-none text-[#102a6c]">
+            <p
+              className="
+                certificate-logo-text
+                mt-1
+                text-[15px]
+                font-extrabold
+                leading-none
+                text-[#102a6c]
+              "
+            >
               TESDA
             </p>
 
-            <p className="certificate-subtitle text-[18px] font-semibold uppercase leading-tight">
+            {/* NATIONAL CERTIFICATE */}
+            <p
+              className="
+                certificate-subtitle
+                mt-2
+                text-[19px]
+                font-semibold
+                uppercase
+                leading-tight
+              "
+            >
               National Certificate
             </p>
 
-            <h2 className="certificate-title mt-1 text-[32px] font-extrabold uppercase leading-tight text-[#071d5b]">
+            {/* TITLE */}
+            <h2
+              className="
+                certificate-title
+                mt-1
+                text-[34px]
+                font-extrabold
+                uppercase
+                leading-tight
+                text-[#071d5b]
+              "
+            >
               CERTIFICATE OF COMPETENCY
             </h2>
 
-            <div className="certificate-body mt-2 max-w-[680px] text-[15px] font-medium leading-6">
-              <p>
-                This is to certify that the individual has
-                demonstrated competency in
-              </p>
-
+            {/* MAIN CERTIFICATE CONTENT */}
+            <div
+              className="
+                certificate-body
+                mt-4
+                w-full
+                max-w-[760px]
+                text-[19px]
+                font-medium
+                leading-[1.55]
+              "
+            >
+              {/* FIRST SENTENCE */}
               <p>
                 This is to certify that{" "}
                 <span className="font-extrabold">
-                  [{traineeName}]
-                </span>
-                , with Student ID{" "}
+                  {traineeName || "Trainee Name"}
+                </span>{" "}
+                has successfully demonstrated competency in
+              </p>
+
+              {/* QUALIFICATION */}
+              <p
+                className="
+                  mt-3
+                  text-[23px]
+                  font-extrabold
+                  leading-tight
+                  text-[#071d5b]
+                "
+              >
+                {qualification || "Qualification"}
+              </p>
+
+              {/* ASSESSMENT STATEMENT */}
+              <p className="mt-3">
+                Having undergone the required assessment, the individual has
+                successfully demonstrated the competencies prescribed for the
+                qualification stated above and has been assessed as{" "}
                 <span className="font-extrabold">
-                  {traineeId}
+                  {result || "Passed"}
                 </span>
-                ,
+                .
               </p>
 
-              <p>
-                has demonstrated competency in
-              </p>
-
-              <p>
-                [Qualification / Skill:{" "}
+              {/* ISSUANCE STATEMENT + CERTIFICATE NUMBER */}
+              <p className="mt-3">
+                This Certificate of Competency is issued in recognition of the
+                successful demonstration of the required competencies and is
+                dated{" "}
                 <span className="font-extrabold">
-                  {qualification}: {skillName}
+                  {dateIssued || "—"}
                 </span>
-                ].
-              </p>
-
-              <p>
-                Assessment Result:{" "}
+                , under Certificate Number{" "}
                 <span className="font-extrabold">
-                  {result}
+                  {normalizedCertificateId || "—"}
                 </span>
-              </p>
-
-              <p>
-                Date Issued:{" "}
-                <span className="font-extrabold">
-                  {dateIssued}
-                </span>
-              </p>
-
-              <p>
-                Certificate Number:{" "}
-                <span className="font-medium">
-                  {certificateId}
-                </span>
-              </p>
-
-              <p>
-                Name of Training Center:{" "}
-                <span className="font-extrabold">
-                  [{trainingCenter}]
-                </span>
+                .
               </p>
             </div>
 
-            <div className="certificate-footer-grid mt-auto grid w-full grid-cols-[1fr_1fr_76px] items-end gap-5 px-7">
+            {/* FOOTER */}
+            <div
+              className="
+                certificate-footer-grid
+                mt-auto
+                grid
+                w-full
+                grid-cols-[1fr_1fr_82px]
+                items-end
+                gap-7
+                px-8
+              "
+            >
+              {/* ASSESSOR */}
               <div className="text-center">
-                <p className="certificate-signature-script font-['Brush_Script_MT',cursive] text-2xl leading-none">
-                  Signature
-                </p>
+                <div className="h-8" />
 
-                <div className="certificate-signature-label mt-1 border-t-2 border-[#111827] pt-1 text-[11px] font-extrabold">
-                  {assessorName} &amp; Signature
+                <div
+                  className="
+                    certificate-signature-label
+                    border-t-2
+                    border-[#111827]
+                    pt-1
+                    text-[13px]
+                    font-extrabold
+                  "
+                >
+                  Assessor Name &amp; Signature
                 </div>
               </div>
 
+              {/* TESDA AUTHORITY */}
               <div className="text-center">
-                <p className="certificate-signature-script font-['Brush_Script_MT',cursive] text-2xl leading-none">
-                  Signature
-                </p>
+                <div className="h-8" />
 
-                <div className="certificate-signature-label mt-1 border-t-2 border-[#111827] pt-1 text-[11px] font-extrabold">
-                  {authorityName} Signature
+                <div
+                  className="
+                    certificate-signature-label
+                    border-t-2
+                    border-[#111827]
+                    pt-1
+                    text-[13px]
+                    font-extrabold
+                  "
+                >
+                  TESDA Authority Signature
                 </div>
               </div>
 
+              {/* QR CODE */}
               <div className="flex flex-col items-center">
-                <div className="certificate-qr border-2 border-[#111827] bg-white p-[3px]">
+                <div
+                  className="
+                    certificate-qr
+                    flex
+                    h-[76px]
+                    w-[76px]
+                    items-center
+                    justify-center
+                    overflow-hidden
+                    border-2
+                    border-[#111827]
+                    bg-white
+                    p-[4px]
+                  "
+                >
                   {verificationUrl ? (
                     <QRCodeSVG
                       value={verificationUrl}
-                      size={58}
+                      size={90}
                       level="M"
                       includeMargin={false}
+                      className="block h-[90px] w-[90px]"
                     />
                   ) : (
                     <div
-                      style={{
-                        width: "58px",
-                        height: "58px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "8px",
-                        textAlign: "center",
-                      }}
+                      className="
+                        flex
+                        h-full
+                        w-full
+                        items-center
+                        justify-center
+                        text-center
+                        text-[8px]
+                        leading-tight
+                      "
                     >
-                      Verification data unavailable
+                      QR unavailable
                     </div>
                   )}
                 </div>
 
-                <p className="certificate-qr-label mt-1 text-[10px] font-extrabold leading-tight">
+                <p
+                  className="
+                    certificate-qr-label
+                    mt-1
+                    text-[10px]
+                    font-extrabold
+                    leading-tight
+                  "
+                >
                   Scan to Verify
-                  <br />
-                  Certificates
                 </p>
               </div>
             </div>
-
-            <p className="certificate-verification mt-2 text-[10px] font-medium">
-              This certificate is digitally verified through
-              the NOERION system.
-            </p>
           </div>
         </div>
       </section>

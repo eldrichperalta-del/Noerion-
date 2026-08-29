@@ -1,9 +1,12 @@
+import { useEffect, useMemo, useState } from "react";
+
 import CertificateOverviewCards from "../../components/admin/certificate-management/CertificateOverviewCards.jsx";
 import CertificateFilters from "../../components/admin/certificate-management/CertificateFilters.jsx";
 import CertificateTable from "../../components/admin/certificate-management/CertificateTable.jsx";
 import CertificateDetailsModal from "../../components/admin/certificate-management/CertificateDetailsModal.jsx";
 import CertificateTrackingModal from "../../components/admin/certificate-management/CertificateTrackingModal.jsx";
 import RevokeCertificateModal from "../../components/admin/certificate-management/RevokeCertificateModal.jsx";
+import CertificateUploadModal from "../../components/admin/certificate-management/CertificateUploadModal.jsx";
 import DashboardPageHeader from "../../components/common/DashboardPageHeader.jsx";
 import { supabase } from "../../supabaseClient.js";
 
@@ -55,71 +58,55 @@ export default function CertificateManagement() {
   // =========================
 
   const loadCertificates = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  try {
+    setLoading(true);
+    setError(null);
 
-      console.log(
-        "========================================"
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    console.log("========================================");
+    console.log("NOERION SESSION CHECK");
+    console.log("SESSION:", session);
+    console.log("SESSION ERROR:", sessionError);
+    console.log("ACCESS TOKEN:", session?.access_token);
+    console.log("USER:", session?.user);
+    console.log("========================================");
+
+    if (sessionError) {
+      throw sessionError;
+    }
+
+    if (!session) {
+      throw new Error(
+        "Your Supabase session is missing. Please log in again."
       );
+    }
+
+    // KEEP THE REST OF YOUR EXISTING LOAD CODE HERE
 
       console.log(
-        "NOERION CERTIFICATE MANAGEMENT"
-      );
-
-      console.log(
-        "Loading certificates..."
-      );
-
-      console.log(
-        "========================================"
+        "Authenticated user:",
+        session.user?.id
       );
 
       // =========================
-      // CHECK AUTHENTICATION
-      // =========================
-
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      console.log(
-        "Current Supabase user:",
-        user
-      );
-
-      console.log(
-        "Authentication error:",
-        userError
-      );
-
-      if (userError) {
-        throw userError;
-      }
-
-      if (!user) {
-        throw new Error(
-          "You are not authenticated. Please log in again."
-        );
-      }
-
-      // =========================
-      // LOAD DATABASE RECORDS
+      // LOAD CERTIFICATES
       // =========================
 
       const {
-        data,
-        error: fetchError,
+        data: certificates,
+        error: certificateError,
       } = await supabase
         .from("certificates")
         .select(`
+          id,
           certificate_id,
           trainee_id,
-          trainee_name,
-          student_id,
+          assessment_id,
           qualification,
-          skill,
           issued_on,
           result,
           token,
@@ -134,84 +121,180 @@ export default function CertificateManagement() {
 
       console.log(
         "Supabase certificate data:",
-        data
+        certificates
       );
 
       console.log(
         "Supabase certificate error:",
-        fetchError
+        certificateError
       );
 
-      if (fetchError) {
-        throw fetchError;
+      if (certificateError) {
+        throw new Error(
+          certificateError.message ||
+            "Unable to load certificates from Supabase."
+        );
       }
 
       // =========================
-      // FORMAT DATABASE DATA
+      // GET TRAINEE IDS
+      // =========================
+
+      const traineeIds = [
+        ...new Set(
+          (certificates || [])
+            .map(
+              (certificate) =>
+                certificate.trainee_id
+            )
+            .filter(Boolean)
+        ),
+      ];
+
+      // =========================
+      // LOAD TRAINEE PROFILES
+      // =========================
+
+      let profiles = [];
+
+      if (traineeIds.length > 0) {
+        const {
+          data: profileData,
+          error: profileError,
+        } = await supabase
+          .from("profiles")
+          .select(`
+            id,
+            first_name,
+            middle_name,
+            last_name,
+            suffix
+          `)
+          .in("id", traineeIds);
+
+        console.log(
+          "Supabase trainee profiles:",
+          profileData
+        );
+
+        console.log(
+          "Supabase profile error:",
+          profileError
+        );
+
+        if (profileError) {
+          console.warn(
+            "Unable to load trainee profiles:",
+            profileError
+          );
+        } else {
+          profiles = profileData || [];
+        }
+      }
+
+      // =========================
+      // CREATE PROFILE MAP
+      // =========================
+
+      const profileMap = new Map(
+        profiles.map((profile) => [
+          profile.id,
+          profile,
+        ])
+      );
+
+      // =========================
+      // FORMAT CERTIFICATES
       // =========================
 
       const formattedCertificates =
-        (data || []).map((certificate) => ({
-          certificateId:
-            certificate.certificate_id,
+        (certificates || []).map(
+          (certificate) => {
+            const profile =
+              profileMap.get(
+                certificate.trainee_id
+              );
 
-          traineeId:
-            certificate.trainee_id,
+            const traineeName = [
+              profile?.first_name,
+              profile?.middle_name,
+              profile?.last_name,
+              profile?.suffix,
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .trim();
 
-          traineeName:
-            certificate.trainee_name,
+            return {
+              id:
+                certificate.id,
 
-          studentId:
-            certificate.student_id,
+              certificateId:
+                certificate.certificate_id,
 
-          course:
-            certificate.qualification,
+              traineeId:
+                certificate.trainee_id,
 
-          qualification:
-            certificate.qualification,
+              assessmentId:
+                certificate.assessment_id,
 
-          skill:
-            certificate.skill,
+              traineeName:
+                traineeName || "—",
 
-          dateIssued:
-            certificate.issued_on,
+              studentId:
+                certificate.trainee_id || "—",
 
-          issuedOn:
-            certificate.issued_on,
+              course:
+                certificate.qualification,
 
-          result:
-            certificate.result,
+              qualification:
+                certificate.qualification,
 
-          token:
-            certificate.token,
+              skill:
+                certificate.qualification,
 
-          hash:
-            certificate.hash,
+              dateIssued:
+                certificate.issued_on,
 
-          signature:
-            certificate.signature,
+              issuedOn:
+                certificate.issued_on,
 
-          status:
-            certificate.status,
+              result:
+                certificate.result,
 
-          verificationStatus:
-            certificate.status === "Valid"
-              ? "Verified"
-              : certificate.status ===
-                "Revoked"
-              ? "Revoked"
-              : certificate.status ||
-                "Unknown",
+              token:
+                certificate.token,
 
-          lastVerificationDate:
-            null,
+              hash:
+                certificate.hash,
 
-          createdAt:
-            certificate.created_at,
+              signature:
+                certificate.signature,
 
-          qrCodeUrl:
-            "",
-        }));
+              status:
+                certificate.status,
+
+              verificationStatus:
+                certificate.status ===
+                "Valid"
+                  ? "Verified"
+                  : certificate.status ===
+                    "Revoked"
+                  ? "Revoked"
+                  : certificate.status ||
+                    "Unknown",
+
+              lastVerificationDate:
+                null,
+
+              createdAt:
+                certificate.created_at,
+
+              qrCodeUrl:
+                "",
+            };
+          }
+        );
 
       console.log(
         "Formatted certificates:",
@@ -227,22 +310,18 @@ export default function CertificateManagement() {
         formattedCertificates
       );
 
-      console.log(
-        "========================================"
-      );
-
+      console.log("========================================");
       console.log(
         "Certificate loading complete."
       );
-
-      console.log(
-        "========================================"
-      );
+      console.log("========================================");
     } catch (err) {
       console.error(
         "Failed to load certificates:",
         err
       );
+
+      setAllCertificates([]);
 
       setError(
         err?.message ||
@@ -288,10 +367,6 @@ export default function CertificateManagement() {
           certificate.course ||
           "";
 
-        // =========================
-        // SEARCH
-        // =========================
-
         const searchMatch =
           !normalizedSearch ||
           traineeName
@@ -310,17 +385,9 @@ export default function CertificateManagement() {
             .toLowerCase()
             .includes(normalizedSearch);
 
-        // =========================
-        // STATUS
-        // =========================
-
         const statusMatch =
           status === "All" ||
           certificate.status === status;
-
-        // =========================
-        // DATE
-        // =========================
 
         const dateValue =
           certificate.dateIssued;
@@ -433,7 +500,10 @@ export default function CertificateManagement() {
         );
 
       if (revokeError) {
-        throw revokeError;
+        throw new Error(
+          revokeError.message ||
+            "Failed to revoke certificate."
+        );
       }
 
       setAllCertificates(
@@ -467,7 +537,6 @@ export default function CertificateManagement() {
       );
     } finally {
       setLoading(false);
-
       setShowRevokeModal(false);
       setSelectedCertificate(null);
     }
@@ -513,20 +582,14 @@ export default function CertificateManagement() {
   return (
     <div className="cert-page">
 
-      {/* HEADER */}
-
       <DashboardPageHeader
         title="Certificate Management"
         subtitle="Issue, monitor, and manage trainee certificates and their verification status."
       />
 
-      {/* OVERVIEW */}
-
       <CertificateOverviewCards
         data={allCertificates}
       />
-
-      {/* FILTERS */}
 
       <CertificateFilters
         search={search}
@@ -543,11 +606,8 @@ export default function CertificateManagement() {
         onClear={handleClearFilters}
       />
 
-      {/* ERROR */}
-
       {error && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
-
           <p className="font-medium">
             Certificate Management Error
           </p>
@@ -555,14 +615,10 @@ export default function CertificateManagement() {
           <p className="mt-1 text-sm">
             {error}
           </p>
-
         </div>
       )}
 
-      {/* TABLE */}
-
       <div className="table-section">
-
         {loading && (
           <p>
             Loading certificates...
@@ -572,27 +628,21 @@ export default function CertificateManagement() {
         {!loading && (
           <CertificateTable
             certificates={filtered}
-
             onView={(item) => {
               setSelectedCertificate(item);
               setShowDetailsModal(true);
             }}
-
             onTrack={(item) => {
               setSelectedCertificate(item);
               setShowTrackingModal(true);
             }}
-
             onRevoke={(item) => {
               setSelectedCertificate(item);
               setShowRevokeModal(true);
             }}
           />
         )}
-
       </div>
-
-      {/* DETAILS MODAL */}
 
       <CertificateDetailsModal
         open={showDetailsModal}
@@ -603,8 +653,6 @@ export default function CertificateManagement() {
         }}
       />
 
-      {/* TRACKING MODAL */}
-
       <CertificateTrackingModal
         open={showTrackingModal}
         certificate={selectedCertificate}
@@ -613,8 +661,6 @@ export default function CertificateManagement() {
           setSelectedCertificate(null);
         }}
       />
-
-      {/* REVOKE MODAL */}
 
       <RevokeCertificateModal
         open={showRevokeModal}
@@ -626,8 +672,6 @@ export default function CertificateManagement() {
         onRevoke={handleRevoke}
       />
 
-      {/* UPLOAD MODAL */}
-
       {openUpload && (
         <CertificateUploadModal
           onClose={() =>
@@ -638,7 +682,6 @@ export default function CertificateManagement() {
           }
         />
       )}
-
     </div>
   );
 }
