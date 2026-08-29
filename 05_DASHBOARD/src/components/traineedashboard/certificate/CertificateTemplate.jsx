@@ -14,26 +14,25 @@ export default function CertificateTemplate({
   trainingCenter = "NOERION Training Center",
   assessorName = "Assessor Name",
   authorityName = "TESDA Authority",
-
-  // Security values come from Supabase.
-  token = "",
-  certificateHash = "",
-  certificateSignature = "",
 }) {
   const skillName = assessment.replace(" Certificate", "");
-  const normalizedCertificateId = certificateId.replace(/^#/, "");
 
-  const secureToken = token;
+  const normalizedCertificateId =
+    certificateId.replace(/^#/, "");
+
+  // =========================
+  // QR VERIFICATION URL
+  //
+  // Only the certificate ID is exposed.
+  // Token, hash, and signature remain
+  // server-side in Supabase.
+  // =========================
 
   const verificationUrl =
-    secureToken && certificateHash && certificateSignature
-      ? `${window.location.origin}/verify/${encodeURIComponent(
+    normalizedCertificateId
+      ? `${globalThis.location.origin}/verify/${encodeURIComponent(
           normalizedCertificateId
-        )}?token=${encodeURIComponent(
-          secureToken
-        )}&hash=${encodeURIComponent(
-          certificateHash
-        )}&sig=${encodeURIComponent(certificateSignature)}`
+        )}`
       : "";
 
   return (
@@ -67,18 +66,25 @@ export default function CertificateTemplate({
 
             <div className="certificate-body mt-2 max-w-[680px] text-[15px] font-medium leading-6">
               <p>
-                This is to certify that the individual has demonstrated
-                competency in
+                This is to certify that the individual has
+                demonstrated competency in
               </p>
 
               <p>
                 This is to certify that{" "}
-                <span className="font-extrabold">[{traineeName}]</span>, with
-                Student ID{" "}
-                <span className="font-extrabold">{traineeId}</span>,
+                <span className="font-extrabold">
+                  [{traineeName}]
+                </span>
+                , with Student ID{" "}
+                <span className="font-extrabold">
+                  {traineeId}
+                </span>
+                ,
               </p>
 
-              <p>has demonstrated competency in</p>
+              <p>
+                has demonstrated competency in
+              </p>
 
               <p>
                 [Qualification / Skill:{" "}
@@ -90,22 +96,30 @@ export default function CertificateTemplate({
 
               <p>
                 Assessment Result:{" "}
-                <span className="font-extrabold">{result}</span>
+                <span className="font-extrabold">
+                  {result}
+                </span>
               </p>
 
               <p>
                 Date Issued:{" "}
-                <span className="font-extrabold">{dateIssued}</span>
+                <span className="font-extrabold">
+                  {dateIssued}
+                </span>
               </p>
 
               <p>
                 Certificate Number:{" "}
-                <span className="font-medium">{certificateId}</span>
+                <span className="font-medium">
+                  {certificateId}
+                </span>
               </p>
 
               <p>
                 Name of Training Center:{" "}
-                <span className="font-extrabold">[{trainingCenter}]</span>
+                <span className="font-extrabold">
+                  [{trainingCenter}]
+                </span>
               </p>
             </div>
 
@@ -165,8 +179,8 @@ export default function CertificateTemplate({
             </div>
 
             <p className="certificate-verification mt-2 text-[10px] font-medium">
-              This certificate is digitally verified through the NOERION
-              system.
+              This certificate is digitally verified through
+              the NOERION system.
             </p>
           </div>
         </div>

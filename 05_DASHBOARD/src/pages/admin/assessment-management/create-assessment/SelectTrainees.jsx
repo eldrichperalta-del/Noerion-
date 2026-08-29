@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
-import { supabase } from "../../../../supabaseClient";
+import { supabase } from "../../../../supabaseClient.js";
 
 export default function SelectTrainees({
   assessmentData,
