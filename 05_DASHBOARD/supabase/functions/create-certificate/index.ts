@@ -3,6 +3,17 @@ import elliptic from "elliptic";
 
 const ec = new elliptic.ec("p256");
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+// ============================================
+// SHA-256
+// ============================================
+
 async function sha256Hex(value: string): Promise<string> {
   const bytes = new TextEncoder().encode(value);
 
@@ -12,21 +23,51 @@ async function sha256Hex(value: string): Promise<string> {
   );
 
   return Array.from(new Uint8Array(hashBuffer))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .map((byte) =>
+      byte.toString(16).padStart(2, "0"),
+    )
     .join("");
 }
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+// ============================================
+// SECURE TOKEN
+// ============================================
+
+function generateSecureToken(): string {
+  const bytes = new Uint8Array(32);
+
+  crypto.getRandomValues(bytes);
+
+  return Array.from(bytes)
+    .map((byte) =>
+      byte.toString(16).padStart(2, "0"),
+    )
+    .join("");
+}
+
+// ============================================
+// SECURE CERTIFICATE NUMBER
+// ============================================
+
+function generateCertificateNumber(): number {
+  const random = new Uint32Array(1);
+
+  crypto.getRandomValues(random);
+
+  return (
+    100000 +
+    (random[0] % 900000)
+  );
+}
+
+// ============================================
+// CREATE CERTIFICATE
+// ============================================
 
 Deno.serve(async (req: Request) => {
-  // =========================
+  // ============================================
   // CORS
-  // =========================
+  // ============================================
 
   if (req.method === "OPTIONS") {
     return new Response("ok", {
@@ -34,9 +75,9 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // =========================
+  // ============================================
   // POST ONLY
-  // =========================
+  // ============================================
 
   if (req.method !== "POST") {
     return new Response(
@@ -55,72 +96,62 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // =========================
-    // READ REQUEST
-    // =========================
+    // ============================================
+    // REQUEST BODY
+    // ============================================
 
     const body = await req.json();
 
-    const trainee_name = String(
-      body.trainee_name ?? "",
-    ).trim();
-
-    const trainee_id = String(
+    const traineeId = String(
       body.trainee_id ?? "",
-    ).trim();
-
-    const student_id = String(
-      body.student_id ?? "",
     ).trim();
 
     const qualification = String(
       body.qualification ?? "",
     ).trim();
 
-    const skill = String(
-      body.skill ?? "",
-    ).trim();
-
     const result = String(
       body.result ?? "",
     ).trim();
 
-    // =========================
+    // ============================================
     // VALIDATION
-    // =========================
+    // ============================================
 
-    if (!trainee_name) {
-      throw new Error("Trainee name is required.");
-    }
-
-    if (!student_id) {
-      throw new Error("Student ID is required.");
+    if (!traineeId) {
+      throw new Error(
+        "Trainee ID is required.",
+      );
     }
 
     if (!qualification) {
-      throw new Error("Qualification is required.");
-    }
-
-    if (!skill) {
-      throw new Error("Skill is required.");
+      throw new Error(
+        "Qualification is required.",
+      );
     }
 
     if (!result) {
-      throw new Error("Result is required.");
+      throw new Error(
+        "Result is required.",
+      );
     }
 
-    // =========================
-    // SUPABASE ADMIN CLIENT
-    // =========================
+    // ============================================
+    // SUPABASE ENVIRONMENT
+    // ============================================
 
     const supabaseUrl =
       Deno.env.get("SUPABASE_URL");
 
     const serviceRoleKey =
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      Deno.env.get(
+        "SUPABASE_SERVICE_ROLE_KEY",
+      );
 
     const privateKey =
-      Deno.env.get("CERTIFICATE_PRIVATE_KEY");
+      Deno.env.get(
+        "CERTIFICATE_PRIVATE_KEY",
+      );
 
     if (!supabaseUrl || !serviceRoleKey) {
       throw new Error(
@@ -134,90 +165,146 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const supabaseAdmin = createClient(
-      supabaseUrl,
-      serviceRoleKey,
-    );
+    // ============================================
+    // SUPABASE ADMIN CLIENT
+    // ============================================
 
-    // =========================
-    // PRIVATE SIGNING KEY
-    // =========================
+    const supabaseAdmin =
+      createClient(
+        supabaseUrl,
+        serviceRoleKey,
+      );
 
-    const keyPair = ec.keyFromPrivate(
-      privateKey.trim(),
-      "hex",
-    );
+    // ============================================
+    // FETCH TRAINEE
+    // ============================================
 
-    // =========================
+    const {
+      data: trainee,
+      error: traineeError,
+    } = await supabaseAdmin
+      .from("profiles")
+      .select(`
+        id,
+        first_name,
+        middle_name,
+        last_name,
+        suffix
+      `)
+      .eq("id", traineeId)
+      .maybeSingle();
+
+    if (traineeError) {
+      console.error(
+        "Trainee lookup failed:",
+        traineeError,
+      );
+
+      throw traineeError;
+    }
+
+    if (!trainee) {
+      throw new Error(
+        "Trainee profile could not be found.",
+      );
+    }
+
+    // ============================================
+    // BUILD TRAINEE NAME
+    // ============================================
+
+    const traineeName = [
+      trainee.first_name,
+      trainee.middle_name,
+      trainee.last_name,
+      trainee.suffix,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+    // ============================================
     // GENERATE CERTIFICATE ID
-    // =========================
+    // ============================================
 
-    const year = new Date().getFullYear();
-
-    const randomPart = Math.floor(
-      100000 + Math.random() * 900000,
-    );
+    const year =
+      new Date().getFullYear();
 
     const certificateId =
-      `CERT-${year}-${randomPart}`;
+      `CERT-${year}-${generateCertificateNumber()}`;
 
-    // =========================
-    // TRAINEE ID
-    // =========================
-
-    const traineeId =
-      trainee_id ||
-      `TR-${crypto.randomUUID()}`;
-
-    // =========================
+    // ============================================
     // ISSUE DATE
-    // =========================
+    // ============================================
 
     const issuedOn =
       new Date()
         .toISOString()
         .split("T")[0];
 
-    // =========================
+    // ============================================
+    // GENERATE SECURITY TOKEN
+    // ============================================
+
+    const token =
+      generateSecureToken();
+
+    // ============================================
+    // TOKEN HASH
+    // ============================================
+
+    const tokenHash =
+      await sha256Hex(token);
+
+    // ============================================
     // SIGNING PAYLOAD
-    // =========================
+    //
+    // IMPORTANT:
+    // Verify function MUST use this exact
+    // same order and values.
+    // ============================================
 
     const signingPayload = [
       certificateId,
       traineeId,
-      trainee_name,
-      student_id,
       qualification,
-      skill,
       issuedOn,
       result,
+      token,
     ].join("|");
 
-    // =========================
-    // SHA-256 HASH
-    // =========================
+    console.log(
+      "CERTIFICATE SIGNING PAYLOAD:",
+      signingPayload,
+    );
+
+    // ============================================
+    // CERTIFICATE HASH
+    // ============================================
 
     const hash =
-      await sha256Hex(signingPayload);
+      await sha256Hex(
+        signingPayload,
+      );
 
-    // =========================
+    // ============================================
     // DIGITAL SIGNATURE
-    // =========================
+    // ============================================
+
+    const keyPair =
+      ec.keyFromPrivate(
+        privateKey.trim(),
+        "hex",
+      );
 
     const signature =
       keyPair
         .sign(hash)
         .toDER("hex");
 
-    // =========================
-    // TOKEN
-    // =========================
-
-    const token = certificateId;
-
-    // =========================
+    // ============================================
     // INSERT CERTIFICATE
-    // =========================
+    // ============================================
 
     const {
       data,
@@ -231,17 +318,8 @@ Deno.serve(async (req: Request) => {
         trainee_id:
           traineeId,
 
-        trainee_name:
-          trainee_name,
-
-        student_id:
-          student_id,
-
         qualification:
           qualification,
-
-        skill:
-          skill,
 
         issued_on:
           issuedOn,
@@ -251,6 +329,9 @@ Deno.serve(async (req: Request) => {
 
         token:
           token,
+
+        token_hash:
+          tokenHash,
 
         hash:
           hash,
@@ -265,17 +346,16 @@ Deno.serve(async (req: Request) => {
         id,
         certificate_id,
         trainee_id,
-        trainee_name,
-        student_id,
         qualification,
-        skill,
         issued_on,
         result,
         token,
+        token_hash,
         hash,
         signature,
         status,
-        created_at
+        created_at,
+        assessment_id
       `)
       .single();
 
@@ -290,17 +370,24 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // =========================
+    // ============================================
     // SUCCESS
-    // =========================
+    // ============================================
 
     return new Response(
       JSON.stringify({
         success: true,
-        certificate: data,
+
+        certificate: {
+          ...data,
+
+          traineeName:
+            traineeName || "—",
+        },
       }),
       {
         status: 201,
+
         headers: {
           ...corsHeaders,
           "Content-Type":
@@ -317,6 +404,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         success: false,
+
         error:
           error instanceof Error
             ? error.message
@@ -324,6 +412,7 @@ Deno.serve(async (req: Request) => {
       }),
       {
         status: 400,
+
         headers: {
           ...corsHeaders,
           "Content-Type":
