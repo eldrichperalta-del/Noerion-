@@ -26,8 +26,194 @@
 @media (max-width: 480px) { .verification-page { padding-inline: 1rem; }.verification-card { padding: 1.5rem 1.25rem; }.certificate-details { font-size: .94rem; }.verification-note { font-size: .9rem; } }
 .search-card .scan-label { display: flex; align-items: center; justify-content: center; gap: .45rem; text-align: center; }
 .camera-opening-text { margin: 0; color: #8ca0b9; font-size: .88rem; line-height: 1.35; }
-.qr-scan-frame { position: relative; width: 100%; height: 275px; margin: .2rem auto 1.25rem; padding: 14px; box-sizing: border-box; background: rgba(7, 20, 39, .5); }
+.qr-scan-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  height: auto;
+  margin: 0.2rem auto 1.25rem;
+  box-sizing: border-box;
+  /* overflow:hidden removed — moved to .qr-video-clip below */
+}
+.qr-video-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 0.3rem;
+  background: #020814;
+}
+
 .verification-qr-image { display: block; width: 100%; height: 100%; border-radius: .3rem; background: #f5f5f5; box-shadow: 0 0 16px rgba(65, 227, 231, .3); }
 .qr-camera-preview { display: block; width: 100%; height: 100%; border-radius: .3rem; object-fit: cover; background: #020814; box-shadow: 0 0 16px rgba(65, 227, 231, .3); }
-.scan-corner { position: absolute; z-index: 2; width: 37px; height: 37px; border-color: #37e1f1; filter: drop-shadow(0 0 5px rgba(55, 225, 241, .8)); }.corner-top-left { top: 0; left: 0; border-top: 3px solid; border-left: 3px solid; border-radius: 5px 0 0; }.corner-top-right { top: 0; right: 0; border-top: 3px solid; border-right: 3px solid; border-radius: 0 5px 0 0; }.corner-bottom-left { bottom: 0; left: 0; border-bottom: 3px solid; border-left: 3px solid; border-radius: 0 0 0 5px; }.corner-bottom-right { right: 0; bottom: 0; border-right: 3px solid; border-bottom: 3px solid; border-radius: 0 0 5px; }
-.scan-line { position: absolute; z-index: 1; left: 14px; right: 14px; top: 14px; height: 2px; background: linear-gradient(90deg, transparent, #ffffff 20%, #ffffff 80%, transparent); box-shadow: 0 0 8px 2px rgba(255,255,255,.78), 0 0 12px rgba(55, 225, 241, .7); animation: qr-scan 1.9s ease-in-out infinite alternate; }@keyframes qr-scan { to { transform: translateY(243px); } }
+
+
+
+#html5-qrcode-button-camera-permission,
+#html5-qrcode-button-camera-start,
+#html5-qrcode-button-camera-stop,
+#html5-qrcode-button-file-selection,
+#html5-qrcode-select-camera {
+  display: none !important;
+}
+
+/* Remove Html5Qrcode's default shaded scanning box */
+#qr-shaded {
+  display: none !important;
+}
+
+#qr-reader__status_span,
+#qr-reader__status_span img,
+#qr-reader__status_span svg {
+  display: none !important;
+}
+#qr-reader__status_span_info {
+  display: none !important;
+}
+#qr-reader svg,
+#qr-reader img {
+  display: none !important;
+}
+
+/* Removes any unwanted top borders or lines rendered inside the scanner region */
+#qr-reader__scan_region,
+#qr-reader__scan_region > div,
+#qr-reader__dashboard,
+#qr-reader box,
+#qr-reader__scan_region img {
+  border: none !important;
+  border-top: none !important;
+  background: transparent !important;
+}
+
+#qr-reader div:not([id]) {
+  display: none !important;
+}
+/* Force EVERY element html5-qrcode injects to fill the frame,
+   overriding any inline width/height it sets via JS */
+#qr-reader,
+#qr-reader__scan_region,
+#qr-reader video,
+#qr-reader canvas,
+#qr-reader__scan_region video,
+#qr-reader__scan_region > div {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: cover !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+
+.verification-qr-image,
+.qr-camera-preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 0.3rem;
+  object-fit: cover;
+  background: #020814;
+}
+
+/* =========================================
+   CUSTOM SCANNER OVERLAY
+   ========================================= */
+
+.custom-scanner-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+
+/* =========================================
+   PALE CYAN CORNER BRACKETS — detached, like the sketch
+   ========================================= */
+
+.scanner-corner {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-color: #ddfbff;
+  border-style: solid;
+  filter:
+    drop-shadow(0 0 4px #ddfbff)
+    drop-shadow(0 0 9px rgba(95, 239, 255, 0.85))
+    drop-shadow(0 0 18px rgba(45, 220, 255, 0.55));
+}
+
+.scanner-corner-tl {
+  top: -8px;
+  left: -8px;
+  border-width: 3px 0 0 3px;
+  border-radius: 4px 0 0 0;
+}
+
+.scanner-corner-tr {
+  top: -8px;
+  right: -8px;
+  border-width: 3px 3px 0 0;
+  border-radius: 0 4px 0 0;
+}
+
+.scanner-corner-bl {
+  bottom: -8px;
+  left: -8px;
+  border-width: 0 0 3px 3px;
+  border-radius: 0 0 0 4px;
+}
+
+.scanner-corner-br {
+  right: -8px;
+  bottom: -8px;
+  border-width: 0 3px 3px 0;
+  border-radius: 0 0 4px 0;
+}
+
+/* =========================================
+   NEON SCANNING LINE
+   ========================================= */
+
+.scanner-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(221, 251, 255, 0.35) 10%,
+    #ddfbff 25%,
+    #ffffff 50%,
+    #ddfbff 75%,
+    rgba(221, 251, 255, 0.35) 90%,
+    transparent 100%
+  );
+
+  box-shadow:
+    0 0 3px #ddfbff,
+    0 0 7px #8ff5ff,
+    0 0 14px rgba(45, 226, 255, 0.95),
+    0 0 25px rgba(45, 226, 255, 0.65),
+    0 0 40px rgba(45, 226, 255, 0.35);
+
+  animation: scanner-beam 2.2s ease-in-out infinite;
+}
+
+@keyframes scanner-beam {
+  0% { top: 6px; opacity: 0.65; }
+  10% { opacity: 1; }
+  50% { top: calc(100% - 6px); opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 6px; opacity: 0.65; }
+}

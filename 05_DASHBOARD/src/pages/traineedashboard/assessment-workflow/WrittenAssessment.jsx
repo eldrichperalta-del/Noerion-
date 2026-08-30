@@ -163,6 +163,7 @@ export default function WrittenAssessment() {
   const navigate = useNavigate();
   const { state } = useLocation();
 
+
   const [assessment, setAssessment] = useState(state?.assessment || null);
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
