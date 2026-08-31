@@ -184,7 +184,7 @@ export default function CertificateTemplate({
               </p>
             </div>
 
-            {/* FOOTER */}
+                        {/* FOOTER */}
             <div
               className="
                 certificate-footer-grid
@@ -289,6 +289,11 @@ export default function CertificateTemplate({
                 </p>
               </div>
             </div>
+
+            {/* DIGITAL VERIFICATION MESSAGE */}
+            <p className="certificate-verification">
+              This certificate is digitally verified through the NOERION system.
+            </p>
           </div>
         </div>
       </section>

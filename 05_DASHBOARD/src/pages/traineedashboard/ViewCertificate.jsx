@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 
 import CertificateTemplate from "../../components/traineedashboard/certificate/CertificateTemplate.jsx";
 import { getCertificateById } from "../../services/certificateVerificationService.js";
+import "../../styles/CertificateView.css";
 
 export default function ViewCertificate() {
   const { id } = useParams();
