@@ -7,8 +7,6 @@ import ConfirmationModal from "../../../components/assessordashboard/flow/Confir
 import AssessorPageHeader from "../../../components/assessordashboard/shared/AssessorPageHeader";
 
 import TraineeInfoCard from "../../../components/assessordashboard/assessment-panel/written-review/TraineeInfoCard";
-import AssessmentSummaryCard from "../../../components/assessordashboard/assessment-panel/written-review/AssessmentSummaryCard";
-import QuestionReviewTable from "../../../components/assessordashboard/assessment-panel/written-review/QuestionReviewTable";
 import AssessorValidationCard from "../../../components/assessordashboard/assessment-panel/written-review/AssessorValidationCard";
 import AICognitiveInsightsCard from "../../../components/assessordashboard/assessment-panel/written-review/AICognitiveInsightsCard";
 
@@ -381,21 +379,8 @@ export default function WrittenAssessmentReview() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <TraineeInfoCard trainee={trainee} assessment={assessment} />
 
-        <AssessmentSummaryCard
-          totalScore={metrics.totalScore}
-          totalItems={metrics.totalItems}
-          percentage={metrics.percentage}
-          result={metrics.result}
-        />
       </div>
 
-      {isLoading ? (
-        <div className="py-12 text-center text-gray-500 font-medium bg-white rounded-2xl border border-gray-200 shadow-sm">
-          Loading submission data and questions...
-        </div>
-      ) : (
-        <QuestionReviewTable questions={questionsData} />
-      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">

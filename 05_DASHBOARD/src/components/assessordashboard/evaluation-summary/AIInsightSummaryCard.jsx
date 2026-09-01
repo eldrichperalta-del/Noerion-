@@ -1,26 +1,22 @@
 export default function AIInsightSummaryCard({
-  insights,
+  insights = [],
 }) {
   // ==========================================================
   // BACKEND HANDOFF:
-  // Replace the mock "insights" prop with the AI-generated
-  // cognitive insight summary returned after assessment
-  // processing.
   //
   // Expected data type:
   // string[]
   //
-  // Example API response:
+  // Example:
+  //
   // [
   //   "High attention stability during assessment.",
   //   "Strong procedural decision-making.",
   //   "Minor hesitation observed during troubleshooting."
   // ]
   //
-  // NOTE:
-  // This component only displays a brief summary.
-  // The complete AI analysis should be displayed on the
-  // "AI Analysis & Insights" page.
+  // If no AI insights are available yet, the component safely
+  // displays "No AI insights available."
   // ==========================================================
 
   return (
@@ -49,7 +45,6 @@ export default function AIInsightSummaryCard({
         </div>
       </div>
 
-
       {/* Insights */}
       <div className="mt-6 flex-1 overflow-y-auto rounded-lg border border-gray-100 bg-gray-50 p-4">
 
@@ -61,27 +56,21 @@ export default function AIInsightSummaryCard({
                 key={index}
                 className="flex items-start gap-3"
               >
-
-                <div className="mt-1 flex h-2 w-2 items-center justify-center rounded-full bg-blue-400">
+                <div className="mt-1 flex h-2 w-2 shrink-0 items-center justify-center rounded-full bg-blue-400">
                   <span className="h-2 w-2 rounded-full bg-blue-600"></span>
                 </div>
-
 
                 <p className="text-sm leading-relaxed text-gray-700">
                   {insight}
                 </p>
-
               </li>
             ))}
 
           </ul>
-
         ) : (
-
           <p className="text-sm italic text-gray-400">
             No AI insights available.
           </p>
-
         )}
 
       </div>

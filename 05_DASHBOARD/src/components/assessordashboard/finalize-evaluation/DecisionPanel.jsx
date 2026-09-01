@@ -7,60 +7,91 @@ import {
 
 import DecisionOptionButton from "./DecisionOptionButton";
 
-export default function DecisionPanel({ onSubmit }) {
+export default function DecisionPanel({
+    onSubmit,
+}) {
     // ==========================================================
-    // BACKEND HANDOFF:
-    //
-    // Store the assessor's selected decision.
-    //
-    // Possible values:
-    // - "confirm"
-    // - "override"
-    //
-    // Persist this value together with the
-    // final evaluation record.
-    //
-    // Example:
-    // decision = "confirm"
-    // decision = "override"
+    // DECISION
     // ==========================================================
 
     const [decision, setDecision] = useState("");
 
     // ==========================================================
-    // BACKEND HANDOFF:
-    //
-    // Save the assessor's explanation only
-    // when the decision is "override".
-    //
-    // This field is required before submission.
-    //
-    // Example:
-    // "Observed sufficient competency during
-    // practical demonstration despite AI
-    // confidence being below threshold."
+    // OVERRIDE FIELDS
     // ==========================================================
 
-    const [reason, setReason] = useState("");
+    const [newScore, setNewScore] = useState("");
+    const [justification, setJustification] = useState("");
+    const [remarks, setRemarks] = useState("");
 
     // ==========================================================
-    // BACKEND HANDOFF:
+    // SUBMIT VALIDATION
     //
-    // Submission validation.
+    // CONFIRM:
+    //   No additional fields required.
     //
-    // Enable the submit button only when:
-    //
-    // • Confirm Final Result is selected.
-    //
-    // OR
-    //
-    // • Override Result is selected AND
-    //   an override reason has been entered.
+    // OVERRIDE:
+    //   New System Score
+    //   Justification
+    //   Remarks
+    //   are all required.
     // ==========================================================
 
     const isSubmitEnabled =
         decision === "confirm" ||
-        (decision === "override" && reason.trim() !== "");
+        (
+            decision === "override" &&
+            newScore.trim() !== "" &&
+            justification.trim() !== "" &&
+            remarks.trim() !== ""
+        );
+
+    // ==========================================================
+    // DECISION HANDLERS
+    // ==========================================================
+
+    const handleConfirm = () => {
+        setDecision("confirm");
+
+        // Clear override fields when switching back to confirm.
+        setNewScore("");
+        setJustification("");
+        setRemarks("");
+    };
+
+    const handleOverride = () => {
+        setDecision("override");
+    };
+
+    // ==========================================================
+    // SUBMIT
+    //
+    // Pass the complete decision data back to the parent.
+    // ==========================================================
+
+    const handleSubmit = () => {
+        if (!isSubmitEnabled) {
+            return;
+        }
+
+        if (onSubmit) {
+            onSubmit({
+                decision,
+                newScore:
+                    decision === "override"
+                        ? Number(newScore)
+                        : null,
+                justification:
+                    decision === "override"
+                        ? justification.trim()
+                        : null,
+                remarks:
+                    decision === "override"
+                        ? remarks.trim()
+                        : null,
+            });
+        }
+    };
 
     return (
 
@@ -87,6 +118,7 @@ export default function DecisionPanel({ onSubmit }) {
 
             </div>
 
+
             {/* ======================================================
                 BODY
             ====================================================== */}
@@ -94,7 +126,7 @@ export default function DecisionPanel({ onSubmit }) {
             <div className="p-5">
 
                 {/* ==================================================
-                    Decision Options
+                    DECISION OPTIONS
                 ================================================== */}
 
                 <div className="grid grid-cols-2 gap-4">
@@ -104,88 +136,138 @@ export default function DecisionPanel({ onSubmit }) {
                         title="Confirm Final Result"
                         description="Accept the system recommendation."
                         active={decision === "confirm"}
-                        onClick={() => setDecision("confirm")}
+                        onClick={handleConfirm}
                     />
+
 
                     <DecisionOptionButton
                         icon={ShieldAlert}
                         title="Override Result"
                         description="Override the recommended result and provide a justification."
                         active={decision === "override"}
-                        onClick={() => setDecision("override")}
+                        onClick={handleOverride}
                     />
 
                 </div>
 
+
                 {/* ==================================================
-                    BACKEND HANDOFF:
-                    Display this field only when
-                    the assessor overrides the
-                    AI/System recommendation.
+                    OVERRIDE SECTION
+
+                    ONLY APPEARS AFTER:
+                    Override Result is clicked.
                 ================================================== */}
 
                 {decision === "override" && (
 
-                    <div className="mt-5">
+                    <div className="mt-5 space-y-4">
 
-                        <label
-                            htmlFor="overrideReason"
-                            className="mb-2 block text-sm font-semibold text-gray-700"
-                        >
-                            Reason for Override (Required)*
-                        </label>
+                        {/* ==================================================
+                            NEW SYSTEM SCORE
+                        ================================================== */}
 
-                        <textarea
-                            id="overrideReason"
-                            rows={4}
-                            value={reason}
-                            onChange={(e) => setReason(e.target.value)}
-                            placeholder="Explain why you are overriding the system recommendation..."
-                            className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                        />
+                        <div>
+
+                            <label
+                                htmlFor="newSystemScore"
+                                className="mb-2 block text-sm font-semibold text-gray-700"
+                            >
+                                New System Score (Required)*
+                            </label>
+
+                            <input
+                                id="newSystemScore"
+                                type="number"
+                                min="0"
+                                value={newScore}
+                                onChange={(e) =>
+                                    setNewScore(e.target.value)
+                                }
+                                placeholder="Enter new system score..."
+                                className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                            />
+
+                        </div>
+
+
+                        {/* ==================================================
+                            JUSTIFICATION
+                        ================================================== */}
+
+                        <div>
+
+                            <label
+                                htmlFor="overrideJustification"
+                                className="mb-2 block text-sm font-semibold text-gray-700"
+                            >
+                                Justification (Required)*
+                            </label>
+
+                            <textarea
+                                id="overrideJustification"
+                                rows={4}
+                                value={justification}
+                                onChange={(e) =>
+                                    setJustification(e.target.value)
+                                }
+                                placeholder="Explain why you are overriding the system recommendation..."
+                                className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                            />
+
+                        </div>
+
+
+                        {/* ==================================================
+                            REMARKS
+
+                            IMPORTANT:
+                            This is NOT displayed for Confirm Final Result.
+
+                            It only appears when Override Result is active.
+                        ================================================== */}
+
+                        <div>
+
+                            <label
+                                htmlFor="overrideRemarks"
+                                className="mb-2 block text-sm font-semibold text-gray-700"
+                            >
+                                Remarks (Required)*
+                            </label>
+
+                            <textarea
+                                id="overrideRemarks"
+                                rows={4}
+                                value={remarks}
+                                onChange={(e) =>
+                                    setRemarks(e.target.value)
+                                }
+                                placeholder="Enter remarks..."
+                                className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                            />
+
+                        </div>
 
                     </div>
 
                 )}
 
+
                 {/* ==================================================
-                    Submit Button
+                    SUBMIT BUTTON
                 ================================================== */}
 
                 <div className="mt-5">
 
-                    {/* ==============================================
-                        BACKEND HANDOFF:
-
-                        Trigger API submission here.
-
-                        Example payload:
-
-                        {
-                            traineeId,
-                            assessorId,
-                            decision,
-                            overrideReason:
-                                decision === "override"
-                                    ? reason
-                                    : null,
-                            submittedAt: new Date(),
-                            finalStatus:
-                                decision === "confirm"
-                                    ? "COMPETENT"
-                                    : "OVERRIDDEN"
-                        }
-
-                    ============================================== */}
-
                     <button
                         type="button"
                         disabled={!isSubmitEnabled}
-                        onClick={onSubmit}
-                        className={`w-full rounded-lg py-3 text-sm font-semibold transition ${isSubmitEnabled
+                        onClick={handleSubmit}
+                        className={`w-full rounded-lg py-3 text-sm font-semibold transition ${
+                            isSubmitEnabled
                                 ? "bg-blue-900 text-white hover:bg-blue-950"
                                 : "cursor-not-allowed bg-gray-300 text-gray-500"
-                            }`}
+                        }`}
                     >
                         Submit Final Decision
                     </button>
@@ -198,3 +280,4 @@ export default function DecisionPanel({ onSubmit }) {
 
     );
 }
+

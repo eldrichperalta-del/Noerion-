@@ -7,6 +7,7 @@ import AssessorBreadcrumbs from "../../../components/assessordashboard/flow/Asse
 import AssessorPageHeader from "../../../components/assessordashboard/shared/AssessorPageHeader";
 
 import TraineeInformationCard from "../../../components/assessordashboard/evaluation-summary/TraineeInformationCard";
+
 import AIResultSummaryCard from "../../../components/assessordashboard/ai-analysis/AIResultSummaryCard";
 import EEGInsightsCard from "../../../components/assessordashboard/ai-analysis/EEGInsightsCard";
 import PerformancePatternsCard from "../../../components/assessordashboard/ai-analysis/PerformancePatternsCard";
@@ -23,62 +24,158 @@ export default function AIAnalysisInsights() {
   const { state } = useLocation();
 
 
-  /* ==========================================================================
-     RECEIVE NAVIGATION DATA
-  ========================================================================== */
+  /* ============================================================
+     NAVIGATION DATA
+     ============================================================ */
 
   const selectedCourse =
     state?.selectedCourse ?? null;
 
 
   const rawTrainee =
-    state?.selectedTrainee ?? {};
+    state?.selectedTrainee ?? null;
+
+
+  const evaluationSummary =
+    state?.evaluationSummary ?? null;
+
+
+  const evaluationId =
+    state?.evaluationId ?? null;
+
+
+  const assessmentId =
+    state?.assessmentId ??
+    evaluationSummary?.assessmentId ??
+    evaluationSummary?.assessment?.id ??
+    rawTrainee?.assessmentId ??
+    rawTrainee?.assessment_id ??
+    rawTrainee?.submission?.assessment_id ??
+    null;
+
+
+  /*
+   * IMPORTANT:
+   *
+   * This was the source of:
+   *
+   * Uncaught ReferenceError:
+   * assessment is not defined
+   *
+   * We explicitly define it here before using it below.
+   */
+
+  const assessment =
+    state?.assessment ??
+    evaluationSummary?.assessment ??
+    rawTrainee?.assessment ??
+    null;
+
+
+  const submissionId =
+    state?.submissionId ??
+    evaluationSummary?.submissionId ??
+    rawTrainee?.submissionId ??
+    rawTrainee?.submission_id ??
+    rawTrainee?.submission?.id ??
+    null;
+
+
+  const batchId =
+    state?.batchId ??
+    rawTrainee?.batchId ??
+    rawTrainee?.batch_id ??
+    null;
+
+
+  const batchCode =
+    state?.batchCode ??
+    rawTrainee?.batchCode ??
+    rawTrainee?.batch_code ??
+    null;
+
+
+  const assignmentId =
+    state?.assignmentId ??
+    rawTrainee?.assignmentId ??
+    rawTrainee?.assignment_id ??
+    rawTrainee?.assignment?.id ??
+    evaluationSummary?.assignmentId ??
+    null;
 
 
 
-  /* ==========================================================================
-     NORMALIZE TRAINEE DATA
+  /* ============================================================
+     COURSE LABEL
+     ============================================================ */
 
-     Different pages may use:
-     - name
-     - fullName
-     - fullname
-     - traineeId
-     - id
+  const courseLabel =
+    selectedCourse?.qualificationName ??
+    selectedCourse?.name ??
+    selectedCourse?.courseName ??
+    selectedCourse ??
+    "Chosen Course";
 
-     This creates one consistent object for all components.
-  ========================================================================== */
+
+
+  /* ============================================================
+     NORMALIZE TRAINEE
+     ============================================================ */
 
   const selectedTrainee = {
 
+    ...(rawTrainee || {}),
+
     id:
-      rawTrainee.id ?? null,
+      rawTrainee?.id ??
+      rawTrainee?.trainee_id ??
+      rawTrainee?.user_id ??
+      null,
 
 
     fullName:
-      rawTrainee.fullName ??
-      rawTrainee.name ??
-      rawTrainee.fullname ??
+      rawTrainee?.fullName ??
+      rawTrainee?.name ??
+      rawTrainee?.fullname ??
       "Unknown Trainee",
 
 
     traineeId:
-      rawTrainee.traineeId ??
-      rawTrainee.id ??
+      rawTrainee?.traineeId ??
+      rawTrainee?.trainee_id ??
+      rawTrainee?.id ??
       "-",
 
+
+    status:
+      rawTrainee?.status ??
+      "Submitted",
+
+
+    assessmentId,
+
+    submissionId,
+
+    batchId,
+
+    batchCode,
+
+    assignmentId,
+
+    assessment,
 
   };
 
 
 
-  /* ==========================================================================
+  /* ============================================================
      SAFETY CHECK
+     ============================================================ */
 
-     Prevent page crash if navigation state is missing.
-  ========================================================================== */
-
-  if (!selectedCourse || !state?.selectedTrainee) {
+  if (
+    !selectedCourse ||
+    !rawTrainee
+  ) {
 
     return (
 
@@ -94,45 +191,26 @@ export default function AIAnalysisInsights() {
 
 
 
-  const evaluationSummary =
-    state?.evaluationSummary ?? null;
-
-
-  const evaluationId =
-    state?.evaluationId ?? null;
-
-
-
-  /* ==========================================================================
-     MERGE TRAINEE DATA WITH AI RESPONSE
-
-     FRONTEND:
-     Uses mockAIAnalysis.
-
-     BACKEND:
-     Replace this object with API response.
-  ========================================================================== */
+  /* ============================================================
+     AI ANALYSIS DATA
+     ============================================================ */
 
   const aiAnalysis = {
 
     ...mockAIAnalysis,
 
-
     trainee: {
 
-      ...mockAIAnalysis.trainee,
-
+      ...(mockAIAnalysis?.trainee || {}),
 
       name:
         selectedTrainee.fullName,
 
-
       id:
         selectedTrainee.traineeId,
 
-
       course:
-        selectedCourse.qualificationName,
+        courseLabel,
 
     },
 
@@ -140,11 +218,76 @@ export default function AIAnalysisInsights() {
 
 
 
-  /* ==========================================================================
+  /* ============================================================
      PROCEED TO FINALIZE EVALUATION
-  ========================================================================== */
+     ============================================================ */
 
   const handleProceedToDecision = () => {
+
+    console.log(
+      "=== PROCEED TO FINALIZE EVALUATION ==="
+    );
+
+
+    console.log(
+      "selectedCourse:",
+      selectedCourse
+    );
+
+
+    console.log(
+      "selectedTrainee:",
+      selectedTrainee
+    );
+
+
+    console.log(
+      "evaluationSummary:",
+      evaluationSummary
+    );
+
+
+    console.log(
+      "evaluationId:",
+      evaluationId
+    );
+
+
+    console.log(
+      "assessmentId:",
+      assessmentId
+    );
+
+
+    console.log(
+      "assessment:",
+      assessment
+    );
+
+
+    console.log(
+      "submissionId:",
+      submissionId
+    );
+
+
+    console.log(
+      "batchId:",
+      batchId
+    );
+
+
+    console.log(
+      "batchCode:",
+      batchCode
+    );
+
+
+    console.log(
+      "assignmentId:",
+      assignmentId
+    );
+
 
     navigate(
       "/assessor/evaluation/finalize",
@@ -160,6 +303,18 @@ export default function AIAnalysisInsights() {
 
           evaluationId,
 
+          assessmentId,
+
+          assessment,
+
+          submissionId,
+
+          batchId,
+
+          batchCode,
+
+          assignmentId,
+
           aiAnalysis,
 
         },
@@ -171,48 +326,96 @@ export default function AIAnalysisInsights() {
 
 
 
+  /* ============================================================
+     PAGE
+     ============================================================ */
+
   return (
 
     <div className="space-y-6">
 
+
+      {/* ==========================================================
+          BREADCRUMBS
+          ========================================================== */}
 
       <AssessorBreadcrumbs
 
         items={[
 
           {
-
             label:
-              selectedCourse.qualificationName,
-
+              courseLabel,
 
             to:
               "/assessor/evaluation",
 
+            state: {
+              selectedCourse,
+            },
+
           },
 
 
           {
-
             label:
               "Trainees Evaluation",
-
 
             to:
               "/assessor/evaluation/trainees",
 
+            state: {
+
+              selectedCourse,
+
+              selectedTrainee,
+
+              batchId,
+
+              assessmentId,
+
+              batchCode,
+
+              evaluationId,
+
+              submissionId,
+
+            },
+
           },
 
 
           {
-            label: "Evaluation Summary",
-            to: "/assessor/evaluation/summary",
+            label:
+              "Evaluation Summary",
+
+            to:
+              "/assessor/evaluation/summary",
+
             state: {
+
               selectedCourse,
+
               selectedTrainee,
+
               evaluationSummary,
+
               evaluationId,
+
+              assessmentId,
+
+              assessment,
+
+              submissionId,
+
+              batchId,
+
+              batchCode,
+
+              assignmentId,
+
             },
+
           },
 
 
@@ -224,6 +427,10 @@ export default function AIAnalysisInsights() {
 
 
 
+      {/* ==========================================================
+          HEADER
+          ========================================================== */}
+
       <AssessorPageHeader
 
         title="AI Analysis & Insights"
@@ -233,6 +440,10 @@ export default function AIAnalysisInsights() {
       />
 
 
+
+      {/* ==========================================================
+          TRAINEE
+          ========================================================== */}
 
       <TraineeInformationCard
 
@@ -244,8 +455,11 @@ export default function AIAnalysisInsights() {
 
 
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      {/* ==========================================================
+          AI RESULT + EEG
+          ========================================================== */}
 
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
 
         <AIResultSummaryCard
 
@@ -256,7 +470,6 @@ export default function AIAnalysisInsights() {
         />
 
 
-
         <EEGInsightsCard
 
           eeg={
@@ -265,14 +478,15 @@ export default function AIAnalysisInsights() {
 
         />
 
-
       </div>
 
 
 
+      {/* ==========================================================
+          PERFORMANCE + INTERPRETATION
+          ========================================================== */}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-
 
         <PerformancePatternsCard
 
@@ -283,9 +497,7 @@ export default function AIAnalysisInsights() {
         />
 
 
-
         <div className="space-y-6">
-
 
           <AIInterpretationCard
 
@@ -296,9 +508,7 @@ export default function AIAnalysisInsights() {
           />
 
 
-
           <div className="flex justify-center">
-
 
             <ProceedDecisionButton
 
@@ -308,15 +518,11 @@ export default function AIAnalysisInsights() {
 
             />
 
-
           </div>
-
 
         </div>
 
-
       </div>
-
 
     </div>
 

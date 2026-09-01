@@ -3,7 +3,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-import AssessorPanel from "../../shared/AssessorPanel";
+import AssessorPanel from "../shared/AssessorPanel";
 
 export default function QuestionReviewTable({
   questions = [],
@@ -21,6 +21,7 @@ export default function QuestionReviewTable({
           <div className="col-span-5 pl-2">
             Question
           </div>
+          
 
           <div className="col-span-2 text-center">
             Trainee Answer

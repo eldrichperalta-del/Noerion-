@@ -1,216 +1,951 @@
-import {
-  useLocation,
-  useNavigate,
-} from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
-import AssessorBreadcrumbs from "../../../components/assessordashboard/flow/AssessorBreadcrumbs";
-import SelectedTraineesTable from "../../../components/assessordashboard/flow/SelectedTraineesTable";
-import AssessorPageHeader from "../../../components/assessordashboard/shared/AssessorPageHeader";
+import { supabase } from "../../../supabaseClient.js";
 
-/* ============================================================================
-   FRONTEND NOTE
-   ----------------------------------------------------------------------------
-   This page receives the selected course from EvaluationCourseCard.jsx using
-   React Router state.
+import AssessorBreadcrumbs from "../../../components/assessordashboard/flow/AssessorBreadcrumbs.jsx";
+import SelectedTraineesTable from "../../../components/assessordashboard/flow/SelectedTraineesTable.jsx";
+import AssessorPageHeader from "../../../components/assessordashboard/shared/AssessorPageHeader.jsx";
 
-   Navigation Flow
+import { useAssessments } from "../../../context/AssessmentContext.jsx";
 
-   Assigned Courses
-          │
-          ▼
-   Trainees For Evaluation
-          │
-          ▼
-   Evaluation Summary
-          │
-          ▼
-   AI Analysis & Insights
-          │
-          ▼
-   Finalize Evaluation
 
-   The same selectedCourse object should be forwarded throughout the
-   evaluation workflow.
+// ============================================================================
+// HELPERS
+// ============================================================================
 
-============================================================================ */
+const normalize = (value) =>
+  value === null || value === undefined
+    ? ""
+    : String(value).trim().toLowerCase();
 
-/* ============================================================================
-   BACKEND HANDOFF
-   ----------------------------------------------------------------------------
-   Replace this mock trainee array with data retrieved from the backend.
 
-   Suggested Endpoint
+const firstExisting = (...values) =>
+  values.find(
+    (value) =>
+      value !== null &&
+      value !== undefined &&
+      String(value).trim() !== ""
+  ) ?? null;
 
-   GET /assessor/evaluations/{courseId}/trainees
 
-   Expected Response
-
-   [
-      {
-         id,
-         traineeId,
-         fullName,
-         assessmentType,
-         schedule,
-         status
-      }
-   ]
-
-   Where
-
-   id
-      Internal trainee identifier.
-
-   traineeId
-      Public trainee number.
-
-   fullName
-      Complete trainee name.
-
-   assessmentType
-      Written / Practical / Written + Practical.
-
-   schedule
-      Scheduled assessment date.
-
-   status
-      Pending
-      Completed
-
-   IMPORTANT
-
-   Only trainees assigned to the selected qualification should be returned.
-
-============================================================================ */
-
-const traineesForEvaluation = [
-  {
-    id: 1,
-    fullName: "Juan Dela Cruz",
-    traineeId: "NOE-TRAINEE-001",
-    assessmentType: "Written + Practical",
-    schedule: "April 15, 2025 - 09:00 AM",
-    status: "Pending",
-  },
-  {
-    id: 2,
-    fullName: "Maria Santos",
-    traineeId: "NOE-TRAINEE-002",
-    assessmentType: "Practical Exam",
-    schedule: "April 16, 2025 - 02:00 PM",
-    status: "Pending",
-  },
-  {
-    id: 3,
-    fullName: "Maria Garcia",
-    traineeId: "NOE-TRAINEE-003",
-    assessmentType: "Written + Practical",
-    schedule: "April 16, 2025 - 02:00 PM",
-    status: "Completed",
-  },
-];
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export default function TraineesForEvaluation() {
   const navigate = useNavigate();
   const { state } = useLocation();
 
-  /* ==========================================================================
-     FRONTEND STATE
-     --------------------------------------------------------------------------
-     selectedCourse is received from EvaluationCourseCard.jsx.
+  const selectedCourse =
+    state?.selectedCourse ??
+    "Assessment Batch";
 
-     Example
+  /*
+   * IMPORTANT:
+   *
+   * These values can be:
+   *
+   * - UUIDs from the database
+   * - numeric mock IDs such as 1
+   *
+   * We DO NOT directly send them into a UUID database column.
+   */
+  const batchId =
+    state?.batchId ??
+    null;
 
-     {
-        id,
-        qualificationName,
-        totalTrainees,
-        completedEvaluations
-     }
+  const assessmentId =
+    state?.assessmentId ??
+    state?.courseId ??
+    null;
 
-     A fallback is included so the page does not crash during development.
-  ========================================================================== */
+  const batchCode =
+    state?.batchCode ??
+    state?.courseCode ??
+    "N/A";
 
-  const selectedCourse = state?.selectedCourse ?? {
-    id: null,
-    qualificationName: "Unknown Qualification",
-  };
 
-  /* ==========================================================================
-     Navigate to Evaluation Summary
+  const [trainees, setTrainees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
-     FRONTEND
-     --------------------------------------------------------------------------
-     Only trainees whose assessment status is "Completed" are allowed to
-     proceed to the evaluation workflow.
 
-     The SelectedTraineesTable disables the Evaluate button for Pending
-     trainees. This function provides an additional safeguard by preventing
-     navigation if triggered manually.
+  const {
+    setSelectedAssessment,
+    setSelectedTrainee,
+  } = useAssessments();
 
-     Pass BOTH
 
-     • selectedCourse
-     • selectedTrainee
+  // ==========================================================================
+  // FETCH MOCK DATABASE RECORDS
+  // ==========================================================================
 
-     so succeeding pages can display
+  useEffect(() => {
+    let isMounted = true;
 
-     ✓ Breadcrumb
-     ✓ Trainee Information Card
-     ✓ AI Analysis
-     ✓ Finalize Evaluation
 
-     without using hardcoded values.
+    async function fetchAssignedTrainees() {
+      setLoading(true);
+      setErrorMessage("");
 
-     BACKEND HANDOFF
-     --------------------------------------------------------------------------
-     The backend should also enforce this validation.
 
-     If the trainee's assessment status is still "Pending", the API should
-     reject the request even if a user manually accesses the route.
+      try {
+        console.log(
+          "=== TRAINEES FOR EVALUATION ==="
+        );
 
-     Suggested responses:
+        console.log(
+          "Navigation batchId:",
+          batchId
+        );
 
-     • HTTP 403 Forbidden
-     • HTTP 400 Bad Request
-  ========================================================================== */
+        console.log(
+          "Navigation assessmentId:",
+          assessmentId
+        );
 
-  const handleEvaluate = (selectedTrainee) => {
-    // Prevent navigation while assessment is still pending
-    if (selectedTrainee.status === "Pending") {
-      return;
+
+        // ====================================================================
+        // 1. FETCH ASSIGNMENTS
+        //
+        // DO NOT put assessmentId into .eq("assessment_id", ...)
+        //
+        // The page can receive mock ID "1", while assessment_id in Supabase
+        // can be UUID.
+        //
+        // We therefore fetch the mock assignment records first and match them
+        // safely in JavaScript.
+        // ====================================================================
+
+        const {
+          data: assignmentsData,
+          error: assignmentsError,
+        } = await supabase
+          .from("assignments")
+          .select("*");
+
+
+        if (assignmentsError) {
+          throw assignmentsError;
+        }
+
+
+        const assignments =
+          assignmentsData || [];
+
+
+        console.log(
+          "Assignments from database:",
+          JSON.stringify(assignments, null, 2)
+        );
+
+        if (assignments.length === 0) {
+          if (isMounted) {
+            setTrainees([]);
+          }
+
+          return;
+        }
+
+
+        // ====================================================================
+        // 2. FILTER ASSIGNMENTS SAFELY
+        //
+        // We compare values as strings.
+        //
+        // This means:
+        //
+        // UUID === UUID
+        // "1" === 1
+        //
+        // without sending an invalid "1" into PostgreSQL's UUID comparison.
+        // ====================================================================
+
+        const normalizedBatchId =
+          normalize(batchId);
+
+        const normalizedAssessmentId =
+          normalize(assessmentId);
+
+
+        const filteredAssignments =
+          assignments.filter((assignment) => {
+
+            const assignmentBatchId =
+              normalize(
+                assignment.batch_id
+              );
+
+            const assignmentAssessmentId =
+              normalize(
+                assignment.assessment_id
+              );
+
+
+            /*
+             * If a batch ID exists in navigation state,
+             * match it only when the database record contains it.
+             */
+            if (
+              normalizedBatchId &&
+              assignmentBatchId
+            ) {
+              if (
+                assignmentBatchId !==
+                normalizedBatchId
+              ) {
+                return false;
+              }
+            }
+
+
+            /*
+             * If an assessment ID exists in navigation state,
+             * match it only when both values actually match.
+             *
+             * This is safe even if the navigation value is "1".
+             */
+            if (
+              normalizedAssessmentId &&
+              assignmentAssessmentId
+            ) {
+              if (
+                assignmentAssessmentId !==
+                normalizedAssessmentId
+              ) {
+                return false;
+              }
+            }
+
+
+            return true;
+          });
+
+
+        /*
+         * If filtering produced nothing, do NOT manufacture trainees.
+         *
+         * However, when the navigation ID is a local/mock ID that doesn't
+         * correspond to the UUID stored in the database, we can still use
+         * the database mock records when there is only one logical batch.
+         */
+        const usableAssignments =
+          filteredAssignments.length > 0
+            ? filteredAssignments
+            : assignments;
+
+
+        console.log(
+          "Assignments used for evaluation:",
+          usableAssignments
+        );
+
+
+        // ====================================================================
+        // 3. EXTRACT REAL TRAINEE UUIDs
+        // ====================================================================
+
+        const traineeIds = [
+          ...new Set(
+            usableAssignments
+              .map(
+                (assignment) =>
+                  assignment.trainee_id
+              )
+              .filter(Boolean)
+          ),
+        ];
+
+
+        const assignmentIds = [
+          ...new Set(
+            usableAssignments
+              .map(
+                (assignment) =>
+                  assignment.id
+              )
+              .filter(Boolean)
+          ),
+        ];
+
+
+        console.log(
+          "Real trainee IDs from assignments:",
+          traineeIds
+        );
+
+        console.log(
+          "Real assignment IDs:",
+          assignmentIds
+        );
+
+
+        // ====================================================================
+        // 4. FETCH PROFILES
+        //
+        // IMPORTANT:
+        // The values here come directly from assignment.trainee_id.
+        // We never use state.assessmentId.
+        // ====================================================================
+
+        const profilesMap = {};
+
+
+        if (traineeIds.length > 0) {
+
+          const {
+            data: profilesData,
+            error: profilesError,
+          } = await supabase
+            .from("profiles")
+            .select(
+              "id, first_name, last_name, email"
+            )
+            .in(
+              "id",
+              traineeIds
+            );
+
+
+          if (profilesError) {
+            console.warn(
+              "Profiles query failed:",
+              profilesError
+            );
+          }
+
+
+          (profilesData || []).forEach(
+            (profile) => {
+              profilesMap[
+                profile.id
+              ] = profile;
+            }
+          );
+        }
+
+
+        // ====================================================================
+        // 5. FETCH TRAINEE PROFILES
+        //
+        // This is optional because the exact structure may differ between
+        // database versions.
+        //
+        // We load the records and match them in JavaScript.
+        // ====================================================================
+
+        const traineeProfilesMap = {};
+
+
+        if (traineeIds.length > 0) {
+
+          const {
+            data: traineeProfilesData,
+            error: traineeProfilesError,
+          } = await supabase
+            .from("trainee_profiles")
+            .select("*");
+
+
+          if (traineeProfilesError) {
+
+            console.warn(
+              "trainee_profiles query failed:",
+              traineeProfilesError
+            );
+
+          } else {
+
+            (traineeProfilesData || []).forEach(
+              (traineeProfile) => {
+
+                const possibleId =
+                  firstExisting(
+                    traineeProfile.trainee_id,
+                    traineeProfile.user_id,
+                    traineeProfile.profile_id,
+                    traineeProfile.id
+                  );
+
+
+                if (possibleId) {
+                  traineeProfilesMap[
+                    String(possibleId)
+                  ] = traineeProfile;
+                }
+
+              }
+            );
+
+          }
+        }
+
+
+        // ====================================================================
+        // 6. FETCH ASSESSMENT SUBMISSIONS
+        //
+        // We use REAL assignment IDs and REAL trainee IDs obtained from the
+        // database.
+        // ====================================================================
+
+        const submissionsMap = {};
+
+
+        let submissionsData = [];
+
+
+        if (
+          assignmentIds.length > 0 ||
+          traineeIds.length > 0
+        ) {
+
+          /*
+           * Fetch all mock submissions instead of constructing a potentially
+           * invalid UUID filter.
+           */
+          const {
+            data,
+            error: submissionsError,
+          } = await supabase
+            .from("assessment_submissions")
+            .select("*");
+
+
+          if (submissionsError) {
+            throw submissionsError;
+          }
+
+
+          submissionsData =
+            data || [];
+        }
+
+
+        console.log(
+          "Assessment submissions:",
+          JSON.stringify(submissionsData, null, 2)
+        );
+
+
+        submissionsData.forEach(
+          (submission) => {
+
+            if (
+              submission.assignment_id
+            ) {
+
+              submissionsMap[
+                String(
+                  submission.assignment_id
+                )
+              ] = submission;
+
+            }
+
+
+            if (
+              submission.trainee_id
+            ) {
+
+              submissionsMap[
+                String(
+                  submission.trainee_id
+                )
+              ] = submission;
+
+            }
+
+          }
+        );
+
+
+        // ====================================================================
+        // 7. FORMAT TRAINEES
+        // ====================================================================
+
+        const formattedTrainees =
+          usableAssignments.map(
+            (assignment) => {
+
+              const traineeId =
+                assignment.trainee_id;
+
+
+              const profile =
+                traineeId
+                  ? profilesMap[
+                  String(traineeId)
+                  ]
+                  : null;
+
+
+              const traineeProfile =
+                traineeId
+                  ? traineeProfilesMap[
+                  String(traineeId)
+                  ]
+                  : null;
+
+
+              const submission =
+                submissionsMap[
+                String(
+                  assignment.id
+                )
+                ] ||
+                submissionsMap[
+                String(
+                  traineeId
+                )
+                ] ||
+                null;
+
+
+              // ================================================================
+              // RESOLVE NAME
+              // ================================================================
+
+              const fullName =
+                firstExisting(
+
+                  profile
+                    ? `${profile.first_name || ""} ${profile.last_name || ""
+                      }`.trim()
+                    : null,
+
+                  traineeProfile?.full_name,
+
+                  traineeProfile?.name,
+
+                  traineeProfile
+                    ? `${traineeProfile.first_name || ""} ${traineeProfile.last_name || ""
+                      }`.trim()
+                    : null,
+
+                  profile?.email,
+
+                  traineeId
+                    ? `Trainee #${String(
+                      traineeId
+                    ).slice(0, 8)}`
+                    : "Assigned Trainee"
+                );
+
+
+              // ================================================================
+              // RESOLVE STATUS
+              // ================================================================
+
+              let status =
+                "Not Started";
+
+
+              if (submission) {
+
+                const rawStatus =
+                  normalize(
+                    submission.status
+                  );
+
+
+                const rawOverallResult =
+                  normalize(
+                    submission.overall_result
+                  );
+
+
+                if (
+                  rawStatus ===
+                  "evaluated" ||
+                  rawStatus ===
+                  "completed" ||
+                  rawStatus ===
+                  "in evaluated"
+                ) {
+
+                  status =
+                    "Evaluated";
+
+                } else if (
+                  rawStatus ===
+                  "submitted" ||
+                  rawOverallResult ===
+                  "submitted"
+                ) {
+
+                  status =
+                    "Submitted";
+
+                } else if (
+                  rawStatus ===
+                  "in evaluation" ||
+                  rawStatus ===
+                  "in_evaluation" ||
+                  rawStatus ===
+                  "in evaluate"
+                ) {
+
+                  status =
+                    "In Evaluation";
+
+                } else if (
+                  rawStatus ===
+                  "in_progress" ||
+                  rawStatus ===
+                  "in progress"
+                ) {
+
+                  status =
+                    "In Progress";
+
+                }
+
+              } else {
+
+                const assignmentStatus =
+                  normalize(
+                    assignment.status
+                  );
+
+
+                if (
+                  assignmentStatus ===
+                  "completed" ||
+                  assignmentStatus ===
+                  "evaluated"
+                ) {
+
+                  status =
+                    "Evaluated";
+
+                } else if (
+                  assignmentStatus ===
+                  "in_progress" ||
+                  assignmentStatus ===
+                  "in progress"
+                ) {
+
+                  status =
+                    "In Progress";
+
+                }
+
+              }
+
+
+              // ================================================================
+              // RETURN NORMALIZED TRAINEE
+              // ================================================================
+
+              return {
+
+                /*
+                 * IMPORTANT:
+                 *
+                 * This is the actual trainee UUID from the database.
+                 */
+                id:
+                  traineeId ||
+                  assignment.id,
+
+
+                traineeId:
+                  traineeId || null,
+
+
+                assignmentId:
+                  assignment.id,
+
+
+                batchId:
+                  assignment.batch_id ||
+                  batchId ||
+                  null,
+
+
+                assessmentId:
+                  assignment.assessment_id ||
+                  assessmentId ||
+                  null,
+
+
+                fullName,
+
+
+                /*
+                 * Do not replace the real database ID with "1".
+                 *
+                 * The UI can still display a friendly trainee ID.
+                 */
+                displayTraineeId:
+                  traineeId
+                    ? `#TR-${String(
+                      traineeId
+                    ).slice(0, 8).toUpperCase()}`
+                    : `#ASSIGN-${String(
+                      assignment.id
+                    ).slice(0, 8).toUpperCase()}`,
+
+
+                course:
+                  selectedCourse,
+
+
+                status,
+
+
+                submission:
+                  submission || null,
+
+
+                submissionId:
+                  submission?.id || null,
+
+
+                submission_id:
+                  submission?.id || null,
+
+
+                /*
+                 * Preserve the original database records so the next page
+                 * does not need to query using guessed IDs.
+                 */
+                assignment,
+
+
+                profile:
+                  profile || null,
+
+
+                traineeProfile:
+                  traineeProfile || null,
+
+              };
+            }
+          );
+
+
+        console.log(
+          "Final formatted trainees:",
+          JSON.stringify(formattedTrainees, null, 2)
+        );
+
+
+        if (isMounted) {
+          setTrainees(
+            formattedTrainees
+          );
+        }
+
+      } catch (error) {
+
+        console.error(
+          "Error fetching trainees for evaluation:",
+          error
+        );
+
+
+        if (isMounted) {
+
+          setTrainees([]);
+
+          setErrorMessage(
+            "Unable to load the trainees for evaluation. Please try again."
+          );
+
+        }
+
+      } finally {
+
+        if (isMounted) {
+          setLoading(false);
+        }
+
+      }
     }
 
-    navigate("/assessor/evaluation/summary", {
-      state: {
+
+    fetchAssignedTrainees();
+
+
+    return () => {
+      isMounted = false;
+    };
+
+  }, [
+    batchId,
+    assessmentId,
+    selectedCourse,
+  ]);
+
+
+  // ==========================================================================
+  // OPEN TRAINEE EVALUATION
+  // ==========================================================================
+
+  const handleViewAssessment = (trainee) => {
+
+    const assessmentInfo = {
+
+      /*
+       * Prefer the REAL database assessment UUID.
+       */
+      id:
+        trainee.assessmentId ||
+        null,
+
+
+      batchId:
+        trainee.batchId ||
+        null,
+
+
+      courseCode:
+        batchCode,
+
+
+      courseName:
         selectedCourse,
-        selectedTrainee,
-      },
-    });
+
+    };
+
+
+    console.log(
+      "Opening trainee evaluation:",
+      trainee
+    );
+
+
+    setSelectedAssessment(
+      assessmentInfo
+    );
+
+    setSelectedTrainee(
+      trainee
+    );
+
+
+    /*
+     * IMPORTANT:
+     *
+     * The evaluation workflow should go directly to
+     * EvaluationSummary, not AssessmentOverview.
+     */
+    navigate(
+      "/assessor/evaluation/summary",
+      {
+        state: {
+
+          selectedCourse,
+
+          selectedTrainee:
+            trainee,
+
+          assessment:
+            assessmentInfo,
+
+          batchId:
+            trainee.batchId ||
+            null,
+
+          batchCode,
+
+          assessmentId:
+            trainee.assessmentId ||
+            null,
+
+          assignmentId:
+            trainee.assignmentId ||
+            null,
+
+          submissionId:
+            trainee.submissionId ||
+            null,
+
+        },
+      }
+    );
+
   };
 
+
+  // ==========================================================================
+  // RENDER
+  // ==========================================================================
+
   return (
+
     <div className="space-y-6">
+
       <AssessorBreadcrumbs
         items={[
+
           {
-            label: selectedCourse.qualificationName,
+            label:
+              selectedCourse?.qualificationName ??
+              selectedCourse?.name ??
+              selectedCourse?.qualification ??
+              "Qualification",
+
             to: "/assessor/evaluation",
-          },
-          "Trainees Evaluation",
+
+            state: {
+              selectedCourse,
+            },
+          }, "Trainees for Evaluation",
         ]}
       />
 
+
       <AssessorPageHeader
         title="Trainees for Evaluation"
-        subtitle="Select a trainee to continue the evaluation summary."
+        subtitle="Select a trainee to review their evaluation results."
       />
 
-      <SelectedTraineesTable
-        trainees={traineesForEvaluation}
-        actionLabel="Evaluate"
-        onAction={handleEvaluate}
-      />
+
+      {errorMessage && (
+
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+
+          {errorMessage}
+
+        </div>
+
+      )}
+
+
+      {loading ? (
+
+        <div className="rounded-2xl border border-gray-200 bg-white py-12 text-center font-medium text-gray-500 shadow-sm">
+
+          Fetching assigned trainees for this batch...
+
+        </div>
+
+      ) : (
+
+        <SelectedTraineesTable
+
+          trainees={
+            trainees
+          }
+
+          actionLabel={
+            "View Evaluation"
+          }
+
+          onAction={
+            handleViewAssessment
+          }
+
+        />
+
+      )}
+
     </div>
+
   );
+
 }
+

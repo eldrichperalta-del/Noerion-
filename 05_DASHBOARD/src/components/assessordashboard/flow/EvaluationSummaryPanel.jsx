@@ -8,37 +8,7 @@ export default function EvaluationSummaryPanel({
   evaluationSummary,
   onViewAIAnalysis,
 }) {
-  // ==========================================================
-  // BACKEND HANDOFF:
-  // This component receives the consolidated evaluation
-  // summary from EvaluationSummary.jsx.
-  //
-  // Replace the mock "evaluationSummary" prop with the
-  // backend response for the selected trainee evaluation.
-  //
-  // Expected object structure:
-  //
-  // {
-  //   trainee: {
-  //     name: string,
-  //     id: string,
-  //     course: string,
-  //   },
-  //
-  //   writtenAssessment: {
-  //     score: number,
-  //     total: number,
-  //     percentage: number,
-  //     status: string,
-  //   },
-  //
-  //   overallResult: {
-  //     competency: string,
-  //   },
-  //
-  //   aiInsights: string[],
-  // }
-  // ==========================================================
+
 
   return (
     <div className="space-y-6">
