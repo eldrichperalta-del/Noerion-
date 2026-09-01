@@ -19,15 +19,6 @@ export default function FinalizeEvaluation() {
 
   const { state } = useLocation();
 
-  console.log("=== FINALIZE PAGE MOUNTED ===");
-  console.log("Navigation state:", state);
-  console.log("selectedCourse:", state?.selectedCourse);
-  console.log("selectedTrainee:", state?.selectedTrainee);
-  console.log("assessmentId:", state?.assessmentId);
-  console.log("submissionId:", state?.submissionId);
-  console.log("evaluationSummary:", state?.evaluationSummary);
-  console.log("aiAnalysis:", state?.aiAnalysis);
-
 
   /* ============================================================
      NAVIGATION DATA
@@ -119,54 +110,88 @@ export default function FinalizeEvaluation() {
 
 
   /* ============================================================
-     FINALIZE EVALUATION STATE
+     STATE
      ============================================================ */
 
-  const [submissionId, setSubmissionId] =
-    useState(
-      state?.submissionId ??
-      rawTrainee?.submissionId ??
-      rawTrainee?.submission_id ??
-      null
-    );
+  const [
+    submissionId,
+    setSubmissionId,
+  ] = useState(
+    state?.submissionId ??
+    rawTrainee?.submissionId ??
+    rawTrainee?.submission_id ??
+    null
+  );
 
-  const [questionsData, setQuestionsData] =
-    useState([]);
+  const [
+    questionsData,
+    setQuestionsData,
+  ] = useState([]);
 
-  const [isLoading, setIsLoading] =
-    useState(true);
+  const [
+    isLoading,
+    setIsLoading,
+  ] = useState(true);
 
-  const [isSubmitting, setIsSubmitting] =
-    useState(false);
+  const [
+    isSubmitting,
+    setIsSubmitting,
+  ] = useState(false);
 
-  const [isFinalized, setIsFinalized] =
-    useState(false);
+  const [
+    isFinalized,
+    setIsFinalized,
+  ] = useState(false);
 
-  const [showConfirmModal, setShowConfirmModal] =
-    useState(false);
-
-  // ============================================================
-  // OVERRIDE RESULT STATE
-  // ============================================================
-
-
-  const [decision, setDecision] =
-    useState("");
-
-  const [newScore, setNewScore] =
-    useState("");
-
-  const [justification, setJustification] =
-    useState("");
-
-  const [remarks, setRemarks] =
-    useState("");
+  const [
+    showConfirmModal,
+    setShowConfirmModal,
+  ] = useState(false);
 
 
+  /* ============================================================
+     OVERRIDE RESULT STATE
+     ============================================================ */
 
-  const [metrics, setMetrics] = useState({
+  const [
+    decision,
+    setDecision,
+  ] = useState("");
+
+  const [
+    newScore,
+    setNewScore,
+  ] = useState("");
+
+  const [
+    justification,
+    setJustification,
+  ] = useState("");
+
+  const [
+    remarks,
+    setRemarks,
+  ] = useState("");
 
 
+  /* ============================================================
+     CERTIFICATE STATE
+     ============================================================ */
+
+  const [
+    certificate,
+    setCertificate,
+  ] = useState(null);
+
+
+  /* ============================================================
+     METRICS
+     ============================================================ */
+
+  const [
+    metrics,
+    setMetrics,
+  ] = useState({
 
     totalScore: 0,
 
@@ -176,50 +201,65 @@ export default function FinalizeEvaluation() {
 
     result: "In Evaluation",
 
-
-
   });
-
-
 
 
   /* ============================================================
      LOAD ASSESSMENT DATA
-
-     This is the database logic moved from
-     WrittenAssessmentReview.jsx.
      ============================================================ */
 
   useEffect(() => {
 
     async function loadFinalizeEvaluationData() {
 
-      // SAFETY CHECK:
-      // Do not query Supabase unless the required navigation data exists.
-      if (!rawTrainee || !selectedCourse || !assessmentId) {
+      if (
+        !rawTrainee ||
+        !selectedCourse ||
+        !assessmentId
+      ) {
+
         console.warn(
-          "FinalizeEvaluation: Missing required navigation data.",
-          {
-            hasTrainee: Boolean(rawTrainee),
-            hasCourse: Boolean(selectedCourse),
-            assessmentId,
-          }
+          "FinalizeEvaluation: Missing required navigation data."
         );
 
         setIsLoading(false);
+
         return;
+
       }
+
 
       setIsLoading(true);
 
+
       try {
 
-        // Use the submission ID passed through navigation if available.
-        let currentSubId = submissionId;
+        let currentSubId =
+          submissionId;
 
-        let dbTotalScore = null;
-        let dbStatus = "in_progress";
-        let dbResult = null;
+        let dbTotalScore =
+          null;
+
+        let dbStatus =
+          "in_progress";
+
+        let dbResult =
+          null;
+
+        let dbOverrideScore =
+          null;
+
+        let dbOverrideResult =
+          null;
+
+        let dbOverrideApplied =
+          false;
+
+        let dbRemarks =
+          "";
+
+        let dbJustification =
+          "";
 
 
         /* ======================================================
@@ -230,6 +270,7 @@ export default function FinalizeEvaluation() {
 
           const uuidRegex =
             /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
 
           const candidateUuids = [
 
@@ -251,29 +292,37 @@ export default function FinalizeEvaluation() {
           );
 
 
-          for (const uid of candidateUuids) {
+          for (
+            const uid of candidateUuids
+          ) {
 
             const {
               data: subData,
               error: subError,
             } = await supabase
 
-              .from("assessment_submissions")
-
-              .select(
-                `
-                  id,
-                  status,
-                  total_score,
-                  overall_result,
-                  passed
-                `
+              .from(
+                "assessment_submissions"
               )
+
+              .select(`
+                id,
+                status,
+                total_score,
+                overall_result,
+                passed,
+                override_score,
+                override_result,
+                override_applied,
+                remarks,
+                justification
+              `)
 
               .eq(
                 "assessment_id",
                 assessmentId
               )
+
               .eq(
                 "trainee_id",
                 uid
@@ -283,10 +332,12 @@ export default function FinalizeEvaluation() {
 
 
             if (subError) {
+
               console.error(
                 "Error finding submission:",
                 subError
               );
+
             }
 
 
@@ -305,6 +356,23 @@ export default function FinalizeEvaluation() {
               dbResult =
                 subData.overall_result;
 
+              dbOverrideScore =
+                subData.override_score;
+
+              dbOverrideResult =
+                subData.override_result;
+
+              dbOverrideApplied =
+                Boolean(
+                  subData.override_applied
+                );
+
+              dbRemarks =
+                subData.remarks ?? "";
+
+              dbJustification =
+                subData.justification ?? "";
+
 
               if (
                 subData.total_score !== null &&
@@ -319,6 +387,7 @@ export default function FinalizeEvaluation() {
               }
 
               break;
+
             }
 
           }
@@ -327,80 +396,100 @@ export default function FinalizeEvaluation() {
           /* ====================================================
              FALLBACK SUBMISSION
              ==================================================== */
+
           if (!currentSubId) {
 
-            if (assessmentId) {
+            const {
+              data: fallbackSub,
+              error: fallbackError,
+            } = await supabase
 
-              const {
-                data: fallbackSub,
-                error: fallbackError,
-              } = await supabase
+              .from(
+                "assessment_submissions"
+              )
 
-                .from("assessment_submissions")
+              .select(`
+                id,
+                status,
+                total_score,
+                overall_result,
+                passed,
+                override_score,
+                override_result,
+                override_applied,
+                remarks,
+                justification
+              `)
 
-                .select(
-                  `
-                    id,
-                    status,
-                    total_score,
-                    overall_result,
-                    passed
-                  `
-                )
+              .eq(
+                "assessment_id",
+                assessmentId
+              )
 
-                .eq(
-                  "assessment_id",
-                  assessmentId
-                )
-
-                .order(
-                  "created_at",
-                  {
-                    ascending: false,
-                  }
-                )
-
-                .limit(1)
-
-                .maybeSingle();
-
-
-              if (fallbackError) {
-
-                console.error(
-                  "Error finding fallback submission:",
-                  fallbackError
-                );
-
-              }
-
-
-              if (fallbackSub) {
-
-                currentSubId =
-                  fallbackSub.id;
-
-                setSubmissionId(
-                  currentSubId
-                );
-
-                dbStatus =
-                  fallbackSub.status;
-
-                dbResult =
-                  fallbackSub.overall_result;
-
-                if (
-                  fallbackSub.total_score !== null &&
-                  fallbackSub.total_score !== undefined
-                ) {
-
-                  dbTotalScore =
-                    Number(
-                      fallbackSub.total_score
-                    );
-
+              .order(
+                "created_at",
+                {
+                  ascending: false,
                 }
+              )
+
+              .limit(1)
+
+              .maybeSingle();
+
+
+            if (fallbackError) {
+
+              console.error(
+                "Error finding fallback submission:",
+                fallbackError
+              );
+
+            }
+
+
+            if (fallbackSub) {
+
+              currentSubId =
+                fallbackSub.id;
+
+              setSubmissionId(
+                currentSubId
+              );
+
+              dbStatus =
+                fallbackSub.status;
+
+              dbResult =
+                fallbackSub.overall_result;
+
+              dbOverrideScore =
+                fallbackSub.override_score;
+
+              dbOverrideResult =
+                fallbackSub.override_result;
+
+              dbOverrideApplied =
+                Boolean(
+                  fallbackSub.override_applied
+                );
+
+              dbRemarks =
+                fallbackSub.remarks ?? "";
+
+              dbJustification =
+                fallbackSub.justification ?? "";
+
+
+              if (
+                fallbackSub.total_score !== null &&
+                fallbackSub.total_score !== undefined
+              ) {
+
+                dbTotalScore =
+                  Number(
+                    fallbackSub.total_score
+                  );
 
               }
 
@@ -421,16 +510,21 @@ export default function FinalizeEvaluation() {
             error: subError,
           } = await supabase
 
-            .from("assessment_submissions")
-
-            .select(
-              `
-                status,
-                total_score,
-                overall_result,
-                passed
-              `
+            .from(
+              "assessment_submissions"
             )
+
+            .select(`
+              status,
+              total_score,
+              overall_result,
+              passed,
+              override_score,
+              override_result,
+              override_applied,
+              remarks,
+              justification
+            `)
 
             .eq(
               "id",
@@ -458,6 +552,24 @@ export default function FinalizeEvaluation() {
             dbResult =
               subData.overall_result;
 
+            dbOverrideScore =
+              subData.override_score;
+
+            dbOverrideResult =
+              subData.override_result;
+
+            dbOverrideApplied =
+              Boolean(
+                subData.override_applied
+              );
+
+            dbRemarks =
+              subData.remarks ?? "";
+
+            dbJustification =
+              subData.justification ?? "";
+
+
             if (
               subData.total_score !== null &&
               subData.total_score !== undefined
@@ -476,28 +588,40 @@ export default function FinalizeEvaluation() {
 
 
         /* ======================================================
-           2. DETERMINE ASSESSMENT ID
+           RESTORE SAVED OVERRIDE DATA
            ====================================================== */
 
+        if (
+          dbOverrideApplied
+        ) {
 
-
-        if (!assessmentId) {
-
-          console.warn(
-            "No assessment ID available for Finalize Evaluation."
+          setDecision(
+            "override"
           );
 
-          setQuestionsData([]);
+          setNewScore(
+            dbOverrideScore !== null &&
+            dbOverrideScore !== undefined
+              ? String(
+                dbOverrideScore
+              )
+              : ""
+          );
 
-          setIsLoading(false);
-
-          return;
+          setJustification(
+            dbJustification
+          );
 
         }
 
 
+        setRemarks(
+          dbRemarks
+        );
+
+
         /* ======================================================
-           3. FETCH QUESTIONS
+           2. FETCH QUESTIONS
            ====================================================== */
 
         const {
@@ -505,16 +629,16 @@ export default function FinalizeEvaluation() {
           error: questionsError,
         } = await supabase
 
-          .from("questions")
-
-          .select(
-            `
-              id,
-              item_number,
-              question_text,
-              question_type
-            `
+          .from(
+            "questions"
           )
+
+          .select(`
+            id,
+            item_number,
+            question_text,
+            question_type
+          `)
 
           .eq(
             "assessment_id",
@@ -530,7 +654,9 @@ export default function FinalizeEvaluation() {
 
 
         if (questionsError) {
+
           throw questionsError;
+
         }
 
 
@@ -542,55 +668,69 @@ export default function FinalizeEvaluation() {
 
 
         /* ======================================================
-           4. FETCH ANSWER KEYS + OPTIONS
+           3. FETCH ANSWER KEYS + OPTIONS
            ====================================================== */
 
-        let answerKeysMap = {};
+        const answerKeysMap = {};
 
-        let optionsByQuestion = {};
+        const optionsByQuestion = {};
 
-        let optionsMap = {};
+        const optionsMap = {};
 
 
-        if (questionIds.length > 0) {
+        if (
+          questionIds.length > 0
+        ) {
 
           const [
-            { data: keysData },
-            { data: optionsData },
+            {
+              data: keysData,
+              error: keysError,
+            },
+            {
+              data: optionsData,
+              error: optionsError,
+            },
           ] = await Promise.all([
 
             supabase
-
               .from("answer_keys")
-
               .select(
                 "question_id, correct_answer"
               )
-
               .in(
                 "question_id",
                 questionIds
               ),
 
             supabase
-
               .from("question_options")
-
-              .select(
-                `
-                  id,
-                  question_id,
-                  option_letter,
-                  option_text
-                `
-              )
-
+              .select(`
+                id,
+                question_id,
+                option_letter,
+                option_text
+              `)
               .in(
                 "question_id",
                 questionIds
               ),
 
           ]);
+
+
+          if (keysError) {
+
+            throw keysError;
+
+          }
+
+
+          if (optionsError) {
+
+            throw optionsError;
+
+          }
 
 
           if (keysData) {
@@ -622,7 +762,7 @@ export default function FinalizeEvaluation() {
 
                 if (
                   !optionsByQuestion[
-                  option.question_id
+                    option.question_id
                   ]
                 ) {
 
@@ -635,7 +775,9 @@ export default function FinalizeEvaluation() {
 
                 optionsByQuestion[
                   option.question_id
-                ].push(option);
+                ].push(
+                  option
+                );
 
               }
             );
@@ -646,10 +788,10 @@ export default function FinalizeEvaluation() {
 
 
         /* ======================================================
-           5. FETCH TRAINEE ANSWERS
+           4. FETCH TRAINEE ANSWERS
            ====================================================== */
 
-        let traineeAnswersMap = {};
+        const traineeAnswersMap = {};
 
 
         if (currentSubId) {
@@ -659,17 +801,17 @@ export default function FinalizeEvaluation() {
             error: answersError,
           } = await supabase
 
-            .from("trainee_answers")
-
-            .select(
-              `
-                question_id,
-                text_answer,
-                selected_option_id,
-                is_correct,
-                points_awarded
-              `
+            .from(
+              "trainee_answers"
             )
+
+            .select(`
+              question_id,
+              text_answer,
+              selected_option_id,
+              is_correct,
+              points_awarded
+            `)
 
             .eq(
               "submission_id",
@@ -679,10 +821,7 @@ export default function FinalizeEvaluation() {
 
           if (answersError) {
 
-            console.error(
-              "Error loading trainee answers:",
-              answersError
-            );
+            throw answersError;
 
           }
 
@@ -706,22 +845,23 @@ export default function FinalizeEvaluation() {
 
 
         /* ======================================================
-           6. BUILD QUESTION REVIEW DATA
-           
-           MOVED FROM:
-           WrittenAssessmentReview.jsx
+           5. BUILD QUESTION REVIEW DATA
            ====================================================== */
 
-        let calculatedScore = 0;
+        let calculatedScore =
+          0;
 
 
         const formattedQuestions =
           (questionsList || []).map(
-            (question, index) => {
+            (
+              question,
+              index
+            ) => {
 
               const traineeAnswer =
                 traineeAnswersMap[
-                question.id
+                  question.id
                 ];
 
 
@@ -744,10 +884,6 @@ export default function FinalizeEvaluation() {
                 score;
 
 
-              /* ==============================================
-                 TRAINEE ANSWER
-                 ============================================== */
-
               let rawTraineeAnswer =
                 traineeAnswer?.text_answer;
 
@@ -759,13 +895,13 @@ export default function FinalizeEvaluation() {
                 !rawTraineeAnswer &&
                 traineeAnswer?.selected_option_id &&
                 optionsMap[
-                traineeAnswer.selected_option_id
+                  traineeAnswer.selected_option_id
                 ]
               ) {
 
                 const option =
                   optionsMap[
-                  traineeAnswer.selected_option_id
+                    traineeAnswer.selected_option_id
                   ];
 
 
@@ -774,16 +910,19 @@ export default function FinalizeEvaluation() {
                   option.option_letter;
 
 
-                if (option.option_text) {
-                  isOptionText = true;
-                }
+                isOptionText =
+                  Boolean(
+                    option.option_text
+                  );
 
               }
 
 
               let traineeAnswerString =
                 rawTraineeAnswer &&
-                  String(rawTraineeAnswer).trim() !== ""
+                String(
+                  rawTraineeAnswer
+                ).trim() !== ""
 
                   ? String(
                     rawTraineeAnswer
@@ -814,13 +953,9 @@ export default function FinalizeEvaluation() {
               }
 
 
-              /* ==============================================
-                 CORRECT ANSWER
-                 ============================================== */
-
               const rawCorrectKey =
                 answerKeysMap[
-                question.id
+                  question.id
                 ] ??
                 "N/A";
 
@@ -831,7 +966,7 @@ export default function FinalizeEvaluation() {
 
               const questionOptions =
                 optionsByQuestion[
-                question.id
+                  question.id
                 ] ??
                 [];
 
@@ -857,7 +992,9 @@ export default function FinalizeEvaluation() {
                   );
 
 
-                if (matchedOption) {
+                if (
+                  matchedOption
+                ) {
 
                   if (
                     isOptionText ||
@@ -973,23 +1110,31 @@ export default function FinalizeEvaluation() {
 
 
         /* ======================================================
-           7. CALCULATE ASSESSMENT SUMMARY
+           6. CALCULATE ASSESSMENT SUMMARY
            ====================================================== */
 
-        const finalScore =
+        const originalScore =
           dbTotalScore !== null
-
             ? dbTotalScore
-
             : calculatedScore;
 
 
         const totalItemsCount =
           formattedQuestions.length ||
-
-          evaluationSummary?.writtenAssessment?.total ||
-
+          evaluationSummary
+            ?.writtenAssessment
+            ?.total ||
           0;
+
+
+        const activeStoredScore =
+          dbOverrideApplied &&
+          dbOverrideScore !== null &&
+          dbOverrideScore !== undefined
+            ? Number(
+              dbOverrideScore
+            )
+            : originalScore;
 
 
         const percentage =
@@ -997,7 +1142,7 @@ export default function FinalizeEvaluation() {
 
             ? Math.round(
               (
-                finalScore /
+                activeStoredScore /
                 totalItemsCount
               ) *
               100
@@ -1007,41 +1152,43 @@ export default function FinalizeEvaluation() {
 
 
         /* ======================================================
-           8. DETERMINE RESULT
+           7. DETERMINE CURRENT RESULT
            ====================================================== */
 
-        let statusResult = "In Evaluation";
+        let statusResult =
+          "In Evaluation";
+
 
         if (
-          dbStatus?.toLowerCase() === "evaluated"
+          dbStatus?.toLowerCase() ===
+          "submitted"
         ) {
-          statusResult =
-            dbResult ??
-            (
-              percentage >= 75
-                ? "Competent"
-                : "Not Yet Competent"
-            );
 
-          setIsFinalized(true);
+          statusResult =
+            dbOverrideApplied &&
+            dbOverrideResult
+              ? dbOverrideResult
+              : (
+                dbResult ??
+                (
+                  percentage >= 75
+                    ? "Competent"
+                    : "Not Yet Competent"
+                )
+              );
+
+
+          setIsFinalized(
+            true
+          );
+
         }
 
-        console.log("=== FINALIZE EVALUATION ===");
-        console.log("Submission ID:", currentSubId);
-        console.log("Assessment ID:", assessmentId);
-        console.log("Trainee:", selectedTrainee);
-        console.log("Questions:", formattedQuestions);
-        console.log("Metrics:", {
-          totalScore: finalScore,
-          totalItems: totalItemsCount,
-          percentage,
-          result: statusResult,
-        });
 
         setMetrics({
 
           totalScore:
-            finalScore,
+            activeStoredScore,
 
           totalItems:
             totalItemsCount,
@@ -1066,7 +1213,9 @@ export default function FinalizeEvaluation() {
 
       finally {
 
-        setIsLoading(false);
+        setIsLoading(
+          false
+        );
 
       }
 
@@ -1081,142 +1230,498 @@ export default function FinalizeEvaluation() {
     rawTrainee?.id,
     evaluationSummary?.writtenAssessment?.total,
   ]);
+
+
+  /* ============================================================
+     CREATE CERTIFICATE
+     ============================================================ */
+
+  const createCertificate =
+    async (
+      finalResult
+    ) => {
+
+      if (
+        finalResult !== "Competent"
+      ) {
+
+        return null;
+
+      }
+
+
+      if (
+        !selectedTrainee.id
+      ) {
+
+        throw new Error(
+          "Cannot create certificate: trainee ID is missing."
+        );
+
+      }
+
+
+      if (
+        !assessmentId
+      ) {
+
+        throw new Error(
+          "Cannot create certificate: assessment ID is missing."
+        );
+
+      }
+
+
+      if (
+        !courseLabel ||
+        courseLabel === "Chosen Course"
+      ) {
+
+        throw new Error(
+          "Cannot create certificate: qualification is missing."
+        );
+
+      }
+
+
+      console.log(
+        "Creating certificate:",
+        {
+          trainee_id:
+            selectedTrainee.id,
+
+          assessment_id:
+            assessmentId,
+
+          qualification:
+            courseLabel,
+
+          result:
+            finalResult,
+        }
+      );
+
+
+      const {
+        data,
+        error,
+      } = await supabase
+        .functions
+        .invoke(
+          "create-certificate",
+          {
+            body: {
+
+              trainee_id:
+                selectedTrainee.id,
+
+              assessment_id:
+                assessmentId,
+
+              qualification:
+                courseLabel,
+
+              result:
+                finalResult,
+
+            },
+          }
+        );
+
+
+      if (
+        error
+      ) {
+
+        console.error(
+          "Certificate function error:",
+          error
+        );
+
+        throw new Error(
+          "The evaluation was saved, but certificate creation failed."
+        );
+
+      }
+
+
+      if (
+        !data?.success
+      ) {
+
+        console.error(
+          "Certificate creation failed:",
+          data
+        );
+
+        throw new Error(
+          data?.error ??
+          "Certificate creation failed."
+        );
+
+      }
+
+
+      console.log(
+        "Certificate created or retrieved:",
+        data.certificate
+      );
+
+
+      setCertificate(
+        data.certificate
+      );
+
+
+      return data.certificate;
+
+    };
+
+
   /* ============================================================
      FINAL SUBMISSION
      ============================================================ */
 
+  const handleConfirmSubmit =
+    async () => {
 
-  const handleConfirmSubmit = async () => {
-    setIsSubmitting(true);
+      setIsSubmitting(
+        true
+      );
 
-    const hasOverride = decision === "override";
 
-    try {
-      if (!submissionId) {
-        throw new Error(
-          "No assessment submission was found."
-        );
-      }
+      const hasOverride =
+        decision === "override";
 
-      // ==========================================================
-      // DETERMINE ACTIVE SCORE
-      // ==========================================================
 
-      const activeScore = hasOverride
-        ? Number(newScore)
-        : Number(metrics.totalScore);
+      try {
 
-      if (
-        hasOverride &&
-        (
-          Number.isNaN(activeScore) ||
-          activeScore < 0
-        )
-      ) {
-        throw new Error(
-          "Please enter a valid new system score."
-        );
-      }
+        if (
+          !submissionId
+        ) {
 
-      // ==========================================================
-      // CALCULATE FINAL PERCENTAGE
-      // ==========================================================
+          throw new Error(
+            "No assessment submission was found."
+          );
 
-      const activePercentage =
-        metrics.totalItems > 0
-          ? Math.round(
-            (activeScore / metrics.totalItems) * 100
-          )
-          : 0;
+        }
 
-      // ==========================================================
-      // DETERMINE FINAL RESULT
-      // ==========================================================
 
-      const isPassed =
-        activePercentage >= 75;
+        /* ======================================================
+           DETERMINE ACTIVE SCORE
+           ====================================================== */
 
-      const displayResult =
-        isPassed
-          ? "Competent"
-          : "Not Yet Competent";
-
-      // ==========================================================
-      // SAVE FINAL EVALUATION
-      // ==========================================================
-
-      const updatePayload = {
-        status: "evaluated",
-
-        passed: isPassed,
-
-        overall_result: displayResult,
-
-        total_score: activeScore,
-
-        // Remarks are required for both decisions.
-        remarks:
-          remarks.trim() || null,
-
-        // Justification is only saved for Override Result.
-        justification:
+        const activeScore =
           hasOverride
-            ? justification.trim()
-            : null,
 
-        updated_at:
-          new Date().toISOString(),
-      };
+            ? Number(
+              newScore
+            )
 
-      const {
-        error,
-      } = await supabase
-        .from("assessment_submissions")
-        .update(updatePayload)
-        .eq("id", submissionId);
+            : Number(
+              metrics.totalScore
+            );
 
-      if (error) {
-        throw error;
+
+        if (
+          Number.isNaN(
+            activeScore
+          ) ||
+          activeScore < 0
+        ) {
+
+          throw new Error(
+            "Please enter a valid system score."
+          );
+
+        }
+
+
+        if (
+          metrics.totalItems > 0 &&
+          activeScore >
+          metrics.totalItems
+        ) {
+
+          throw new Error(
+            `The score cannot exceed ${metrics.totalItems}.`
+          );
+
+        }
+
+
+        /* ======================================================
+           VALIDATE OVERRIDE
+           ====================================================== */
+
+        if (
+          hasOverride &&
+          !justification.trim()
+        ) {
+
+          throw new Error(
+            "Please provide a justification for overriding the result."
+          );
+
+        }
+
+
+        if (
+          !remarks.trim()
+        ) {
+
+          throw new Error(
+            "Please provide assessment remarks before finalizing."
+          );
+
+        }
+
+
+        /* ======================================================
+           CALCULATE FINAL PERCENTAGE
+           ====================================================== */
+
+        const activePercentage =
+          metrics.totalItems > 0
+
+            ? Math.round(
+              (
+                activeScore /
+                metrics.totalItems
+              ) *
+              100
+            )
+
+            : 0;
+
+
+        /* ======================================================
+           DETERMINE FINAL RESULT
+           ====================================================== */
+
+        const isPassed =
+          activePercentage >= 75;
+
+
+        const displayResult =
+          isPassed
+            ? "Competent"
+            : "Not Yet Competent";
+
+
+        const now =
+          new Date().toISOString();
+
+
+        /* ======================================================
+           SAVE FINAL EVALUATION
+
+           IMPORTANT:
+           total_score is NOT changed here.
+
+           It preserves the original system-calculated score.
+           ====================================================== */
+
+        const updatePayload = {
+
+          status:
+            "submitted",
+
+          submitted_at:
+            now,
+
+          passed:
+            isPassed,
+
+          overall_result:
+            displayResult,
+
+          override_score:
+            hasOverride
+              ? activeScore
+              : null,
+
+          override_result:
+            hasOverride
+              ? displayResult
+              : null,
+
+          override_applied:
+            hasOverride,
+
+          remarks:
+            remarks.trim(),
+
+          justification:
+            hasOverride
+              ? justification.trim()
+              : null,
+
+          updated_at:
+            now,
+
+        };
+
+
+        const {
+          error: updateError,
+        } = await supabase
+
+          .from(
+            "assessment_submissions"
+          )
+
+          .update(
+            updatePayload
+          )
+
+          .eq(
+            "id",
+            submissionId
+          );
+
+
+        if (
+          updateError
+        ) {
+
+          throw updateError;
+
+        }
+
+
+        /* ======================================================
+           CREATE CERTIFICATE
+
+           The Edge Function should handle duplicates.
+           ====================================================== */
+
+        let createdCertificate =
+          null;
+
+
+        if (
+          displayResult ===
+          "Competent"
+        ) {
+
+          createdCertificate =
+            await createCertificate(
+              displayResult
+            );
+
+        }
+
+
+        /* ======================================================
+           UPDATE UI
+           ====================================================== */
+
+        setMetrics(
+          (previous) => ({
+
+            ...previous,
+
+            totalScore:
+              activeScore,
+
+            percentage:
+              activePercentage,
+
+            result:
+              displayResult,
+
+          })
+        );
+
+
+        setIsFinalized(
+          true
+        );
+
+
+        setShowConfirmModal(
+          false
+        );
+
+
+        console.log(
+          "Evaluation finalized successfully."
+        );
+
+
+        if (
+          createdCertificate
+        ) {
+
+          console.log(
+            "Certificate ID:",
+            createdCertificate.certificate_id
+          );
+
+        }
+
       }
 
-      // ==========================================================
-      // UPDATE UI METRICS
-      // ==========================================================
+      catch (error) {
 
-      setMetrics((previous) => ({
-        ...previous,
+        console.error(
+          "Error finalizing evaluation:",
+          error
+        );
 
-        totalScore: activeScore,
 
-        percentage: activePercentage,
+        alert(
+          error?.message ??
+          "Failed to finalize evaluation. Please try again."
+        );
 
-        result: displayResult,
-      }));
+      }
 
-      // ==========================================================
-      // FINALIZE
-      // ==========================================================
+      finally {
 
-      setIsFinalized(true);
+        setIsSubmitting(
+          false
+        );
 
-      setShowConfirmModal(false);
+      }
 
-    } catch (error) {
-      console.error(
-        "Error finalizing evaluation:",
-        error
-      );
+    };
 
-      alert(
-        error?.message ||
-        "Failed to finalize evaluation. Please try again."
-      );
 
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  /* ============================================================
+     PREVIEW RESULT FOR CONFIRMATION MODAL
+     ============================================================ */
 
+  const previewScore =
+    decision === "override" &&
+    newScore !== ""
+
+      ? Number(
+        newScore
+      )
+
+      : metrics.totalScore;
+
+
+  const previewPercentage =
+    metrics.totalItems > 0
+
+      ? Math.round(
+        (
+          previewScore /
+          metrics.totalItems
+        ) *
+        100
+      )
+
+      : 0;
+
+
+  const previewResult =
+    previewPercentage >= 75
+      ? "Competent"
+      : "Not Yet Competent";
 
 
   /* ============================================================
@@ -1246,18 +1751,16 @@ export default function FinalizeEvaluation() {
     <div className="space-y-6">
 
 
-      {/* ======================================================
-          BREADCRUMBS
-          ====================================================== */}
-
       <AssessorBreadcrumbs
 
         items={[
 
           {
-            label: courseLabel,
+            label:
+              courseLabel,
 
-            to: "/assessor/evaluation",
+            to:
+              "/assessor/evaluation",
 
             state: {
               selectedCourse,
@@ -1266,11 +1769,14 @@ export default function FinalizeEvaluation() {
 
 
           {
-            label: "Trainees for Evaluation",
+            label:
+              "Trainees for Evaluation",
 
-            to: "/assessor/evaluation/trainees",
+            to:
+              "/assessor/evaluation/trainees",
 
             state: {
+
               selectedCourse,
 
               selectedTrainee,
@@ -1284,16 +1790,20 @@ export default function FinalizeEvaluation() {
               evaluationId,
 
               submissionId,
+
             },
           },
 
 
           {
-            label: "Evaluation Summary",
+            label:
+              "Evaluation Summary",
 
-            to: "/assessor/evaluation/summary",
+            to:
+              "/assessor/evaluation/summary",
 
             state: {
+
               selectedCourse,
 
               selectedTrainee,
@@ -1303,9 +1813,11 @@ export default function FinalizeEvaluation() {
               evaluationId,
 
               assessmentId,
+
               submissionId,
 
               batchId,
+
               batchCode,
 
               assignmentId,
@@ -1314,16 +1826,20 @@ export default function FinalizeEvaluation() {
                 evaluationSummary?.assessment ??
                 state?.assessment ??
                 null,
+
             },
           },
 
 
           {
-            label: "AI Analysis & Insights",
+            label:
+              "AI Analysis & Insights",
 
-            to: "/assessor/evaluation/ai-analysis",
+            to:
+              "/assessor/evaluation/ai-analysis",
 
             state: {
+
               selectedCourse,
 
               selectedTrainee,
@@ -1333,14 +1849,17 @@ export default function FinalizeEvaluation() {
               evaluationId,
 
               assessmentId,
+
               submissionId,
 
               batchId,
+
               batchCode,
 
               assignmentId,
 
               aiAnalysis,
+
             },
           },
 
@@ -1351,9 +1870,6 @@ export default function FinalizeEvaluation() {
 
       />
 
-      {/* ======================================================
-          HEADER
-          ====================================================== */}
 
       <AssessorPageHeader
 
@@ -1363,10 +1879,6 @@ export default function FinalizeEvaluation() {
 
       />
 
-
-      {/* ======================================================
-          FINALIZED NOTICE
-          ====================================================== */}
 
       {isFinalized && (
 
@@ -1384,7 +1896,7 @@ export default function FinalizeEvaluation() {
           "
         >
 
-          Evaluation has already been finalized.
+          Evaluation has been finalized.
 
           {" "}
 
@@ -1399,12 +1911,35 @@ export default function FinalizeEvaluation() {
       )}
 
 
-      {/* ======================================================
-          FINALIZE EVALUATION PANEL
+      {certificate && (
 
-          AssessmentSummaryCard and QuestionReviewTable
-          are now rendered from FinalizeEvaluationPanel.
-          ====================================================== */}
+        <div
+          className="
+            rounded-xl
+            border
+            border-blue-200
+            bg-blue-50
+            px-4
+            py-3
+            text-sm
+            font-semibold
+            text-blue-700
+          "
+        >
+
+          Certificate successfully generated.
+
+          {" "}
+
+          Certificate ID:
+
+          {" "}
+
+          {certificate.certificate_id}
+
+        </div>
+
+      )}
 
 
       <FinalizeEvaluationPanel
@@ -1423,11 +1958,6 @@ export default function FinalizeEvaluation() {
 
         }}
 
-
-        /* ============================================================
-           ASSESSMENT SUMMARY
-           ============================================================ */
-
         totalScore={
           metrics.totalScore
         }
@@ -1444,11 +1974,6 @@ export default function FinalizeEvaluation() {
           metrics.result
         }
 
-
-        /* ============================================================
-           QUESTION REVIEW
-           ============================================================ */
-
         questions={
           questionsData
         }
@@ -1457,19 +1982,9 @@ export default function FinalizeEvaluation() {
           isLoading
         }
 
-
-        /* ============================================================
-           AI / SYSTEM RECOMMENDATION
-           ============================================================ */
-
         aiResult={
           aiAnalysis?.aiResult
         }
-
-
-        /* ============================================================
-           FINALIZATION
-           ============================================================ */
 
         isFinalized={
           isFinalized
@@ -1478,11 +1993,6 @@ export default function FinalizeEvaluation() {
         isSubmitting={
           isSubmitting
         }
-
-
-        /* ============================================================
-           DECISION STATE
-           ============================================================ */
 
         decision={
           decision
@@ -1516,24 +2026,26 @@ export default function FinalizeEvaluation() {
           setRemarks
         }
 
+        onSubmit={() => {
 
-        /* ============================================================
-           SUBMIT
-           ============================================================ */
+          if (
+            isSubmitting ||
+            isFinalized
+          ) {
 
-        onSubmit={() =>
-          setShowConfirmModal(true)
-        }
+            return;
+
+          }
+
+
+          setShowConfirmModal(
+            true
+          );
+
+        }}
 
       />
 
-
-
-
-
-      {/* ======================================================
-          CONFIRMATION MODAL
-          ====================================================== */}
 
       <ConfirmationModal
 
@@ -1541,20 +2053,42 @@ export default function FinalizeEvaluation() {
           showConfirmModal
         }
 
-        title="Finalize Evaluation?"
+        title={
+          "Finalize Evaluation?"
+        }
 
         message={`
           This action will finalize the evaluation with a score of
-          ${metrics.percentage}% (${metrics.result}).
+          ${previewPercentage}% (${previewResult}).
+
+          ${previewResult === "Competent"
+            ? "A certificate will be automatically generated for the trainee."
+            : "No certificate will be generated because the trainee is Not Yet Competent."
+          }
+
           Please confirm that the assessment results and AI recommendation
           have been reviewed.
         `}
 
-        confirmLabel="Finalize Evaluation"
-
-        onCancel={() =>
-          setShowConfirmModal(false)
+        confirmLabel={
+          isSubmitting
+            ? "Finalizing..."
+            : "Finalize Evaluation"
         }
+
+        onCancel={() => {
+
+          if (
+            !isSubmitting
+          ) {
+
+            setShowConfirmModal(
+              false
+            );
+
+          }
+
+        }}
 
         onConfirm={
           handleConfirmSubmit

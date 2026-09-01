@@ -149,8 +149,8 @@ export default function CertificateVerification() {
         );
 
         console.log(
-          "SHA-256 QR Valid:",
-          data.checks?.qrHashValid
+          "Certificate ID / QR Valid:",
+          data.checks?.certificateIdValid
         );
 
         console.log(
@@ -513,7 +513,7 @@ export default function CertificateVerification() {
               <div>
                 ✓ QR Code Integrity:{" "}
                 <strong>
-                  {checks.qrHashValid
+                  {checks.certificateIdValid
                     ? "VALID"
                     : "INVALID"}
                 </strong>

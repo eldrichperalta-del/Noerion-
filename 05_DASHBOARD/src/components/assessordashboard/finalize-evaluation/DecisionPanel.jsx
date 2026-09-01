@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
     ClipboardCheck,
     BadgeCheck,
@@ -8,98 +7,72 @@ import {
 import DecisionOptionButton from "./DecisionOptionButton";
 
 export default function DecisionPanel({
+    decision,
+    setDecision,
+    newScore,
+    setNewScore,
+    justification,
+    setJustification,
+    remarks,
+    setRemarks,
+    isFinalized,
+    isSubmitting,
     onSubmit,
 }) {
-    // ==========================================================
-    // DECISION
-    // ==========================================================
-
-    const [decision, setDecision] = useState("");
-
-    // ==========================================================
-    // OVERRIDE FIELDS
-    // ==========================================================
-
-    const [newScore, setNewScore] = useState("");
-    const [justification, setJustification] = useState("");
-    const [remarks, setRemarks] = useState("");
-
-    // ==========================================================
-    // SUBMIT VALIDATION
-    //
-    // CONFIRM:
-    //   No additional fields required.
-    //
-    // OVERRIDE:
-    //   New System Score
-    //   Justification
-    //   Remarks
-    //   are all required.
-    // ==========================================================
 
     const isSubmitEnabled =
-        decision === "confirm" ||
+        !isFinalized &&
+        !isSubmitting &&
         (
-            decision === "override" &&
-            newScore.trim() !== "" &&
-            justification.trim() !== "" &&
-            remarks.trim() !== ""
+            decision === "confirm" ||
+            (
+                decision === "override" &&
+                newScore.trim() !== "" &&
+                justification.trim() !== "" &&
+                remarks.trim() !== ""
+            )
         );
 
-    // ==========================================================
-    // DECISION HANDLERS
-    // ==========================================================
 
     const handleConfirm = () => {
+
+        if (isFinalized || isSubmitting) {
+            return;
+        }
+
         setDecision("confirm");
 
-        // Clear override fields when switching back to confirm.
         setNewScore("");
         setJustification("");
         setRemarks("");
     };
 
+
     const handleOverride = () => {
+
+        if (isFinalized || isSubmitting) {
+            return;
+        }
+
         setDecision("override");
     };
 
-    // ==========================================================
-    // SUBMIT
-    //
-    // Pass the complete decision data back to the parent.
-    // ==========================================================
 
     const handleSubmit = () => {
+
         if (!isSubmitEnabled) {
             return;
         }
 
         if (onSubmit) {
-            onSubmit({
-                decision,
-                newScore:
-                    decision === "override"
-                        ? Number(newScore)
-                        : null,
-                justification:
-                    decision === "override"
-                        ? justification.trim()
-                        : null,
-                remarks:
-                    decision === "override"
-                        ? remarks.trim()
-                        : null,
-            });
+            onSubmit();
         }
     };
+
 
     return (
 
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-300">
-
-            {/* ======================================================
-                HEADER
-            ====================================================== */}
 
             <div className="px-6 py-4">
 
@@ -119,15 +92,7 @@ export default function DecisionPanel({
             </div>
 
 
-            {/* ======================================================
-                BODY
-            ====================================================== */}
-
             <div className="p-5">
-
-                {/* ==================================================
-                    DECISION OPTIONS
-                ================================================== */}
 
                 <div className="grid grid-cols-2 gap-4">
 
@@ -137,6 +102,7 @@ export default function DecisionPanel({
                         description="Accept the system recommendation."
                         active={decision === "confirm"}
                         onClick={handleConfirm}
+                        disabled={isFinalized || isSubmitting}
                     />
 
 
@@ -146,25 +112,15 @@ export default function DecisionPanel({
                         description="Override the recommended result and provide a justification."
                         active={decision === "override"}
                         onClick={handleOverride}
+                        disabled={isFinalized || isSubmitting}
                     />
 
                 </div>
 
 
-                {/* ==================================================
-                    OVERRIDE SECTION
-
-                    ONLY APPEARS AFTER:
-                    Override Result is clicked.
-                ================================================== */}
-
                 {decision === "override" && (
 
                     <div className="mt-5 space-y-4">
-
-                        {/* ==================================================
-                            NEW SYSTEM SCORE
-                        ================================================== */}
 
                         <div>
 
@@ -180,19 +136,16 @@ export default function DecisionPanel({
                                 type="number"
                                 min="0"
                                 value={newScore}
+                                disabled={isFinalized || isSubmitting}
                                 onChange={(e) =>
                                     setNewScore(e.target.value)
                                 }
                                 placeholder="Enter new system score..."
-                                className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                                className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-gray-100"
                             />
 
                         </div>
 
-
-                        {/* ==================================================
-                            JUSTIFICATION
-                        ================================================== */}
 
                         <div>
 
@@ -207,24 +160,16 @@ export default function DecisionPanel({
                                 id="overrideJustification"
                                 rows={4}
                                 value={justification}
+                                disabled={isFinalized || isSubmitting}
                                 onChange={(e) =>
                                     setJustification(e.target.value)
                                 }
                                 placeholder="Explain why you are overriding the system recommendation..."
-                                className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                                className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-gray-100"
                             />
 
                         </div>
 
-
-                        {/* ==================================================
-                            REMARKS
-
-                            IMPORTANT:
-                            This is NOT displayed for Confirm Final Result.
-
-                            It only appears when Override Result is active.
-                        ================================================== */}
 
                         <div>
 
@@ -239,11 +184,12 @@ export default function DecisionPanel({
                                 id="overrideRemarks"
                                 rows={4}
                                 value={remarks}
+                                disabled={isFinalized || isSubmitting}
                                 onChange={(e) =>
                                     setRemarks(e.target.value)
                                 }
                                 placeholder="Enter remarks..."
-                                className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                                className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-gray-100"
                             />
 
                         </div>
@@ -252,10 +198,6 @@ export default function DecisionPanel({
 
                 )}
 
-
-                {/* ==================================================
-                    SUBMIT BUTTON
-                ================================================== */}
 
                 <div className="mt-5">
 
@@ -269,7 +211,12 @@ export default function DecisionPanel({
                                 : "cursor-not-allowed bg-gray-300 text-gray-500"
                         }`}
                     >
-                        Submit Final Decision
+                        {isSubmitting
+                            ? "Finalizing..."
+                            : isFinalized
+                                ? "Evaluation Finalized"
+                                : "Submit Final Decision"
+                        }
                     </button>
 
                 </div>
@@ -280,4 +227,3 @@ export default function DecisionPanel({
 
     );
 }
-
