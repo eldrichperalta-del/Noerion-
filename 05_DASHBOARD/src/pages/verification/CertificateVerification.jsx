@@ -71,10 +71,10 @@ export default function CertificateVerification() {
         console.log(
           "NOERION SERVER-SIDE CERTIFICATE VERIFICATION"
         );
-        console.log(
-          "Certificate ID:",
-          certificateId
-        );
+        console.log("Certificate ID:", certificateId);
+        console.log("Token:", token);
+        console.log("Hash:", receivedHash);
+        console.log("Signature:", signature);
         console.log("========================================");
 
         const { data, error } =
@@ -111,14 +111,6 @@ export default function CertificateVerification() {
         console.log("========================================");
         console.log("NOERION SERVER RESPONSE");
         console.log("Response:", data);
-        console.log(
-          "CERTIFICATE DATA:",
-          data?.certificate
-        );
-        console.log(
-          "TRAINEE NAME FROM SERVER:",
-          data?.certificate?.traineeName
-        );
         console.log("========================================");
 
         if (!data) {
@@ -137,45 +129,6 @@ export default function CertificateVerification() {
         if (!data.verified && data.error) {
           setErrorMessage(data.error);
         }
-
-        console.log(
-          "Token Valid:",
-          data.checks?.tokenValid
-        );
-
-        console.log(
-          "SHA-256 Database Valid:",
-          data.checks?.databaseHashValid
-        );
-
-        console.log(
-          "Certificate ID / QR Valid:",
-          data.checks?.certificateIdValid
-        );
-
-        console.log(
-          "Signature Match:",
-          data.checks?.signatureMatchesDatabase
-        );
-
-        console.log(
-          "ECDSA Valid:",
-          data.checks?.signatureValid
-        );
-
-        console.log(
-          "Certificate Status:",
-          data.checks?.certificateStatusValid
-        );
-
-        console.log(
-          "Overall Verification:",
-          data.verified
-            ? "VERIFIED"
-            : "INVALID"
-        );
-
-        console.log("========================================");
 
         setLoading(false);
       } catch (error) {
@@ -224,16 +177,13 @@ export default function CertificateVerification() {
           aria-hidden="true"
         />
 
-        <section
-          className="verification-content"
-          aria-labelledby="verification-title"
-        >
+        <section className="verification-content">
           <header className="verification-heading">
             <p className="verification-brand">
               NOERION
             </p>
 
-            <h1 id="verification-title">
+            <h1>
               Certificate Verification
             </h1>
           </header>
@@ -241,7 +191,9 @@ export default function CertificateVerification() {
           <article className="verification-card">
             <div
               className="verification-status"
-              style={{ color: "#2563eb" }}
+              style={{
+                color: "#2563eb",
+              }}
             >
               <ShieldCheck
                 aria-hidden="true"
@@ -249,7 +201,9 @@ export default function CertificateVerification() {
                 strokeWidth={2.3}
               />
 
-              <span>VERIFYING...</span>
+              <span>
+                VERIFYING...
+              </span>
             </div>
 
             <p className="verification-note">
@@ -286,16 +240,13 @@ export default function CertificateVerification() {
           aria-hidden="true"
         />
 
-        <section
-          className="verification-content"
-          aria-labelledby="verification-title"
-        >
+        <section className="verification-content">
           <header className="verification-heading">
             <p className="verification-brand">
               NOERION
             </p>
 
-            <h1 id="verification-title">
+            <h1>
               Certificate Verification
             </h1>
           </header>
@@ -303,7 +254,9 @@ export default function CertificateVerification() {
           <article className="verification-card">
             <div
               className="verification-status"
-              style={{ color: "#dc2626" }}
+              style={{
+                color: "#dc2626",
+              }}
             >
               <AlertCircle
                 aria-hidden="true"
@@ -311,7 +264,9 @@ export default function CertificateVerification() {
                 strokeWidth={2.3}
               />
 
-              <span>NOT VERIFIED</span>
+              <span>
+                NOT VERIFIED
+              </span>
             </div>
 
             <p className="verification-note">
@@ -356,16 +311,13 @@ export default function CertificateVerification() {
         aria-hidden="true"
       />
 
-      <section
-        className="verification-content"
-        aria-labelledby="verification-title"
-      >
+      <section className="verification-content">
         <header className="verification-heading">
           <p className="verification-brand">
             NOERION
           </p>
 
-          <h1 id="verification-title">
+          <h1>
             Certificate Verification
           </h1>
         </header>
@@ -403,6 +355,7 @@ export default function CertificateVerification() {
           <dl className="certificate-details">
             <div>
               <dt>Name:</dt>
+
               <dd>
                 {certificate.traineeName || "—"}
               </dd>
@@ -410,6 +363,7 @@ export default function CertificateVerification() {
 
             <div>
               <dt>Qualification:</dt>
+
               <dd>
                 {certificate.qualification || "—"}
               </dd>
@@ -417,6 +371,7 @@ export default function CertificateVerification() {
 
             <div>
               <dt>Date Issued:</dt>
+
               <dd>
                 {formatIssuedDate(
                   certificate.issuedOn
@@ -426,6 +381,7 @@ export default function CertificateVerification() {
 
             <div>
               <dt>Result:</dt>
+
               <dd>
                 {certificate.result || "—"}
               </dd>
@@ -433,17 +389,14 @@ export default function CertificateVerification() {
 
             <div>
               <dt>Certificate Number:</dt>
+
               <dd>
-                {certificate.certificateId}
+                {certificate.certificateId || certificateId}
               </dd>
             </div>
           </dl>
 
           <div className="verification-divider" />
-
-          {/* =========================
-              VERIFICATION MESSAGE
-              ========================= */}
 
           <div className="verification-note">
             <ShieldCheck

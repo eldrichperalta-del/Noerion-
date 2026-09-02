@@ -8,6 +8,7 @@ import CertificateTrackingModal from "../../components/admin/certificate-managem
 import RevokeCertificateModal from "../../components/admin/certificate-management/RevokeCertificateModal.jsx";
 import CertificateUploadModal from "../../components/admin/certificate-management/CertificateUploadModal.jsx";
 import DashboardPageHeader from "../../components/common/DashboardPageHeader.jsx";
+
 import { supabase } from "../../supabaseClient.js";
 
 export default function CertificateManagement() {
@@ -15,77 +16,97 @@ export default function CertificateManagement() {
   // FILTER STATE
   // =========================
 
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("All");
-  const [day, setDay] = useState("");
-  const [month, setMonth] = useState("");
-  const [year, setYear] = useState("");
+  const [search, setSearch] =
+    useState("");
+
+  const [status, setStatus] =
+    useState("All");
+
+  const [day, setDay] =
+    useState("");
+
+  const [month, setMonth] =
+    useState("");
+
+  const [year, setYear] =
+    useState("");
 
   // =========================
   // UI STATE
   // =========================
 
-  const [selectedCertificate, setSelectedCertificate] =
-    useState(null);
+  const [
+    selectedCertificate,
+    setSelectedCertificate,
+  ] = useState(null);
 
-  const [showDetailsModal, setShowDetailsModal] =
-    useState(false);
+  const [
+    selectedCertificateIndex,
+    setSelectedCertificateIndex,
+  ] = useState(0);
 
-  const [showTrackingModal, setShowTrackingModal] =
-    useState(false);
+  const [
+    showDetailsModal,
+    setShowDetailsModal,
+  ] = useState(false);
 
-  const [showRevokeModal, setShowRevokeModal] =
-    useState(false);
+  const [
+    showTrackingModal,
+    setShowTrackingModal,
+  ] = useState(false);
 
-  const [openUpload, setOpenUpload] =
-    useState(false);
+  const [
+    showRevokeModal,
+    setShowRevokeModal,
+  ] = useState(false);
+
+  const [
+    openUpload,
+    setOpenUpload,
+  ] = useState(false);
 
   // =========================
   // DATA STATE
   // =========================
 
-  const [allCertificates, setAllCertificates] =
-    useState([]);
+  const [
+    allCertificates,
+    setAllCertificates,
+  ] = useState([]);
 
-  const [loading, setLoading] =
-    useState(false);
+  const [
+    loading,
+    setLoading,
+  ] = useState(false);
 
-  const [error, setError] =
-    useState(null);
+  const [
+    error,
+    setError,
+  ] = useState(null);
 
   // =========================
   // LOAD CERTIFICATES
   // =========================
 
   const loadCertificates = async () => {
-  try {
-    setLoading(true);
-    setError(null);
+    try {
+      setLoading(true);
+      setError(null);
 
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-    console.log("========================================");
-    console.log("NOERION SESSION CHECK");
-    console.log("SESSION:", session);
-    console.log("SESSION ERROR:", sessionError);
-    console.log("ACCESS TOKEN:", session?.access_token);
-    console.log("USER:", session?.user);
-    console.log("========================================");
+      if (sessionError) {
+        throw sessionError;
+      }
 
-    if (sessionError) {
-      throw sessionError;
-    }
-
-    if (!session) {
-      throw new Error(
-        "Your Supabase session is missing. Please log in again."
-      );
-    }
-
-    // KEEP THE REST OF YOUR EXISTING LOAD CODE HERE
+      if (!session) {
+        throw new Error(
+          "Your Supabase session is missing. Please log in again."
+        );
+      }
 
       console.log(
         "Authenticated user:",
@@ -115,24 +136,22 @@ export default function CertificateManagement() {
           status,
           created_at
         `)
-        .order("created_at", {
-          ascending: false,
-        });
+        .order(
+          "created_at",
+          {
+            ascending: false,
+          }
+        );
 
       console.log(
         "Supabase certificate data:",
         certificates
       );
 
-      console.log(
-        "Supabase certificate error:",
-        certificateError
-      );
-
       if (certificateError) {
         throw new Error(
           certificateError.message ||
-            "Unable to load certificates from Supabase."
+          "Unable to load certificates from Supabase."
         );
       }
 
@@ -152,7 +171,7 @@ export default function CertificateManagement() {
       ];
 
       // =========================
-      // LOAD TRAINEE PROFILES
+      // LOAD PROFILES
       // =========================
 
       let profiles = [];
@@ -170,17 +189,10 @@ export default function CertificateManagement() {
             last_name,
             suffix
           `)
-          .in("id", traineeIds);
-
-        console.log(
-          "Supabase trainee profiles:",
-          profileData
-        );
-
-        console.log(
-          "Supabase profile error:",
-          profileError
-        );
+          .in(
+            "id",
+            traineeIds
+          );
 
         if (profileError) {
           console.warn(
@@ -188,20 +200,24 @@ export default function CertificateManagement() {
             profileError
           );
         } else {
-          profiles = profileData || [];
+          profiles =
+            profileData || [];
         }
       }
 
       // =========================
-      // CREATE PROFILE MAP
+      // PROFILE MAP
       // =========================
 
-      const profileMap = new Map(
-        profiles.map((profile) => [
-          profile.id,
-          profile,
-        ])
-      );
+      const profileMap =
+        new Map(
+          profiles.map(
+            (profile) => [
+              profile.id,
+              profile,
+            ]
+          )
+        );
 
       // =========================
       // FORMAT CERTIFICATES
@@ -275,11 +291,9 @@ export default function CertificateManagement() {
                 certificate.status,
 
               verificationStatus:
-                certificate.status ===
-                "Valid"
+                certificate.status === "Valid"
                   ? "Verified"
-                  : certificate.status ===
-                    "Revoked"
+                  : certificate.status === "Revoked"
                   ? "Revoked"
                   : certificate.status ||
                     "Unknown",
@@ -310,11 +324,6 @@ export default function CertificateManagement() {
         formattedCertificates
       );
 
-      console.log("========================================");
-      console.log(
-        "Certificate loading complete."
-      );
-      console.log("========================================");
     } catch (err) {
       console.error(
         "Failed to load certificates:",
@@ -325,7 +334,7 @@ export default function CertificateManagement() {
 
       setError(
         err?.message ||
-          "Failed to load certificates."
+        "Failed to load certificates."
       );
     } finally {
       setLoading(false);
@@ -371,19 +380,29 @@ export default function CertificateManagement() {
           !normalizedSearch ||
           traineeName
             .toLowerCase()
-            .includes(normalizedSearch) ||
+            .includes(
+              normalizedSearch
+            ) ||
           certificateId
             .toLowerCase()
-            .includes(normalizedSearch) ||
+            .includes(
+              normalizedSearch
+            ) ||
           traineeId
             .toLowerCase()
-            .includes(normalizedSearch) ||
+            .includes(
+              normalizedSearch
+            ) ||
           studentId
             .toLowerCase()
-            .includes(normalizedSearch) ||
+            .includes(
+              normalizedSearch
+            ) ||
           qualification
             .toLowerCase()
-            .includes(normalizedSearch);
+            .includes(
+              normalizedSearch
+            );
 
         const statusMatch =
           status === "All" ||
@@ -392,9 +411,10 @@ export default function CertificateManagement() {
         const dateValue =
           certificate.dateIssued;
 
-        const date = dateValue
-          ? new Date(dateValue)
-          : null;
+        const date =
+          dateValue
+            ? new Date(dateValue)
+            : null;
 
         const validDate =
           date &&
@@ -404,21 +424,27 @@ export default function CertificateManagement() {
 
         const dayMatch =
           !day ||
-          (validDate &&
+          (
+            validDate &&
             date.getDate() ===
-              Number(day));
+              Number(day)
+          );
 
         const monthMatch =
           !month ||
-          (validDate &&
+          (
+            validDate &&
             date.getMonth() + 1 ===
-              Number(month));
+              Number(month)
+          );
 
         const yearMatch =
           !year ||
-          (validDate &&
+          (
+            validDate &&
             date.getFullYear() ===
-              Number(year));
+              Number(year)
+          );
 
         return (
           searchMatch &&
@@ -464,6 +490,80 @@ export default function CertificateManagement() {
   };
 
   // =========================
+  // VIEW CERTIFICATE
+  // =========================
+
+  const handleViewCertificate = (
+    certificate
+  ) => {
+    const index =
+      filtered.findIndex(
+        (item) =>
+          item.certificateId ===
+          certificate.certificateId
+      );
+
+    setSelectedCertificate(
+      certificate
+    );
+
+    setSelectedCertificateIndex(
+      index >= 0
+        ? index
+        : 0
+    );
+
+    setShowDetailsModal(true);
+  };
+
+  // =========================
+  // PREVIOUS CERTIFICATE
+  // =========================
+
+  const handlePreviousCertificate = () => {
+    if (
+      selectedCertificateIndex <= 0
+    ) {
+      return;
+    }
+
+    const newIndex =
+      selectedCertificateIndex - 1;
+
+    setSelectedCertificateIndex(
+      newIndex
+    );
+
+    setSelectedCertificate(
+      filtered[newIndex]
+    );
+  };
+
+  // =========================
+  // NEXT CERTIFICATE
+  // =========================
+
+  const handleNextCertificate = () => {
+    if (
+      selectedCertificateIndex >=
+      filtered.length - 1
+    ) {
+      return;
+    }
+
+    const newIndex =
+      selectedCertificateIndex + 1;
+
+    setSelectedCertificateIndex(
+      newIndex
+    );
+
+    setSelectedCertificate(
+      filtered[newIndex]
+    );
+  };
+
+  // =========================
   // REVOKE CERTIFICATE
   // =========================
 
@@ -482,11 +582,6 @@ export default function CertificateManagement() {
       setLoading(true);
       setError(null);
 
-      console.log(
-        "Revoking certificate:",
-        certificate.certificateId
-      );
-
       const {
         error: revokeError,
       } = await supabase
@@ -502,29 +597,26 @@ export default function CertificateManagement() {
       if (revokeError) {
         throw new Error(
           revokeError.message ||
-            "Failed to revoke certificate."
+          "Failed to revoke certificate."
         );
       }
 
       setAllCertificates(
         (previous) =>
-          previous.map((item) =>
-            item.certificateId ===
-            certificate.certificateId
-              ? {
-                  ...item,
-                  status: "Revoked",
-                  verificationStatus:
-                    "Revoked",
-                }
-              : item
+          previous.map(
+            (item) =>
+              item.certificateId ===
+              certificate.certificateId
+                ? {
+                    ...item,
+                    status: "Revoked",
+                    verificationStatus:
+                      "Revoked",
+                  }
+                : item
           )
       );
 
-      console.log(
-        "Certificate revoked successfully:",
-        certificate.certificateId
-      );
     } catch (err) {
       console.error(
         "Certificate revoke failed:",
@@ -533,12 +625,16 @@ export default function CertificateManagement() {
 
       setError(
         err?.message ||
-          "Failed to revoke certificate."
+        "Failed to revoke certificate."
       );
     } finally {
       setLoading(false);
+
       setShowRevokeModal(false);
+
       setSelectedCertificate(null);
+
+      setSelectedCertificateIndex(0);
     }
   };
 
@@ -546,34 +642,36 @@ export default function CertificateManagement() {
   // CERTIFICATE SAVED
   // =========================
 
-  const handleCertificateSaved = async (
-    newCertificate
-  ) => {
-    try {
-      setError(null);
+  const handleCertificateSaved =
+    async (
+      newCertificate
+    ) => {
+      try {
+        setError(null);
 
-      if (newCertificate) {
-        console.log(
-          "Certificate saved:",
-          newCertificate
+        if (newCertificate) {
+          console.log(
+            "Certificate saved:",
+            newCertificate
+          );
+        }
+
+        await loadCertificates();
+
+        setOpenUpload(false);
+
+      } catch (err) {
+        console.error(
+          "Failed to refresh certificates:",
+          err
+        );
+
+        setError(
+          err?.message ||
+          "Certificate was saved, but the list could not be refreshed."
         );
       }
-
-      await loadCertificates();
-
-      setOpenUpload(false);
-    } catch (err) {
-      console.error(
-        "Failed to refresh certificates:",
-        err
-      );
-
-      setError(
-        err?.message ||
-          "Certificate was saved, but the list could not be refreshed."
-      );
-    }
-  };
+    };
 
   // =========================
   // RENDER
@@ -608,6 +706,7 @@ export default function CertificateManagement() {
 
       {error && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+
           <p className="font-medium">
             Certificate Management Error
           </p>
@@ -615,10 +714,12 @@ export default function CertificateManagement() {
           <p className="mt-1 text-sm">
             {error}
           </p>
+
         </div>
       )}
 
       <div className="table-section">
+
         {loading && (
           <p>
             Loading certificates...
@@ -628,49 +729,99 @@ export default function CertificateManagement() {
         {!loading && (
           <CertificateTable
             certificates={filtered}
-            onView={(item) => {
-              setSelectedCertificate(item);
-              setShowDetailsModal(true);
-            }}
+            onView={
+              handleViewCertificate
+            }
             onTrack={(item) => {
-              setSelectedCertificate(item);
-              setShowTrackingModal(true);
+              setSelectedCertificate(
+                item
+              );
+
+              setShowTrackingModal(
+                true
+              );
             }}
             onRevoke={(item) => {
-              setSelectedCertificate(item);
-              setShowRevokeModal(true);
+              setSelectedCertificate(
+                item
+              );
+
+              setShowRevokeModal(
+                true
+              );
             }}
           />
         )}
+
       </div>
+
+      {/* ========================= */}
+      {/* CERTIFICATE DETAILS */}
+      {/* ========================= */}
 
       <CertificateDetailsModal
         open={showDetailsModal}
         certificate={selectedCertificate}
+
+        certificates={filtered}
+
+        currentIndex={
+          selectedCertificateIndex
+        }
+
+        onPrevious={
+          handlePreviousCertificate
+        }
+
+        onNext={
+          handleNextCertificate
+        }
+
         onClose={() => {
           setShowDetailsModal(false);
-          setSelectedCertificate(null);
+
+          setSelectedCertificate(
+            null
+          );
+
+          setSelectedCertificateIndex(
+            0
+          );
         }}
       />
+
+      {/* ========================= */}
+      {/* CERTIFICATE TRACKING */}
+      {/* ========================= */}
 
       <CertificateTrackingModal
         open={showTrackingModal}
         certificate={selectedCertificate}
         onClose={() => {
           setShowTrackingModal(false);
+
           setSelectedCertificate(null);
         }}
       />
+
+      {/* ========================= */}
+      {/* REVOKE MODAL */}
+      {/* ========================= */}
 
       <RevokeCertificateModal
         open={showRevokeModal}
         certificate={selectedCertificate}
         onClose={() => {
           setShowRevokeModal(false);
+
           setSelectedCertificate(null);
         }}
         onRevoke={handleRevoke}
       />
+
+      {/* ========================= */}
+      {/* UPLOAD MODAL */}
+      {/* ========================= */}
 
       {openUpload && (
         <CertificateUploadModal
@@ -682,6 +833,7 @@ export default function CertificateManagement() {
           }
         />
       )}
+
     </div>
   );
 }

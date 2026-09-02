@@ -23,7 +23,7 @@ function App() {
       <Route path="/register" element={<Registration />} />
       <Route path="/loading" element={<Loading />} />
       <Route path="/privacy" element={<Privacy />} />
-      <Route path="/verify/:certificateId?" element={<CertificateVerification />} />
+      <Route path="/verify-certificate/:certificateId?" element={<CertificateVerification />} />
       <Route path="/certificate-verification" element={<CertificateSearch />} />
 
       {/* Dashboards */}
