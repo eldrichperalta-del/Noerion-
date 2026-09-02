@@ -44,7 +44,7 @@ function Details({ fields, profile, extraData }) {
       return profile[key];
     }
 
-    // 2. Fetched role-specific data
+    // 2. Role-specific data fetched from Supabase
     if (
       extraData?.[key] !== undefined &&
       extraData?.[key] !== null &&
@@ -54,9 +54,7 @@ function Details({ fields, profile, extraData }) {
     }
 
     // 3. Assessor relationship
-    const assessorRel = Array.isArray(
-      profile?.assessor_profiles
-    )
+    const assessorRel = Array.isArray(profile?.assessor_profiles)
       ? profile.assessor_profiles[0]
       : profile?.assessor_profiles;
 
@@ -69,9 +67,7 @@ function Details({ fields, profile, extraData }) {
     }
 
     // 4. Trainee relationship
-    const traineeRel = Array.isArray(
-      profile?.trainee_profiles
-    )
+    const traineeRel = Array.isArray(profile?.trainee_profiles)
       ? profile.trainee_profiles[0]
       : profile?.trainee_profiles;
 
@@ -113,26 +109,20 @@ export default function RegistrationProfileModal({
   onApprove,
   onReject,
 }) {
-  const [showReject, setShowReject] =
-    useState(false);
+  // =========================
+  // ALL STATE HOOKS FIRST
+  // =========================
 
-  const [reason, setReason] =
-    useState("");
+  const [showReject, setShowReject] = useState(false);
+  const [reason, setReason] = useState("");
+  const [previewPhoto, setPreviewPhoto] = useState(false);
+  const [documentFiles, setDocumentFiles] = useState([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+  const [extraRoleData, setExtraRoleData] = useState(null);
 
-  const [previewPhoto, setPreviewPhoto] =
-    useState(false);
-
-  const [documentFiles, setDocumentFiles] =
-    useState([]);
-
-  const [loadingDocs, setLoadingDocs] =
-    useState(false);
-
-  const [extraRoleData, setExtraRoleData] =
-    useState(null);
-
+  // Safe even when profile is null
   const assessor =
-    profile?.role === "assessor" ||
+    profile?.role?.toLowerCase() === "assessor" ||
     title.toLowerCase().includes("assessor");
 
   // =========================
@@ -140,22 +130,20 @@ export default function RegistrationProfileModal({
   // =========================
 
   useEffect(() => {
+    // Always clear previous data when modal/profile changes
+    setExtraRoleData(null);
+
     if (!profile?.id) {
       return;
     }
 
     const fetchRoleDetails = async () => {
       try {
-        setExtraRoleData(null);
-
         const table = assessor
           ? "assessor_profiles"
           : "trainee_profiles";
 
-        const {
-          data,
-          error,
-        } = await supabase
+        const { data, error } = await supabase
           .from(table)
           .select("*")
           .eq("user_id", profile.id)
@@ -169,9 +157,7 @@ export default function RegistrationProfileModal({
           return;
         }
 
-        if (data) {
-          setExtraRoleData(data);
-        }
+        setExtraRoleData(data ?? null);
       } catch (err) {
         console.error(
           "Error fetching role profile details:",
@@ -188,13 +174,16 @@ export default function RegistrationProfileModal({
   // =========================
 
   useEffect(() => {
+    // Reset documents every time the profile changes
+    setDocumentFiles([]);
+
     if (!profile?.id || !assessor) {
+      setLoadingDocs(false);
       return;
     }
 
     const fetchUserDocuments = async () => {
       setLoadingDocs(true);
-      setDocumentFiles([]);
 
       const BUCKET = "verification-docs";
       const userId = profile.id;
@@ -210,10 +199,7 @@ export default function RegistrationProfileModal({
         for (const subfolder of subfolders) {
           const path = `${userId}/${subfolder}`;
 
-          const {
-            data,
-            error,
-          } = await supabase.storage
+          const { data, error } = await supabase.storage
             .from(BUCKET)
             .list(path);
 
@@ -240,11 +226,10 @@ export default function RegistrationProfileModal({
             const filePath =
               `${path}/${file.name}`;
 
-            const {
-              data: urlData,
-            } = supabase.storage
-              .from(BUCKET)
-              .getPublicUrl(filePath);
+            const { data: urlData } =
+              supabase.storage
+                .from(BUCKET)
+                .getPublicUrl(filePath);
 
             allFiles.push({
               name: file.name,
@@ -274,7 +259,20 @@ export default function RegistrationProfileModal({
   }, [profile?.id, assessor]);
 
   // =========================
-  // NO PROFILE
+  // RESET MODAL STATE
+  // =========================
+
+  useEffect(() => {
+    if (!profile) {
+      setShowReject(false);
+      setReason("");
+      setPreviewPhoto(false);
+    }
+  }, [profile]);
+
+  // =========================
+  // IMPORTANT
+  // THIS MUST BE AFTER ALL HOOKS
   // =========================
 
   if (!profile) {
@@ -285,12 +283,13 @@ export default function RegistrationProfileModal({
   // INITIALS
   // =========================
 
-  const initials =
-    `${profile.first_name?.[0] ||
-      profile.fullName?.[0] ||
-      "?"}${
-      profile.last_name?.[0] || ""
-    }`.toUpperCase();
+  const initials = `${
+    profile.first_name?.[0] ||
+    profile.fullName?.[0] ||
+    "?"
+  }${
+    profile.last_name?.[0] || ""
+  }`.toUpperCase();
 
   // =========================
   // LEGACY DOCUMENTS
@@ -316,21 +315,22 @@ export default function RegistrationProfileModal({
   // =========================
 
   const handleConfirmReject = () => {
-    const trimmedReason =
-      reason.trim();
+    const trimmedReason = reason.trim();
 
     if (!trimmedReason) {
       return;
     }
 
-    onReject(
-      profile.id,
-      trimmedReason
-    );
+    if (onReject) {
+      onReject(profile.id, trimmedReason);
+    }
 
     setReason("");
     setShowReject(false);
-    onClose();
+
+    if (onClose) {
+      onClose();
+    }
   };
 
   // =========================
@@ -338,8 +338,13 @@ export default function RegistrationProfileModal({
   // =========================
 
   const handleApprove = () => {
-    onApprove(profile.id);
-    onClose();
+    if (onApprove) {
+      onApprove(profile.id);
+    }
+
+    if (onClose) {
+      onClose();
+    }
   };
 
   // =========================
@@ -362,9 +367,7 @@ export default function RegistrationProfileModal({
 
               {profile.profile_photo_url ? (
                 <img
-                  src={
-                    profile.profile_photo_url
-                  }
+                  src={profile.profile_photo_url}
                   alt="Avatar"
                   className="h-full w-full object-cover"
                 />
@@ -491,41 +494,39 @@ export default function RegistrationProfileModal({
             ) : documentFiles.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2">
 
-                {documentFiles.map(
-                  (doc) => (
-                    <a
-                      key={doc.path}
-                      href={doc.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="group flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
-                    >
-                      <div className="flex min-w-0 items-center gap-2">
+                {documentFiles.map((doc) => (
+                  <a
+                    key={doc.path}
+                    href={doc.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
 
-                        <FileText
-                          size={16}
-                          className="shrink-0"
-                        />
-
-                        <span className="truncate">
-                          {doc.category}:{" "}
-                          {doc.name}
-                        </span>
-
-                      </div>
-
-                      <ExternalLink
+                      <FileText
                         size={16}
-                        className="ml-2 shrink-0"
+                        className="shrink-0"
                       />
-                    </a>
-                  )
-                )}
+
+                      <span className="truncate">
+                        {doc.category}:{" "}
+                        {doc.name}
+                      </span>
+
+                    </div>
+
+                    <ExternalLink
+                      size={16}
+                      className="ml-2 shrink-0"
+                    />
+
+                  </a>
+                ))}
 
               </div>
             ) : legacyDocuments.some(
-                ([, url]) =>
-                  Boolean(url)
+                ([, url]) => Boolean(url)
               ) ? (
               <div className="grid gap-3 sm:grid-cols-2">
 
@@ -547,6 +548,7 @@ export default function RegistrationProfileModal({
                           size={16}
                           className="ml-2 shrink-0"
                         />
+
                       </a>
                     ) : (
                       <div
@@ -574,23 +576,27 @@ export default function RegistrationProfileModal({
 
         <footer className="mt-7 flex justify-end gap-3 border-t border-gray-100 pt-5">
 
-          <button
-            type="button"
-            onClick={() =>
-              setShowReject(true)
-            }
-            className="rounded-lg border border-red-200 px-4 py-2 font-semibold text-red-700 hover:bg-red-50"
-          >
-            Reject
-          </button>
+          {onReject && (
+            <button
+              type="button"
+              onClick={() =>
+                setShowReject(true)
+              }
+              className="rounded-lg border border-red-200 px-4 py-2 font-semibold text-red-700 hover:bg-red-50"
+            >
+              Reject
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={handleApprove}
-            className="rounded-lg bg-[#002f86] px-4 py-2 font-semibold text-white hover:bg-[#001f59]"
-          >
-            Approve
-          </button>
+          {onApprove && (
+            <button
+              type="button"
+              onClick={handleApprove}
+              className="rounded-lg bg-[#002f86] px-4 py-2 font-semibold text-white hover:bg-[#001f59]"
+            >
+              Approve
+            </button>
+          )}
 
         </footer>
 
@@ -615,9 +621,7 @@ export default function RegistrationProfileModal({
               </button>
 
               <img
-                src={
-                  profile.profile_photo_url
-                }
+                src={profile.profile_photo_url}
                 alt="Profile Full View"
                 className="max-h-[80vh] w-full rounded-lg object-contain"
               />
@@ -647,9 +651,7 @@ export default function RegistrationProfileModal({
               <textarea
                 value={reason}
                 onChange={(event) =>
-                  setReason(
-                    event.target.value
-                  )
+                  setReason(event.target.value)
                 }
                 className="mt-3 min-h-28 w-full rounded-lg border border-gray-300 p-3 text-sm outline-none focus:border-[#002f86]"
                 placeholder="Enter the reason to send to the applicant..."
