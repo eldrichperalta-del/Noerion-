@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 import { supabase } from "../../../supabaseClient.js";
 
@@ -7,23 +7,22 @@ import AssessorBreadcrumbs from "../../../components/assessordashboard/flow/Asse
 import SelectedTraineesTable from "../../../components/assessordashboard/flow/SelectedTraineesTable.jsx";
 import AssessorPageHeader from "../../../components/assessordashboard/shared/AssessorPageHeader.jsx";
 
-import { useAssessments } from "../../../context/AssessmentContext.jsx";
 
-export default function SelectedTrainees() {
-  const navigate = useNavigate();
+
+export default function TraineesProgress() {
   const { state } = useLocation();
 
-  // Navigation state passed from AssessmentPanel
   const selectedCourse = state?.selectedCourse || "Assessment Batch";
   const batchId = state?.batchId;
   const assessmentId = state?.assessmentId || state?.courseId;
   const batchCode = state?.batchCode || state?.courseCode || "N/A";
 
+  const assessmentCategory =
+    state?.assessmentCategory || "Ongoing";
+
   const [trainees, setTrainees] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const { setSelectedAssessment, setSelectedTrainee } =
-    useAssessments();
 
   useEffect(() => {
     async function fetchAssignedTrainees() {
@@ -190,13 +189,13 @@ export default function SelectedTrainees() {
             (assignment) => {
               const profile =
                 profilesMap[
-                  assignment.trainee_id
+                assignment.trainee_id
                 ];
 
               const submission =
                 submissionsMap[assignment.id] ||
                 submissionsMap[
-                  assignment.trainee_id
+                assignment.trainee_id
                 ];
 
               // =================================================
@@ -204,14 +203,13 @@ export default function SelectedTrainees() {
               // =================================================
 
               const fullName = profile
-                ? `${profile.first_name || ""} ${
-                    profile.last_name || ""
+                ? `${profile.first_name || ""} ${profile.last_name || ""
                   }`.trim() || profile.email
                 : assignment.trainee_id
                   ? `Trainee #${assignment.trainee_id.slice(
-                      0,
-                      8
-                    )}`
+                    0,
+                    8
+                  )}`
                   : "Assigned Trainee";
 
               // =================================================
@@ -305,13 +303,13 @@ export default function SelectedTrainees() {
                 traineeId:
                   assignment.trainee_id
                     ? `#TR-${assignment.trainee_id
-                        .slice(0, 8)
-                        .toUpperCase()}`
+                      .slice(0, 8)
+                      .toUpperCase()}`
                     : `#ASSIGN-${String(
-                        assignment.id
-                      )
-                        .slice(0, 6)
-                        .toUpperCase()}`,
+                      assignment.id
+                    )
+                      .slice(0, 6)
+                      .toUpperCase()}`,
 
                 course: selectedCourse,
 
@@ -356,56 +354,6 @@ export default function SelectedTrainees() {
     selectedCourse,
   ]);
 
-  // =========================================================
-  // VIEW ASSESSMENT
-  // =========================================================
-
-  const handleViewAssessment = (trainee) => {
-    const assessmentInfo = {
-      id:
-        trainee.assessmentId ||
-        assessmentId,
-
-      batchId:
-        trainee.batchId ||
-        batchId,
-
-      courseCode: batchCode,
-
-      courseName: selectedCourse,
-    };
-
-    setSelectedAssessment(
-      assessmentInfo
-    );
-
-    setSelectedTrainee(trainee);
-
-    navigate(
-      "/assessor/assessment-panel/assessment-overview",
-      {
-        state: {
-          trainee,
-
-          assessment: assessmentInfo,
-
-          selectedCourse,
-
-          batchId:
-            trainee.batchId ||
-            batchId,
-
-          batchCode,
-
-          assignmentId:
-            trainee.assignmentId,
-
-          submissionId:
-            trainee.submissionId,
-        },
-      }
-    );
-  };
 
   // =========================================================
   // RENDER
@@ -416,19 +364,18 @@ export default function SelectedTrainees() {
       <AssessorBreadcrumbs
         items={[
           {
-            label: "Assessment Panel",
+            label: selectedCourse,
             to: "/assessor/assessment-panel",
           },
-
           {
-            label: `${selectedCourse} (${batchCode})`,
+            label: "Trainees Progress",
           },
         ]}
       />
 
       <AssessorPageHeader
         title={`Trainees for ${selectedCourse}`}
-        subtitle="Select a trainee to review and begin the assessment."
+        subtitle="Monitor the assessment progress and status of trainees assigned to this assessment."
       />
 
       {loading ? (
@@ -438,8 +385,7 @@ export default function SelectedTrainees() {
       ) : (
         <SelectedTraineesTable
           trainees={trainees}
-          actionLabel="View Assessment"
-          onAction={handleViewAssessment}
+          assessmentCategory={assessmentCategory}
         />
       )}
     </div>

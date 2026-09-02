@@ -8,8 +8,6 @@ import Evaluation from "../pages/assessordashboard/Evaluation";
 import AssessmentHistory from "../pages/assessordashboard/AssessmentHistory";
 import Settings from "../pages/assessordashboard/Settings";
 import SelectedTrainees from "../pages/assessordashboard/assessment-panel/SelectedTrainees";
-import AssessmentOverview from "../pages/assessordashboard/assessment-panel/AssessmentOverview";
-import WrittenAssessmentReview from "../pages/assessordashboard/assessment-panel/WrittenAssessmentReview";
 import TraineesForEvaluation from "../pages/assessordashboard/evaluation/TraineesForEvaluation";
 import EvaluationSummary from "../pages/assessordashboard/evaluation/EvaluationSummary";
 import AIAnalysisInsights from "../pages/assessordashboard/evaluation/AIAnalysisInsights";
@@ -43,24 +41,6 @@ export default function AssessorRoutes() {
         element={
           <AssessorLayout>
             <SelectedTrainees />
-          </AssessorLayout>
-        }
-      />
-
-      <Route
-        path="assessment-panel/assessment-overview"
-        element={
-          <AssessorLayout>
-            <AssessmentOverview />
-          </AssessorLayout>
-        }
-      />
-
-      <Route
-        path="assessment-panel/written-review"
-        element={
-          <AssessorLayout>
-            <WrittenAssessmentReview />
           </AssessorLayout>
         }
       />

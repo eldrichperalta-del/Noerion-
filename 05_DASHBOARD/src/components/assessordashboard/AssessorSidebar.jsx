@@ -51,7 +51,7 @@ function AssessorSidebar({ isOpen, setIsOpen }) {
     },
     {
       icon: ClipboardList,
-      label: "Assessment Panel",
+      label: "Assessment Management",
       path: "/assessor/assessment-panel",
     },
     {

@@ -45,8 +45,8 @@ function AssessorNavbar() {
   const pageTitles = {
     "/assessor": "Home",
     "/assessor/home": "Home",
-    "/assessor/assessment-panel": "Assessment Panel",
-    "/assessor/assessment-panel/selected-trainees": "Selected Trainees",
+    "/assessor/assessment-panel": "Assessment Management",
+    "/assessor/assessment-panel/selected-trainees": "Trainees Progress",
     "/assessor/assessment-panel/assessment-overview": "Assessment Overview",
     "/assessor/assessment-panel/written-review": "Written Assessment Review",
     "/assessor/evaluation": "Evaluation",
