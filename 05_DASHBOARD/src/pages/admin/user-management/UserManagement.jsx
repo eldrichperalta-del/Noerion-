@@ -658,7 +658,7 @@ function UserManagement() {
 
                     <td className="px-4 py-5 text-center">
 
-                      <div className="flex justify-center">
+                      <div className="flex center">
 
                         <span
                           className={
@@ -684,7 +684,7 @@ function UserManagement() {
                             ? menuRef
                             : null
                         }
-                        className="relative flex justify-center"
+                        className="relative flex center"
                       >
 
                         {/* THREE DOT BUTTON */}

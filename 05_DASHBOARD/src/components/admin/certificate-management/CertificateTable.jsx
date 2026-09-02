@@ -1,5 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 export default function CertificateTable({
   certificates = [],
@@ -7,16 +15,16 @@ export default function CertificateTable({
   error = null,
   onView,
   onTrack,
+  onDownload,
   onRevoke,
 }) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [openMenuId, setOpenMenuId] = useState(null);
+  const [currentPage, setCurrentPage] =
+    useState(1);
+
+  const [openMenuId, setOpenMenuId] =
+    useState(null);
 
   const rowsPerPage = 5;
-
-  // ==========================================
-  // NORMALIZE CERTIFICATE DATA
-  // ==========================================
 
   const safeCertificates = useMemo(() => {
     if (!Array.isArray(certificates)) {
@@ -31,37 +39,9 @@ export default function CertificateTable({
     return certificates.filter(Boolean);
   }, [certificates]);
 
-  // ==========================================
-  // DEBUG
-  // ==========================================
-
-  useEffect(() => {
-    console.log("========================================");
-    console.log("CERTIFICATE TABLE");
-    console.log("Received certificates:", certificates);
-    console.log("Certificate count:", safeCertificates.length);
-
-    if (safeCertificates.length > 0) {
-      console.log(
-        "First certificate:",
-        safeCertificates[0]
-      );
-    }
-
-    console.log("========================================");
-  }, [certificates, safeCertificates]);
-
-  // ==========================================
-  // RESET PAGE WHEN DATA CHANGES
-  // ==========================================
-
   useEffect(() => {
     setCurrentPage(1);
   }, [safeCertificates.length]);
-
-  // ==========================================
-  // CLOSE MENU ON ESC
-  // ==========================================
 
   useEffect(() => {
     const handleEsc = (event) => {
@@ -70,16 +50,18 @@ export default function CertificateTable({
       }
     };
 
-    globalThis.addEventListener("keydown", handleEsc);
+    globalThis.addEventListener(
+      "keydown",
+      handleEsc
+    );
 
     return () => {
-      globalThis.removeEventListener("keydown", handleEsc);
+      globalThis.removeEventListener(
+        "keydown",
+        handleEsc
+      );
     };
   }, []);
-
-  // ==========================================
-  // PAGINATION
-  // ==========================================
 
   const totalPages = Math.max(
     Math.ceil(
@@ -96,7 +78,10 @@ export default function CertificateTable({
       start,
       start + rowsPerPage
     );
-  }, [safeCertificates, currentPage]);
+  }, [
+    safeCertificates,
+    currentPage,
+  ]);
 
   const startIndex =
     (currentPage - 1) * rowsPerPage;
@@ -111,10 +96,6 @@ export default function CertificateTable({
     safeCertificates.length
   );
 
-  // ==========================================
-  // LOADING
-  // ==========================================
-
   if (loading) {
     return (
       <div className="rounded-2xl bg-white p-5 shadow">
@@ -123,28 +104,16 @@ export default function CertificateTable({
     );
   }
 
-  // ==========================================
-  // ERROR
-  // ==========================================
-
   if (error) {
     return (
-      <div className="rounded-2xl bg-white p-5 shadow text-red-500">
+      <div className="rounded-2xl bg-white p-5 text-red-500 shadow">
         {error}
       </div>
     );
   }
 
-  // ==========================================
-  // RENDER
-  // ==========================================
-
   return (
     <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
-
-      {/* ======================================
-          TABLE
-      ====================================== */}
 
       <div className="overflow-x-auto rounded-xl border-2 border-gray-100 shadow-[0_4px_12px_rgba(0,0,0,0.20)]">
 
@@ -152,6 +121,7 @@ export default function CertificateTable({
 
           <thead className="bg-gray-200">
             <tr>
+
               <th className="px-4 py-4 text-left font-bold">
                 Certificate ID
               </th>
@@ -175,14 +145,11 @@ export default function CertificateTable({
               <th className="px-4 py-4 text-center font-bold">
                 Actions
               </th>
+
             </tr>
           </thead>
 
           <tbody>
-
-            {/* ==================================
-                EMPTY STATE
-            ================================== */}
 
             {paginatedCertificates.length === 0 && (
               <tr>
@@ -195,13 +162,8 @@ export default function CertificateTable({
               </tr>
             )}
 
-            {/* ==================================
-                CERTIFICATE ROWS
-            ================================== */}
-
             {paginatedCertificates.map(
               (certificate, index) => {
-
                 const certificateId =
                   certificate?.certificateId ||
                   `certificate-${index}`;
@@ -224,60 +186,48 @@ export default function CertificateTable({
                   certificate?.status ||
                   "Unknown";
 
+                const normalizedStatus =
+                  status.toLowerCase();
+
                 const isValid =
-                  status.toLowerCase() === "valid" ||
-                  status.toLowerCase() === "issued";
+                  normalizedStatus === "valid" ||
+                  normalizedStatus === "issued";
 
                 return (
                   <tr
                     key={certificateId}
-                    className="border-b border-gray-200 hover:bg-gray-50 transition"
+                    className="border-b border-gray-200 transition hover:bg-gray-50"
                   >
-
-                    {/* CERTIFICATE ID */}
 
                     <td className="px-4 py-4 font-medium text-gray-900">
                       {certificateId}
                     </td>
 
-                    {/* TRAINEE */}
-
                     <td className="px-4 py-4 text-gray-700">
                       {traineeName}
                     </td>
-
-                    {/* COURSE */}
 
                     <td className="px-4 py-4 text-gray-700">
                       {course}
                     </td>
 
-                    {/* DATE */}
-
                     <td className="px-4 py-4 text-gray-700">
                       {dateIssued}
                     </td>
 
-                    {/* STATUS */}
-
                     <td className="px-4 py-4">
-
                       <span
                         className={
                           isValid
                             ? "inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700"
-                            : status.toLowerCase() ===
-                              "revoked"
+                            : normalizedStatus === "revoked"
                             ? "inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-700"
                             : "inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700"
                         }
                       >
                         {status}
                       </span>
-
                     </td>
-
-                    {/* ACTIONS */}
 
                     <td className="relative px-4 py-4 text-center">
 
@@ -302,11 +252,9 @@ export default function CertificateTable({
                         </div>
                       </button>
 
-                      {/* DROPDOWN */}
-
                       {openMenuId === certificateId && (
                         <div
-                          className="absolute right-2 top-12 z-50 w-36 rounded-lg border border-gray-200 bg-white py-1 text-left shadow-xl"
+                          className="absolute right-2 top-12 z-50 w-40 rounded-lg border border-gray-200 bg-white py-1 text-left shadow-xl"
                           onClick={(event) => {
                             event.stopPropagation();
                           }}
@@ -315,10 +263,11 @@ export default function CertificateTable({
                           <button
                             type="button"
                             onClick={() => {
-                              onView?.(certificate);
                               setOpenMenuId(null);
+
+                              onView?.(certificate);
                             }}
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
+                            className="w-full px-4 py-2 text-left text-sm text-black hover:bg-gray-100"
                           >
                             Details
                           </button>
@@ -326,21 +275,42 @@ export default function CertificateTable({
                           <button
                             type="button"
                             onClick={() => {
-                              onTrack?.(certificate);
                               setOpenMenuId(null);
+
+                              setTimeout(() => {
+                                onDownload?.(
+                                  certificate
+                                );
+                              }, 50);
                             }}
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
+                            className="w-full px-4 py-2 text-left text-sm text-black hover:bg-gray-100"
+                          >
+                            Download
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenMenuId(null);
+
+                              onTrack?.(
+                                certificate
+                              );
+                            }}
+                            className="w-full px-4 py-2 text-left text-sm text-black hover:bg-gray-100"
                           >
                             Track
                           </button>
 
-                          {status.toLowerCase() !==
-                            "revoked" && (
+                          {normalizedStatus !== "revoked" && (
                             <button
                               type="button"
                               onClick={() => {
-                                onRevoke?.(certificate);
                                 setOpenMenuId(null);
+
+                                onRevoke?.(
+                                  certificate
+                                );
                               }}
                               className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
                             >
@@ -363,10 +333,6 @@ export default function CertificateTable({
         </table>
 
       </div>
-
-      {/* ======================================
-          PAGINATION
-      ====================================== */}
 
       <div className="flex items-center justify-between border-t border-gray-200 px-4 py-4 text-sm">
 
