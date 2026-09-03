@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Users, UserCheck } from "lucide-react";
+import { Users, UserCheck, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "../../../supabaseClient.js";
 import RegistrationProfileModal from "../../../components/admin/shared/RegistrationProfileModal.jsx";
 
@@ -33,18 +33,16 @@ function UserManagement() {
     },
   });
 
-  const [loadingMetrics, setLoadingMetrics] =
-    useState(true);
+  const [loadingMetrics, setLoadingMetrics] = useState(true);
 
   // =========================
-  // RECENT ACTIVITY
+  // RECENT ACTIVITY & PAGINATION STATE
   // =========================
 
-  const [recentActivities, setRecentActivities] =
-    useState([]);
-
-  const [loadingActivities, setLoadingActivities] =
-    useState(true);
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [loadingActivities, setLoadingActivities] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10;
 
   // =========================
   // CLOSE ACTION MENU OUTSIDE
@@ -95,8 +93,13 @@ function UserManagement() {
               count: "exact",
               head: true,
             })
-            .eq("role", "trainee")
-            .eq("is_approved", true),
+            .ilike("role", "trainee")
+            .in("registration_status", [
+              "Approved",
+              "Active",
+              "approved",
+              "active",
+            ]),
 
           // PENDING TRAINEES
           supabase
@@ -105,8 +108,11 @@ function UserManagement() {
               count: "exact",
               head: true,
             })
-            .eq("role", "trainee")
-            .eq("is_approved", false),
+            .ilike("role", "trainee")
+            .in("registration_status", [
+              "Pending",
+              "pending",
+            ]),
 
           // ACTIVE ASSESSORS
           supabase
@@ -115,8 +121,13 @@ function UserManagement() {
               count: "exact",
               head: true,
             })
-            .eq("role", "assessor")
-            .eq("is_approved", true),
+            .ilike("role", "assessor")
+            .in("registration_status", [
+              "Approved",
+              "Active",
+              "approved",
+              "active",
+            ]),
 
           // PENDING ASSESSORS
           supabase
@@ -125,13 +136,12 @@ function UserManagement() {
               count: "exact",
               head: true,
             })
-            .eq("role", "assessor")
-            .eq("is_approved", false),
+            .ilike("role", "assessor")
+            .in("registration_status", [
+              "Pending",
+              "pending",
+            ]),
         ]);
-
-        // =========================
-        // ERROR CHECKING
-        // =========================
 
         if (activeTraineesResult.error) {
           console.error(
@@ -160,10 +170,6 @@ function UserManagement() {
             pendingAssessorsResult.error
           );
         }
-
-        // =========================
-        // UPDATE METRICS
-        // =========================
 
         setMetrics({
           trainees: {
@@ -229,50 +235,76 @@ function UserManagement() {
           ])
           .order("created_at", {
             ascending: false,
-          })
-          .limit(10);
+          });
 
         if (error) {
           console.error(
             "Error fetching recent activity:",
             error
           );
-
           return;
         }
 
         const formattedActivities =
-          data?.map((profile) => ({
-            ...profile,
+          data?.map((profile) => {
+            const rawStatus =
+              profile.registration_status ||
+              "Pending";
 
-            name:
-              `${profile.first_name || ""} ${
-                profile.last_name || ""
-              }`.trim() || "Unknown User",
+            const normalizedStatus =
+              String(rawStatus)
+                .toLowerCase()
+                .trim();
 
-            date: profile.created_at
-              ? new Date(
-                  profile.created_at
-                ).toLocaleDateString(
-                  "en-US",
-                  {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  }
-                )
-              : "N/A",
+            let status = "Pending";
 
-            status: profile.is_approved
-              ? "Active"
-              : "Pending",
+            if (
+              normalizedStatus.includes("approved") ||
+              normalizedStatus.includes("active")
+            ) {
+              status = "Approved";
+            } else if (
+              normalizedStatus.includes("reject")
+            ) {
+              status = "Rejected";
+            } else if (
+              normalizedStatus.includes("deactiv") ||
+              normalizedStatus.includes("inactiv")
+            ) {
+              status = "Deactivated";
+            }
 
-            type: profile.role,
-          })) || [];
+            return {
+              ...profile,
+
+              name:
+                `${profile.first_name || ""} ${
+                  profile.last_name || ""
+                }`.trim() || "Unknown User",
+
+              date: profile.created_at
+                ? new Date(
+                    profile.created_at
+                  ).toLocaleDateString(
+                    "en-US",
+                    {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    }
+                  )
+                : "N/A",
+
+              status: status,
+
+              type: profile.role,
+            };
+          }) || [];
 
         setRecentActivities(
           formattedActivities
         );
+        setCurrentPage(1);
       } catch (error) {
         console.error(
           "Unexpected error fetching recent activity:",
@@ -285,6 +317,31 @@ function UserManagement() {
 
     fetchRecentActivities();
   }, []);
+
+  // =========================
+  // PAGINATION COMPUTATIONS
+  // =========================
+
+  const totalPages = Math.max(
+    Math.ceil(recentActivities.length / rowsPerPage),
+    1
+  );
+
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const endIndex = startIndex + rowsPerPage;
+
+  const paginatedActivities = recentActivities.slice(
+    startIndex,
+    endIndex
+  );
+
+  const showingStart =
+    recentActivities.length === 0 ? 0 : startIndex + 1;
+
+  const showingEnd = Math.min(
+    endIndex,
+    recentActivities.length
+  );
 
   // =========================
   // VIEW PROFILE
@@ -304,18 +361,14 @@ function UserManagement() {
   };
 
   // =========================
-  // PAGE
+  // PAGE RENDER
   // =========================
 
   return (
     <div className="min-h-screen px-6 py-10">
 
-      {/* ========================= */}
       {/* PAGE HEADER */}
-      {/* ========================= */}
-
       <div className="relative mb-12 text-left">
-
         <h1 className="mt-2 text-4xl font-bold text-gray-900">
           User Management
         </h1>
@@ -324,27 +377,15 @@ function UserManagement() {
           Manage trainee and assessor accounts
           across the platform.
         </p>
-
       </div>
 
-      {/* ========================= */}
       {/* USER MANAGEMENT CARDS */}
-      {/* ========================= */}
-
       <div className="mb-16 grid grid-cols-1 gap-10 md:grid-cols-2">
 
-        {/* ========================= */}
         {/* TRAINEES CARD */}
-        {/* ========================= */}
-
         <div className="flex flex-col gap-8 rounded-3xl border border-gray-200 bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl">
-
-          {/* HEADER */}
-
           <div className="flex items-start justify-between">
-
             <div>
-
               <h2 className="text-3xl font-bold text-gray-900">
                 TRAINEES
               </h2>
@@ -352,75 +393,47 @@ function UserManagement() {
               <p className="mt-3 text-lg text-gray-600">
                 Manage trainee accounts and approvals.
               </p>
-
             </div>
 
             <Users
               size={64}
               className="text-slate-800"
             />
-
           </div>
 
-          {/* LIVE METRICS */}
-
           <div>
-
             <h4 className="mb-4 text-lg font-bold text-gray-900">
               Live Metrics
             </h4>
 
             <div className="grid grid-cols-2 gap-4">
-
-              {/* ACTIVE */}
-
               <div className="rounded-2xl border border-gray-200 bg-white p-5 text-center">
-
                 <span className="block text-3xl font-bold text-gray-900">
-
                   {loadingMetrics
                     ? "..."
                     : metrics.trainees.active}
-
                 </span>
 
                 <span className="mt-2 flex items-center justify-center gap-2 text-sm text-gray-600">
-
                   Active
-
                   <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
-
                 </span>
-
               </div>
 
-              {/* PENDING */}
-
               <div className="rounded-2xl border border-gray-200 bg-white p-5 text-center">
-
                 <span className="block text-3xl font-bold text-gray-900">
-
                   {loadingMetrics
                     ? "..."
                     : metrics.trainees.pending}
-
                 </span>
 
                 <span className="mt-2 flex items-center justify-center gap-2 text-sm text-gray-600">
-
                   Pending Approval
-
                   <span className="h-2.5 w-2.5 rounded-full bg-yellow-500" />
-
                 </span>
-
               </div>
-
             </div>
-
           </div>
-
-          {/* BUTTON */}
 
           <Link
             to="/admin/user-management/trainees"
@@ -428,21 +441,12 @@ function UserManagement() {
           >
             Manage Trainees
           </Link>
-
         </div>
 
-        {/* ========================= */}
         {/* ASSESSORS CARD */}
-        {/* ========================= */}
-
         <div className="flex flex-col gap-8 rounded-3xl border border-gray-200 bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl">
-
-          {/* HEADER */}
-
           <div className="flex items-start justify-between">
-
             <div>
-
               <h2 className="text-3xl font-bold text-gray-900">
                 ASSESSORS
               </h2>
@@ -450,75 +454,47 @@ function UserManagement() {
               <p className="mt-3 text-lg text-gray-600">
                 Manage assessors and evaluation roles.
               </p>
-
             </div>
 
             <UserCheck
               size={64}
               className="text-slate-800"
             />
-
           </div>
 
-          {/* LIVE METRICS */}
-
           <div>
-
             <h4 className="mb-4 text-lg font-bold text-gray-900">
               Live Metrics
             </h4>
 
             <div className="grid grid-cols-2 gap-4">
-
-              {/* ACTIVE */}
-
               <div className="rounded-2xl border border-gray-200 bg-white p-5 text-center">
-
                 <span className="block text-3xl font-bold text-gray-900">
-
                   {loadingMetrics
                     ? "..."
                     : metrics.assessors.active}
-
                 </span>
 
                 <span className="mt-2 flex items-center justify-center gap-2 text-sm text-gray-600">
-
                   Active
-
                   <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
-
                 </span>
-
               </div>
 
-              {/* PENDING */}
-
               <div className="rounded-2xl border border-gray-200 bg-white p-5 text-center">
-
                 <span className="block text-3xl font-bold text-gray-900">
-
                   {loadingMetrics
                     ? "..."
                     : metrics.assessors.pending}
-
                 </span>
 
                 <span className="mt-2 flex items-center justify-center gap-2 text-sm text-gray-600">
-
                   Pending Approval
-
                   <span className="h-2.5 w-2.5 rounded-full bg-yellow-500" />
-
                 </span>
-
               </div>
-
             </div>
-
           </div>
-
-          {/* BUTTON */}
 
           <Link
             to="/admin/user-management/assessors"
@@ -526,19 +502,13 @@ function UserManagement() {
           >
             Manage Assessors
           </Link>
-
         </div>
 
       </div>
 
-      {/* ========================= */}
-      {/* RECENT ACTIVITY */}
-      {/* ========================= */}
-
+      {/* RECENT ACTIVITY TABLE */}
       <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-lg">
-
         <div className="mb-6 flex items-center justify-between">
-
           <h3 className="text-2xl font-bold text-gray-900">
             RECENT ACTIVITY
           </h3>
@@ -546,13 +516,10 @@ function UserManagement() {
           <div className="text-gray-500">
             Recent user registrations
           </div>
-
         </div>
 
         <div className="overflow-x-auto">
-
           <table className="w-full table-fixed">
-
             <colgroup>
               <col className="w-[25%]" />
               <col className="w-[18%]" />
@@ -561,12 +528,8 @@ function UserManagement() {
               <col className="w-[17%]" />
             </colgroup>
 
-            {/* TABLE HEADER */}
-
             <thead className="border-b border-gray-200">
-
               <tr>
-
                 <th className="px-4 py-4 text-center font-bold text-gray-900">
                   Name
                 </th>
@@ -586,109 +549,74 @@ function UserManagement() {
                 <th className="px-4 py-4 text-center font-bold text-gray-900">
                   Actions
                 </th>
-
               </tr>
-
             </thead>
 
-            {/* TABLE BODY */}
-
             <tbody>
-
               {loadingActivities ? (
-
                 <tr>
-
                   <td
                     colSpan="5"
                     className="py-10 text-center text-gray-500"
                   >
                     Loading recent activity...
                   </td>
-
                 </tr>
-
-              ) : recentActivities.length === 0 ? (
-
+              ) : paginatedActivities.length === 0 ? (
                 <tr>
-
                   <td
                     colSpan="5"
                     className="py-10 text-center text-gray-500"
                   >
                     No recent user activity found.
                   </td>
-
                 </tr>
-
               ) : (
-
-                recentActivities.map((activity) => (
-
+                paginatedActivities.map((activity) => (
                   <tr
                     key={activity.id}
                     className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
                   >
-
-                    {/* NAME */}
-
                     <td className="px-4 py-5 text-center font-medium text-gray-900">
-
                       {activity.name}
-
                     </td>
-
-                    {/* ROLE */}
 
                     <td className="px-4 py-5 text-center capitalize text-gray-600">
-
                       {activity.role}
-
                     </td>
-
-                    {/* DATE */}
 
                     <td className="px-4 py-5 text-center text-gray-600">
-
                       {activity.date}
-
                     </td>
 
-                    {/* STATUS */}
-
                     <td className="px-4 py-5 text-center">
-
-                      <div className="flex center">
-
+                      <div className="flex items-center justify-center">
                         <span
                           className={
                             activity.status === "Pending"
                               ? "rounded-lg bg-yellow-100 px-3 py-1 text-sm font-semibold text-yellow-800"
-                              : "rounded-lg bg-green-100 px-3 py-1 text-sm font-semibold text-green-800"
+                              : activity.status === "Approved" ||
+                                activity.status === "Active"
+                              ? "rounded-lg bg-green-100 px-3 py-1 text-sm font-semibold text-green-800"
+                              : activity.status === "Rejected"
+                              ? "rounded-lg bg-red-100 px-3 py-1 text-sm font-semibold text-red-800"
+                              : "rounded-lg bg-gray-200 px-3 py-1 text-sm font-semibold text-gray-800"
                           }
                         >
                           {activity.status}
                         </span>
-
                       </div>
-
                     </td>
 
-                    {/* ACTIONS */}
-
                     <td className="px-4 py-5">
-
                       <div
                         ref={
                           openMenuId === activity.id
                             ? menuRef
                             : null
                         }
-                        className="relative flex center"
+                        className="relative flex items-center justify-center"
                       >
-
-                        {/* THREE DOT BUTTON */}
-
                         <button
                           type="button"
                           onClick={() =>
@@ -701,25 +629,15 @@ function UserManagement() {
                           className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition hover:bg-blue-100 hover:text-blue-600"
                           aria-label="Open user actions"
                         >
-
                           <span className="flex flex-col gap-1">
-
                             <span className="h-1 w-1 rounded-full bg-current" />
-
                             <span className="h-1 w-1 rounded-full bg-current" />
-
                             <span className="h-1 w-1 rounded-full bg-current" />
-
                           </span>
-
                         </button>
 
-                        {/* ACTION DROPDOWN */}
-
                         {openMenuId === activity.id && (
-
                           <div className="absolute right-0 top-10 z-30 w-44 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg">
-
                             <button
                               type="button"
                               onClick={() =>
@@ -731,35 +649,61 @@ function UserManagement() {
                             >
                               View Profile
                             </button>
-
                           </div>
-
                         )}
-
                       </div>
-
                     </td>
-
                   </tr>
-
                 ))
-
               )}
-
             </tbody>
-
           </table>
 
-        </div>
+          {/* PAGINATION FOOTER */}
+          {!loadingActivities && recentActivities.length > 0 && (
+            <div className="flex items-center justify-between border-t border-gray-200 px-4 py-4 text-sm mt-4">
+              <p className="font-medium text-gray-700">
+                Showing {showingStart}-{showingEnd} of {recentActivities.length} recent registrations
+              </p>
 
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage((page) => Math.max(page - 1, 1))
+                  }
+                  disabled={currentPage === 1}
+                  className="flex items-center gap-1 text-gray-500 transition hover:text-[#15294b] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ChevronLeft size={16} />
+                  Prev
+                </button>
+
+                <span className="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-[#15294b] shadow-sm">
+                  {currentPage}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage((page) =>
+                      Math.min(page + 1, totalPages)
+                    )
+                  }
+                  disabled={currentPage >= totalPages}
+                  className="flex items-center gap-1 text-gray-500 transition hover:text-[#15294b] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ========================= */}
       {/* PROFILE MODAL */}
-      {/* ========================= */}
-
       {selectedProfile && (
-
         <RegistrationProfileModal
           profile={selectedProfile}
           title={
@@ -772,7 +716,6 @@ function UserManagement() {
           onApprove={() => {}}
           onReject={() => {}}
         />
-
       )}
 
     </div>

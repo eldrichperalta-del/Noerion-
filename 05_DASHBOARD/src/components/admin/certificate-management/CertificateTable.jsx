@@ -242,7 +242,7 @@ export default function CertificateTable({
                               : certificateId
                           );
                         }}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-gray-200"
+                        className="inline-flex h-8 w-8 items-center center rounded-full hover:bg-gray-200"
                         aria-label="Certificate actions"
                       >
                         <div className="flex flex-col gap-[2px]">

@@ -1,41 +1,70 @@
 import { useEffect, useState } from "react";
+
 import {
   X,
   ZoomIn,
   FileText,
   ExternalLink,
   RefreshCw,
+  User,
+  Calendar,
+  Phone,
+  Mail,
+  School,
+  IdCard,
+  Briefcase,
+  Layers3,
+  ListRestart,
+  Tag,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+
 import { supabase } from "../../../supabaseClient.js";
 
 const personalFields = [
-  ["first_name", "First Name"],
-  ["last_name", "Last Name"],
-  ["middle_name", "Middle Name (Optional)"],
-  ["suffix", "Suffix (Optional)"],
-  ["gender", "Gender"],
-  ["date_of_birth", "Date of Birth"],
-  ["contact_number", "Contact Number"],
-  ["email", "Personal Email Address"],
+  ["first_name", "First Name", User],
+  ["last_name", "Last Name", User],
+  ["middle_name", "Middle Name (Optional)", User],
+  ["suffix", "Suffix (Optional)", Tag],
+  ["gender", "Gender", Briefcase],
+  ["date_of_birth", "Date of Birth", Calendar],
+  ["contact_number", "Contact Number", Phone],
+  ["email", "Personal Email Address", Mail],
 ];
 
 const traineeFields = [
-  ["training_center", "Training Center / TVET Institution"],
-  ["nc_level", "NC Level"],
-  ["qualification_course", "Qualification / Course"],
-  ["batch", "Batch (Optional)"],
+  ["training_center", "Training Center / TVET Institution", School],
+  ["nc_level", "NC Level", Layers3],
+  ["qualification_course", "Qualification / Course", Briefcase],
+  ["batch", "Batch (Optional)", ListRestart],
 ];
 
 const assessorFields = [
-  ["assessor_id_number", "TESDA Assessor ID Number"],
-  ["assessment_center", "Assessment Center / Training Institution"],
-  ["qualification_specialization", "Qualification / Specialization"],
-  ["years_of_experience", "Years of Experience (Optional)"],
+  ["assessor_id_number", "TESDA Assessor ID Number", IdCard],
+  [
+    "assessment_center",
+    "Assessment Center / Training Institution",
+    School,
+  ],
+  [
+    "qualification_specialization",
+    "Qualification / Specialization",
+    Briefcase,
+  ],
+  [
+    "years_of_experience",
+    "Years of Experience (Optional)",
+    Briefcase,
+  ],
 ];
 
-function Details({ fields, profile, extraData }) {
+function Details({
+  fields,
+  profile,
+  extraData,
+}) {
   const getFieldValue = (key) => {
-    // 1. Direct profile value
     if (
       profile?.[key] !== undefined &&
       profile?.[key] !== null &&
@@ -44,7 +73,6 @@ function Details({ fields, profile, extraData }) {
       return profile[key];
     }
 
-    // 2. Role-specific data fetched from Supabase
     if (
       extraData?.[key] !== undefined &&
       extraData?.[key] !== null &&
@@ -53,10 +81,12 @@ function Details({ fields, profile, extraData }) {
       return extraData[key];
     }
 
-    // 3. Assessor relationship
-    const assessorRel = Array.isArray(profile?.assessor_profiles)
-      ? profile.assessor_profiles[0]
-      : profile?.assessor_profiles;
+    const assessorRel =
+      Array.isArray(
+        profile?.assessor_profiles
+      )
+        ? profile.assessor_profiles[0]
+        : profile?.assessor_profiles;
 
     if (
       assessorRel?.[key] !== undefined &&
@@ -66,10 +96,12 @@ function Details({ fields, profile, extraData }) {
       return assessorRel[key];
     }
 
-    // 4. Trainee relationship
-    const traineeRel = Array.isArray(profile?.trainee_profiles)
-      ? profile.trainee_profiles[0]
-      : profile?.trainee_profiles;
+    const traineeRel =
+      Array.isArray(
+        profile?.trainee_profiles
+      )
+        ? profile.trainee_profiles[0]
+        : profile?.trainee_profiles;
 
     if (
       traineeRel?.[key] !== undefined &&
@@ -83,21 +115,30 @@ function Details({ fields, profile, extraData }) {
   };
 
   return (
-    <dl className="grid gap-3 sm:grid-cols-2">
-      {fields.map(([key, label]) => (
-        <div
-          key={key}
-          className="rounded-lg bg-gray-50 p-3"
-        >
-          <dt className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-            {label}
-          </dt>
+    <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+      {fields.map(
+        ([key, label, Icon]) => (
+          <div
+            key={key}
+            className="flex flex-col gap-1"
+          >
+            <dt className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-[#6b7280]">
+              {Icon && (
+                <Icon
+                  size={14}
+                  className="text-[#9ca3af]"
+                />
+              )}
 
-          <dd className="mt-1 break-words text-sm text-gray-900">
-            {getFieldValue(key)}
-          </dd>
-        </div>
-      ))}
+              {label}
+            </dt>
+
+            <dd className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm text-[#111827]">
+              {getFieldValue(key)}
+            </dd>
+          </div>
+        )
+      )}
     </dl>
   );
 }
@@ -108,30 +149,43 @@ export default function RegistrationProfileModal({
   onClose,
   onApprove,
   onReject,
+  onPrevious,
+  onNext,
+  canGoPrevious = false,
+  canGoNext = false,
+  currentNumber = 0,
+  totalProfiles = 0,
 }) {
-  // =========================
-  // ALL STATE HOOKS FIRST
-  // =========================
+  const [showReject, setShowReject] =
+    useState(false);
 
-  const [showReject, setShowReject] = useState(false);
-  const [reason, setReason] = useState("");
-  const [previewPhoto, setPreviewPhoto] = useState(false);
-  const [documentFiles, setDocumentFiles] = useState([]);
-  const [loadingDocs, setLoadingDocs] = useState(false);
-  const [extraRoleData, setExtraRoleData] = useState(null);
+  const [reason, setReason] =
+    useState("");
 
-  // Safe even when profile is null
+  const [previewPhoto, setPreviewPhoto] =
+    useState(false);
+
+  const [documentFiles, setDocumentFiles] =
+    useState([]);
+
+  const [loadingDocs, setLoadingDocs] =
+    useState(false);
+
+  const [extraRoleData, setExtraRoleData] =
+    useState(null);
+
   const assessor =
-    profile?.role?.toLowerCase() === "assessor" ||
-    title.toLowerCase().includes("assessor");
-
-  // =========================
-  // FETCH ROLE DETAILS
-  // =========================
+    profile?.role?.toLowerCase() ===
+      "assessor" ||
+    title
+      .toLowerCase()
+      .includes("assessor");
 
   useEffect(() => {
-    // Always clear previous data when modal/profile changes
     setExtraRoleData(null);
+    setShowReject(false);
+    setReason("");
+    setPreviewPhoto(false);
 
     if (!profile?.id) {
       return;
@@ -139,553 +193,705 @@ export default function RegistrationProfileModal({
 
     const fetchRoleDetails = async () => {
       try {
-        const table = assessor
-          ? "assessor_profiles"
-          : "trainee_profiles";
+        const table =
+          assessor
+            ? "assessor_profiles"
+            : "trainee_profiles";
 
-        const { data, error } = await supabase
-          .from(table)
-          .select("*")
-          .eq("user_id", profile.id)
-          .maybeSingle();
+        const { data, error } =
+          await supabase
+            .from(table)
+            .select("*")
+            .eq(
+              "user_id",
+              profile.id
+            )
+            .maybeSingle();
 
         if (error) {
           console.error(
             `Error fetching ${table}:`,
             error
           );
+
           return;
         }
 
-        setExtraRoleData(data ?? null);
+        setExtraRoleData(
+          data ?? null
+        );
       } catch (err) {
         console.error(
-          "Error fetching role profile details:",
+          "Error fetching role details:",
           err
         );
       }
     };
 
     fetchRoleDetails();
-  }, [profile?.id, assessor]);
-
-  // =========================
-  // FETCH ASSESSOR DOCUMENTS
-  // =========================
+  }, [
+    profile?.id,
+    assessor,
+  ]);
 
   useEffect(() => {
-    // Reset documents every time the profile changes
     setDocumentFiles([]);
 
-    if (!profile?.id || !assessor) {
+    if (
+      !profile?.id ||
+      !assessor
+    ) {
       setLoadingDocs(false);
       return;
     }
 
-    const fetchUserDocuments = async () => {
-      setLoadingDocs(true);
+    const fetchUserDocuments =
+      async () => {
+        setLoadingDocs(true);
 
-      const BUCKET = "verification-docs";
-      const userId = profile.id;
+        const BUCKET =
+          "verification-docs";
 
-      try {
-        const subfolders = [
-          "accreditation",
-          "gov_id",
-        ];
+        try {
+          const subfolders = [
+            "accreditation",
+            "gov_id",
+          ];
 
-        const allFiles = [];
+          const allFiles = [];
 
-        for (const subfolder of subfolders) {
-          const path = `${userId}/${subfolder}`;
+          for (
+            const subfolder of subfolders
+          ) {
+            const path =
+              `${profile.id}/${subfolder}`;
 
-          const { data, error } = await supabase.storage
-            .from(BUCKET)
-            .list(path);
+            const {
+              data,
+              error,
+            } =
+              await supabase.storage
+                .from(BUCKET)
+                .list(path);
 
-          if (error) {
-            console.warn(
-              `Unable to list ${path}:`,
-              error
-            );
-            continue;
-          }
+            if (error) {
+              console.warn(
+                `Unable to list ${path}:`,
+                error
+              );
 
-          if (!data) {
-            continue;
-          }
-
-          data.forEach((file) => {
-            if (
-              file.name ===
-              ".emptyFolderPlaceholder"
-            ) {
-              return;
+              continue;
             }
 
-            const filePath =
-              `${path}/${file.name}`;
+            if (!data) {
+              continue;
+            }
 
-            const { data: urlData } =
-              supabase.storage
-                .from(BUCKET)
-                .getPublicUrl(filePath);
+            data.forEach(
+              (file) => {
+                if (
+                  file.name ===
+                  ".emptyFolderPlaceholder"
+                ) {
+                  return;
+                }
 
-            allFiles.push({
-              name: file.name,
-              category:
-                subfolder === "gov_id"
-                  ? "Government ID"
-                  : "Accreditation Certificate",
-              url:
-                urlData?.publicUrl || "",
-              path: filePath,
-            });
-          });
+                const filePath =
+                  `${path}/${file.name}`;
+
+                const {
+                  data: urlData,
+                } =
+                  supabase.storage
+                    .from(BUCKET)
+                    .getPublicUrl(
+                      filePath
+                    );
+
+                allFiles.push({
+                  name:
+                    file.name,
+
+                  category:
+                    subfolder ===
+                    "gov_id"
+                      ? "Government ID"
+                      : "Accreditation Certificate",
+
+                  url:
+                    urlData?.publicUrl ||
+                    "",
+
+                  path:
+                    filePath,
+                });
+              }
+            );
+          }
+
+          setDocumentFiles(
+            allFiles
+          );
+        } catch (err) {
+          console.error(
+            "Error fetching documents:",
+            err
+          );
+        } finally {
+          setLoadingDocs(false);
         }
-
-        setDocumentFiles(allFiles);
-      } catch (err) {
-        console.error(
-          "Error fetching documents:",
-          err
-        );
-      } finally {
-        setLoadingDocs(false);
-      }
-    };
+      };
 
     fetchUserDocuments();
-  }, [profile?.id, assessor]);
-
-  // =========================
-  // RESET MODAL STATE
-  // =========================
-
-  useEffect(() => {
-    if (!profile) {
-      setShowReject(false);
-      setReason("");
-      setPreviewPhoto(false);
-    }
-  }, [profile]);
-
-  // =========================
-  // IMPORTANT
-  // THIS MUST BE AFTER ALL HOOKS
-  // =========================
+  }, [
+    profile?.id,
+    assessor,
+  ]);
 
   if (!profile) {
     return null;
   }
 
-  // =========================
-  // INITIALS
-  // =========================
+  const initials =
+    `${profile.first_name?.[0] ||
+      profile.fullName?.[0] ||
+      "?"}${profile.last_name?.[0] ||
+      ""}`.toUpperCase();
 
-  const initials = `${
-    profile.first_name?.[0] ||
-    profile.fullName?.[0] ||
-    "?"
-  }${
-    profile.last_name?.[0] || ""
-  }`.toUpperCase();
+  const normalizedStatus =
+    String(
+      profile.status ||
+      profile.registration_status ||
+      ""
+    )
+      .toLowerCase()
+      .trim();
 
-  // =========================
-  // LEGACY DOCUMENTS
-  // =========================
+  const isApproved =
+    normalizedStatus.includes(
+      "approved"
+    );
 
-  const legacyDocuments = assessor
-    ? [
-        [
-          "TESDA Assessor Accreditation Certificate",
-          profile.accreditation_cert_url ||
-            extraRoleData?.accreditation_cert_url,
-        ],
-        [
-          "Government-issued ID",
-          profile.government_id_url ||
-            extraRoleData?.government_id_url,
-        ],
-      ]
-    : [];
+  const isRejected =
+    normalizedStatus.includes(
+      "rejected"
+    ) ||
+    normalizedStatus.includes(
+      "reject"
+    );
 
-  // =========================
-  // REJECT
-  // =========================
+  const isDeactivated =
+    normalizedStatus.includes(
+      "deactivated"
+    );
+
+  const isFinalStatus =
+    isApproved ||
+    isRejected ||
+    isDeactivated;
+
+  const legacyDocuments =
+    assessor
+      ? [
+          [
+            "TESDA Assessor Accreditation Certificate",
+            profile.accreditation_cert_url ||
+              extraRoleData?.accreditation_cert_url,
+          ],
+          [
+            "Government-issued ID",
+            profile.government_id_url ||
+              extraRoleData?.government_id_url,
+          ],
+        ]
+      : [];
 
   const handleConfirmReject = () => {
-    const trimmedReason = reason.trim();
+    const trimmedReason =
+      reason.trim();
 
     if (!trimmedReason) {
       return;
     }
 
     if (onReject) {
-      onReject(profile.id, trimmedReason);
+      onReject(
+        profile.id,
+        trimmedReason
+      );
     }
 
     setReason("");
     setShowReject(false);
-
-    if (onClose) {
-      onClose();
-    }
   };
-
-  // =========================
-  // APPROVE
-  // =========================
 
   const handleApprove = () => {
     if (onApprove) {
-      onApprove(profile.id);
-    }
-
-    if (onClose) {
-      onClose();
+      onApprove(
+        profile.id
+      );
     }
   };
 
-  // =========================
-  // RENDER
-  // =========================
+  const handlePrevious = () => {
+    if (canGoPrevious && onPrevious) {
+      onPrevious();
+    }
+  };
+
+  const handleNext = () => {
+    if (canGoNext && onNext) {
+      onNext();
+    }
+  };
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white shadow-xl">
+        <header className="sticky top-0 z-10 flex items-center justify-between gap-4 bg-[#15294b] px-6 py-4 text-white">
+          <div className="flex items-center gap-2">
+            <User
+              size={18}
+              className="text-white"
+            />
 
-        {/* =========================
-            HEADER
-        ========================= */}
-
-        <header className="mb-6 flex items-center gap-4 border-b border-gray-100 pb-5">
-
-          <div className="relative group shrink-0">
-
-            <div className="grid h-16 w-16 place-items-center overflow-hidden rounded-full border border-blue-200 bg-blue-100 text-lg font-bold text-[#002f86]">
-
-              {profile.profile_photo_url ? (
-                <img
-                  src={profile.profile_photo_url}
-                  alt="Avatar"
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                initials
-              )}
-
-            </div>
-
-            {profile.profile_photo_url && (
-              <button
-                type="button"
-                onClick={() =>
-                  setPreviewPhoto(true)
-                }
-                className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-white opacity-0 transition group-hover:opacity-100"
-                title="Click to view full photo"
-              >
-                <ZoomIn size={18} />
-              </button>
-            )}
-
-          </div>
-
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-lg font-semibold">
               {title}
             </h2>
-
-            <p className="text-sm text-gray-500">
-              Registration details
-            </p>
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="ml-auto text-2xl text-gray-400 hover:text-gray-700"
+            className="text-white transition hover:text-red-400"
             aria-label="Close"
           >
-            ×
+            <X size={20} />
           </button>
-
         </header>
 
-        {/* =========================
-            PREVIOUS REJECTION
-        ========================= */}
+        <div className="p-6">
+          <div className="mb-8 flex items-center gap-5 border-b border-[#e5e7eb] pb-6">
+            <div className="group relative shrink-0">
+              <div className="grid h-20 w-20 place-items-center overflow-hidden rounded-full border-4 border-white bg-[#f1f5f9] text-3xl font-bold text-[#15294b] shadow-inner">
+                {profile.profile_photo_url ? (
+                  <img
+                    src={
+                      profile.profile_photo_url
+                    }
+                    alt="Avatar"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  initials
+                )}
+              </div>
 
-        {profile.rejected_reason && (
-          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-800">
+              {profile.profile_photo_url && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPreviewPhoto(true)
+                  }
+                  className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-white opacity-0 transition group-hover:opacity-100"
+                >
+                  <ZoomIn size={18} />
+                </button>
+              )}
+            </div>
 
-            <span className="mb-1 block font-bold uppercase tracking-wider">
-              Previous Rejection Reason:
-            </span>
+            <div>
+              <h2 className="text-2xl font-bold text-[#111827]">
+                {profile.fullName ||
+                  `${profile.first_name || ""} ${profile.last_name || ""}`}
+              </h2>
 
-            {profile.rejected_reason}
-
+              <p className="text-sm text-[#6b7280]">
+                Registration details
+              </p>
+            </div>
           </div>
-        )}
 
-        {/* =========================
-            PERSONAL INFORMATION
-        ========================= */}
+          {profile.rejected_reason && (
+            <div className="mb-8 rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-800">
+              <span className="mb-1 block font-bold uppercase tracking-wider">
+                Previous Rejection Reason:
+              </span>
 
-        <section>
-          <h3 className="mb-3 text-lg font-bold text-gray-900">
-            Personal Information
-          </h3>
+              {profile.rejected_reason}
+            </div>
+          )}
 
-          <Details
-            fields={personalFields}
-            profile={profile}
-            extraData={extraRoleData}
-          />
-        </section>
-
-        {/* =========================
-            ROLE INFORMATION
-        ========================= */}
-
-        <section className="mt-6">
-
-          <h3 className="mb-3 text-lg font-bold text-gray-900">
-            {assessor
-              ? "Professional Information"
-              : "Training Information"}
-          </h3>
-
-          <Details
-            fields={
-              assessor
-                ? assessorFields
-                : traineeFields
-            }
-            profile={profile}
-            extraData={extraRoleData}
-          />
-
-        </section>
-
-        {/* =========================
-            SUPPORTING DOCUMENTS
-        ========================= */}
-
-        {assessor && (
-          <section className="mt-6">
-
-            <h3 className="mb-3 flex items-center gap-2 text-lg font-bold text-gray-900">
-              Supporting Documents
+          <section>
+            <h3 className="mb-6 text-xl font-bold text-[#111827]">
+              Personal Information
             </h3>
 
-            {loadingDocs ? (
-              <div className="flex items-center justify-center gap-2 rounded-lg bg-gray-50 py-6 text-sm text-gray-500">
+            <Details
+              fields={
+                personalFields
+              }
+              profile={
+                profile
+              }
+              extraData={
+                extraRoleData
+              }
+            />
+          </section>
 
-                <RefreshCw
-                  size={16}
-                  className="animate-spin text-[#002f86]"
+          <section className="mt-10">
+            <h3 className="mb-6 text-xl font-bold text-[#111827]">
+              {assessor
+                ? "Professional Information"
+                : "Training Information"}
+            </h3>
+
+            <Details
+              fields={
+                assessor
+                  ? assessorFields
+                  : traineeFields
+              }
+              profile={
+                profile
+              }
+              extraData={
+                extraRoleData
+              }
+            />
+          </section>
+
+          {assessor && (
+            <section className="mt-10">
+              <h3 className="mb-6 flex items-center gap-2 text-xl font-bold text-[#111827]">
+                <FileText
+                  size={20}
+                  className="text-[#15294b]"
                 />
 
-                Fetching documents from storage...
+                Supporting Documents
+              </h3>
 
-              </div>
-            ) : documentFiles.length > 0 ? (
-              <div className="grid gap-3 sm:grid-cols-2">
+              {loadingDocs ? (
+                <div className="flex items-center justify-center gap-3 rounded-lg border border-[#e5e7eb] bg-[#f9fafb] py-8 text-sm text-[#6b7280]">
+                  <RefreshCw
+                    size={18}
+                    className="animate-spin text-[#15294b]"
+                  />
 
-                {documentFiles.map((doc) => (
-                  <a
-                    key={doc.path}
-                    href={doc.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="group flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
-
-                      <FileText
-                        size={16}
-                        className="shrink-0"
-                      />
-
-                      <span className="truncate">
-                        {doc.category}:{" "}
-                        {doc.name}
-                      </span>
-
-                    </div>
-
-                    <ExternalLink
-                      size={16}
-                      className="ml-2 shrink-0"
-                    />
-
-                  </a>
-                ))}
-
-              </div>
-            ) : legacyDocuments.some(
-                ([, url]) => Boolean(url)
-              ) ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-
-                {legacyDocuments.map(
-                  ([label, url]) =>
-                    url ? (
-                      <a
-                        key={label}
-                        href={url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
-                      >
-                        <span className="truncate">
-                          Open {label}
-                        </span>
-
-                        <ExternalLink
-                          size={16}
-                          className="ml-2 shrink-0"
-                        />
-
-                      </a>
-                    ) : (
+                  Fetching documents from storage...
+                </div>
+              ) : documentFiles.length >
+                0 ? (
+                <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+                  {documentFiles.map(
+                    (doc) => (
                       <div
-                        key={label}
-                        className="rounded-lg bg-gray-50 p-3 text-sm text-gray-500"
+                        key={
+                          doc.path
+                        }
+                        className="flex flex-col gap-1"
                       >
-                        {label}: Not provided
+                        <dt className="text-[11px] font-medium uppercase tracking-wider text-[#6b7280]">
+                          {
+                            doc.category
+                          }
+                        </dt>
+
+                        <a
+                          href={
+                            doc.url
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                          className="group flex items-center justify-between rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm font-semibold text-[#111827] transition hover:border-[#15294b] hover:bg-blue-50"
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
+                            <FileText
+                              size={
+                                16
+                              }
+                              className="shrink-0 text-[#9ca3af] group-hover:text-[#15294b]"
+                            />
+
+                            <span className="truncate">
+                              {
+                                doc.name
+                              }
+                            </span>
+                          </div>
+
+                          <ExternalLink
+                            size={
+                              16
+                            }
+                            className="ml-2 shrink-0 text-[#9ca3af] group-hover:text-[#15294b]"
+                          />
+                        </a>
                       </div>
                     )
-                )}
+                  )}
+                </div>
+              ) : legacyDocuments.some(
+                  ([, url]) =>
+                    Boolean(
+                      url
+                    )
+                ) ? (
+                <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+                  {legacyDocuments.map(
+                    (
+                      [
+                        label,
+                        url,
+                      ]
+                    ) =>
+                      url ? (
+                        <div
+                          key={
+                            label
+                          }
+                          className="flex flex-col gap-1"
+                        >
+                          <dt className="text-[11px] font-medium uppercase tracking-wider text-[#6b7280]">
+                            {
+                              label
+                            }
+                          </dt>
 
-              </div>
-            ) : (
-              <div className="rounded-lg bg-gray-50 p-4 text-center text-sm text-gray-500">
-                No uploaded documents found for this assessor.
-              </div>
-            )}
+                          <a
+                            href={
+                              url
+                            }
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center justify-between rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm font-semibold text-[#111827] transition hover:border-[#15294b] hover:bg-blue-50"
+                          >
+                            <span className="truncate">
+                              View
+                              Document
+                            </span>
 
-          </section>
-        )}
+                            <ExternalLink
+                              size={
+                                16
+                              }
+                            />
+                          </a>
+                        </div>
+                      ) : (
+                        <div
+                          key={
+                            label
+                          }
+                          className="flex flex-col gap-1"
+                        >
+                          <dt className="text-[11px] font-medium uppercase tracking-wider text-[#6b7280]">
+                            {
+                              label
+                            }
+                          </dt>
 
-        {/* =========================
-            FOOTER ACTIONS
-        ========================= */}
-
-        <footer className="mt-7 flex justify-end gap-3 border-t border-gray-100 pt-5">
-
-          {onReject && (
-            <button
-              type="button"
-              onClick={() =>
-                setShowReject(true)
-              }
-              className="rounded-lg border border-red-200 px-4 py-2 font-semibold text-red-700 hover:bg-red-50"
-            >
-              Reject
-            </button>
+                          <div className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm text-[#6b7280]">
+                            Not
+                            provided
+                          </div>
+                        </div>
+                      )
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-6 text-center text-sm text-[#6b7280]">
+                  No uploaded
+                  documents found for
+                  this assessor.
+                </div>
+              )}
+            </section>
           )}
 
-          {onApprove && (
-            <button
-              type="button"
-              onClick={handleApprove}
-              className="rounded-lg bg-[#002f86] px-4 py-2 font-semibold text-white hover:bg-[#001f59]"
-            >
-              Approve
-            </button>
-          )}
+          <footer className="mt-12 flex items-center justify-between gap-4 border-t border-[#e5e7eb] pt-6">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={
+                  handlePrevious
+                }
+                disabled={
+                  !canGoPrevious
+                }
+                className="flex items-center gap-1 text-sm font-medium text-gray-500 transition hover:text-[#15294b] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronLeft
+                  size={16}
+                />
 
-        </footer>
+                Prev
+              </button>
 
-        {/* =========================
-            PHOTO PREVIEW
-        ========================= */}
-
-        {previewPhoto && (
-          <div className="fixed inset-0 z-[70] grid place-items-center bg-black/80 p-4">
-
-            <div className="relative w-full max-w-lg rounded-2xl bg-slate-900 p-2 shadow-2xl">
+              <span className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-[#15294b] shadow-sm">
+                {currentNumber}
+                {" / "}
+                {totalProfiles}
+              </span>
 
               <button
                 type="button"
-                onClick={() =>
-                  setPreviewPhoto(false)
+                onClick={
+                  handleNext
                 }
-                className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full bg-black/60 text-white hover:bg-rose-600"
-                aria-label="Close photo preview"
+                disabled={
+                  !canGoNext
+                }
+                className="flex items-center gap-1 text-sm font-medium text-gray-500 transition hover:text-[#15294b] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next
+
+                <ChevronRight
+                  size={16}
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {isApproved && (
+                <span className="rounded-lg bg-green-100 px-5 py-2.5 text-sm font-semibold text-green-700">
+                  Approved
+                </span>
+              )}
+
+              {isRejected && (
+                <span className="rounded-lg bg-red-100 px-5 py-2.5 text-sm font-semibold text-red-700">
+                  Rejected
+                </span>
+              )}
+
+              {isDeactivated && (
+                <span className="rounded-lg bg-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700">
+                  Deactivated
+                </span>
+              )}
+
+              {!isFinalStatus &&
+                onReject && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowReject(
+                        true
+                      )
+                    }
+                    className="rounded-lg border border-red-200 bg-white px-5 py-2.5 text-sm font-semibold text-red-600 shadow-sm transition hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+                  >
+                    Reject
+                  </button>
+                )}
+
+              {!isFinalStatus &&
+                onApprove && (
+                  <button
+                    type="button"
+                    onClick={
+                      handleApprove
+                    }
+                    className="rounded-lg bg-[#15294b] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f1f3b]"
+                  >
+                    Approve
+                  </button>
+                )}
+            </div>
+          </footer>
+        </div>
+
+        {previewPhoto && (
+          <div className="fixed inset-0 z-[70] grid place-items-center bg-black/80 p-4">
+            <div className="relative w-full max-w-lg rounded-2xl bg-slate-900 p-2 shadow-2xl">
+              <button
+                type="button"
+                onClick={() =>
+                  setPreviewPhoto(
+                    false
+                  )
+                }
+                className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full bg-black/60 text-white transition hover:bg-red-600"
               >
                 <X size={18} />
               </button>
 
               <img
-                src={profile.profile_photo_url}
+                src={
+                  profile.profile_photo_url
+                }
                 alt="Profile Full View"
                 className="max-h-[80vh] w-full rounded-lg object-contain"
               />
-
             </div>
-
           </div>
         )}
 
-        {/* =========================
-            REJECTION MODAL
-        ========================= */}
-
         {showReject && (
           <div className="fixed inset-0 z-[60] grid place-items-center bg-black/40 p-4">
-
             <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-
               <h3 className="text-lg font-bold text-gray-900">
-                Reason for Rejection
+                Reason for
+                Rejection
               </h3>
 
               <p className="mt-1 text-xs text-gray-500">
-                Provide a clear reason so the applicant knows what to update or resubmit.
+                Provide a clear reason
+                so the applicant knows
+                what to update or
+                resubmit.
               </p>
 
               <textarea
-                value={reason}
-                onChange={(event) =>
-                  setReason(event.target.value)
+                value={
+                  reason
                 }
-                className="mt-3 min-h-28 w-full rounded-lg border border-gray-300 p-3 text-sm outline-none focus:border-[#002f86]"
+                onChange={(
+                  event
+                ) =>
+                  setReason(
+                    event.target.value
+                  )
+                }
+                className="mt-3 min-h-28 w-full rounded-lg border border-gray-300 p-3 text-sm outline-none transition focus:border-[#15294b]"
                 placeholder="Enter the reason to send to the applicant..."
               />
 
               <div className="mt-4 flex justify-end gap-3">
-
                 <button
                   type="button"
                   onClick={() => {
-                    setShowReject(false);
+                    setShowReject(
+                      false
+                    );
+
                     setReason("");
                   }}
-                  className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+                  className="rounded-lg border border-[#e5e7eb] px-4 py-2 text-sm font-medium text-[#111827] transition hover:bg-gray-100"
                 >
                   Cancel
                 </button>
 
                 <button
                   type="button"
-                  onClick={handleConfirmReject}
-                  disabled={!reason.trim()}
-                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                  onClick={
+                    handleConfirmReject
+                  }
+                  disabled={
+                    !reason.trim()
+                  }
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:opacity-50"
                 >
-                  Confirm Rejection
+                  Confirm
+                  Rejection
                 </button>
-
               </div>
-
             </div>
-
           </div>
         )}
-
       </div>
     </div>
   );
