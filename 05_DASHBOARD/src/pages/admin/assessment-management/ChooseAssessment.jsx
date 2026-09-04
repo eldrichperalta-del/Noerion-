@@ -183,7 +183,7 @@ export default function ChooseAssessment({
                         name="assessment"
                         checked={isChecked}
                         onChange={() => selectAssessment(assessment)}
-                        className="cursor-pointer accent-[#001F5B]"
+                        className="h-5 w-5 cursor-pointer accent-[#001F5B]"
                       />
                     </td>
                     <td className="px-4 py-3 font-medium text-gray-900">
@@ -258,7 +258,7 @@ export default function ChooseAssessment({
                 : "cursor-not-allowed bg-gray-300"
             }`}
           >
-            Continue
+            Next
           </button>
         </div>
       </div>

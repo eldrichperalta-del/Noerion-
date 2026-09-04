@@ -204,7 +204,7 @@ function ReviewConfirm({
         )}
 
         <div className="mb-6 rounded-xl bg-white p-4 shadow-sm">
-          <span className="font-semibold">Selected Course:</span>{" "}
+          <span className="font-semibold">Selected Assessment:</span>{" "}
           {selectedAssessment?.title || "No assessment selected"}
         </div>
 

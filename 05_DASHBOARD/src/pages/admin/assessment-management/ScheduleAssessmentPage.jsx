@@ -23,6 +23,30 @@ function formatTime12Hour(timeStr) {
   return `${formattedHours}:${minutes} ${ampm}`;
 }
 
+function getScheduleStatus(batch) {
+  if (!batch.assessment_date) return "Pending";
+
+  const now = new Date();
+
+  const start = new Date(
+    `${batch.assessment_date}T${batch.start_time || "00:00:00"}`
+  );
+
+  const end = new Date(
+    `${batch.assessment_date}T${batch.end_time || "23:59:59"}`
+  );
+
+  if (now < start) {
+    return "Pending";
+  }
+
+  if (now >= start && now <= end) {
+    return "Ongoing";
+  }
+
+  return "Completed";
+}
+
 // --- VIEW DETAILS MODAL ---
 function DetailsModal({ batch, onClose }) {
   return (
@@ -124,7 +148,6 @@ export default function ScheduleAssessmentPage() {
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [scheduleDate, setScheduleDate] = useState("");
   const [openMenu, setOpenMenu] = useState(null);
   const [selectedDetails, setSelectedDetails] = useState(null);
 
@@ -160,11 +183,21 @@ export default function ScheduleAssessmentPage() {
 
   const filtered = useMemo(() => {
     return batches.filter((item) => {
-      const matchesSearch = `${item.assessment_name} ${item.qualification}`.toLowerCase().includes(search.toLowerCase());
-      const matchesDate = !scheduleDate || item.assessment_date === scheduleDate;
-      return matchesSearch && matchesDate;
+      const searchTerm = search.toLowerCase();
+
+      const scheduleDate = item.assessment_date
+        ? new Date(`${item.assessment_date}T00:00:00`).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
+        : "";
+
+      return `${item.assessment_name} ${item.qualification} ${scheduleDate}`
+        .toLowerCase()
+        .includes(searchTerm);
     });
-  }, [batches, search, scheduleDate]);
+  }, [batches, search]);
 
   return (
     <div className="space-y-6">
@@ -173,12 +206,6 @@ export default function ScheduleAssessmentPage() {
           <h1 className="text-3xl font-bold text-gray-900">Schedule Assessment</h1>
           <p className="mt-1 text-sm text-gray-600">Organize assessment schedules, participants, and assessor assignments.</p>
         </div>
-        <button
-          onClick={() => navigate("/admin/assessments/schedule/choose")}
-          className="flex items-center gap-2 rounded-xl bg-[#002f86] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#001f59]"
-        >
-          <Plus size={18} /> Choose Assessment
-        </button>
       </header>
 
       {/* Filters */}
@@ -189,16 +216,16 @@ export default function ScheduleAssessmentPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search course and qualification"
+            placeholder="Search course, qualification and date"
             className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-11 pr-4 text-sm text-gray-700 shadow-sm focus:border-[#002f86] focus:outline-none focus:ring-1 focus:ring-[#002f86]"
           />
         </div>
-        <input
-          type="date"
-          value={scheduleDate}
-          onChange={(e) => setScheduleDate(e.target.value)}
-          className="w-full sm:w-64 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-600 shadow-sm focus:border-[#002f86] focus:outline-none focus:ring-1 focus:ring-[#002f86]"
-        />
+        <button
+          onClick={() => navigate("/admin/assessments/schedule/choose")}
+          className="flex items-center gap-2 rounded-xl bg-[#002f86] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#001f59]"
+        >
+          <Plus size={18} /> Name Schedule Assessment
+        </button>
       </div>
 
       {/* Table */}
@@ -211,29 +238,90 @@ export default function ScheduleAssessmentPage() {
                 <th className="px-6 py-4">Qualification</th>
                 <th className="px-6 py-4">Assessment Type</th>
                 <th className="px-6 py-4">Schedule Date</th>
-                <th className="w-12 px-6 py-4"></th>
+                <th className="px-6 py-4">Status</th>
+                <th className="w-20 px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-sm">
               {loading ? (
-                <tr><td colSpan="5" className="px-6 py-12 text-center text-gray-500">Loading schedules...</td></tr>
+                <tr>
+                  <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                    Loading schedules...
+                  </td>
+                </tr>
               ) : filtered.length > 0 ? (
                 filtered.map((batch) => (
-                  <tr key={batch.id} className="hover:bg-gray-50/60 transition-colors">
-                    <td className="px-6 py-4 font-semibold text-gray-900">{batch.assessment_name}</td>
-                    <td className="px-6 py-4 text-gray-600">{batch.qualification || 'TESDA NC IV IT'}</td>
-                    <td className="px-6 py-4 text-gray-600">{batch.assessment_type || 'Written'}</td>
-                    <td className="px-6 py-4 text-gray-600">
-                      {new Date(`${batch.assessment_date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  <tr
+                    key={batch.id}
+                    className="hover:bg-gray-50/60 transition-colors"
+                  >
+                    <td className="px-6 py-4 font-semibold text-gray-900">
+                      {batch.assessment_name}
                     </td>
+
+                    <td className="px-6 py-4 text-gray-600">
+                      {batch.qualification || "TESDA NC IV IT"}
+                    </td>
+
+                    <td className="px-6 py-4 text-gray-600">
+                      {batch.assessment_type || "Written"}
+                    </td>
+
+                    <td className="px-6 py-4 text-gray-600">
+                      {new Date(
+                        `${batch.assessment_date}T00:00:00`
+                      ).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-6 py-4">
+                      {(() => {
+                        const status = getScheduleStatus(batch);
+
+                        const statusStyles = {
+                          Pending:
+                            "bg-yellow-50 text-yellow-700 border-yellow-200",
+                          Ongoing:
+                            "bg-blue-50 text-blue-700 border-blue-200",
+                          Completed:
+                            "bg-green-50 text-green-700 border-green-200",
+                        };
+
+                        return (
+                          <span
+                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles[status]
+                              }`}
+                          >
+                            {status}
+                          </span>
+                        );
+                      })()}
+                    </td>
+
+                    {/* Actions */}
                     <td className="relative px-6 py-4 text-right">
-                      <button onClick={() => setOpenMenu(openMenu === batch.id ? null : batch.id)} className="p-1 text-gray-500 hover:bg-gray-100 rounded-lg">
+                      <button
+                        onClick={() =>
+                          setOpenMenu(
+                            openMenu === batch.id ? null : batch.id
+                          )
+                        }
+                        className="rounded-lg p-1 text-gray-500 hover:bg-gray-100"
+                      >
                         <MoreVertical size={18} />
                       </button>
+
                       {openMenu === batch.id && (
-                        <div className="absolute right-6 top-12 z-20 w-36 rounded-xl border bg-white py-1 shadow-lg text-left">
+                        <div className="absolute right-6 top-12 z-20 w-36 rounded-xl border bg-white py-1 text-left shadow-lg">
                           <button
-                            onClick={() => { setSelectedDetails(batch); setOpenMenu(null); }}
+                            onClick={() => {
+                              setSelectedDetails(batch);
+                              setOpenMenu(null);
+                            }}
                             className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                           >
                             View details
@@ -244,7 +332,14 @@ export default function ScheduleAssessmentPage() {
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan="5" className="px-6 py-12 text-center text-gray-500">No scheduled assessments found.</td></tr>
+                <tr>
+                  <td
+                    colSpan="6"
+                    className="px-6 py-12 text-center text-gray-500"
+                  >
+                    No scheduled assessments found.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>

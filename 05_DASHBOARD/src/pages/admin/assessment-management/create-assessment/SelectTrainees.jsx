@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { supabase } from "../../../../supabaseClient.js";
 
+const ITEMS_PER_PAGE = 5;
+
 export default function SelectTrainees({
   assessmentData,
   setAssessmentData,
@@ -14,14 +16,25 @@ export default function SelectTrainees({
   const [traineeList, setTraineeList] = useState([]);
   const [errorMsg, setErrorMsg] = useState(null);
 
-  // Safely retrieve currently selected IDs from state
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Retrieve previously selected trainees
   const initialSelected =
-    assessmentData?.trainees || assessmentData?.selectedTrainees || [];
+    assessmentData?.trainees ||
+    assessmentData?.selectedTrainees ||
+    [];
+
   const [selectedIds, setSelectedIds] = useState(() =>
-    initialSelected.map((t) => String(t.id || t.user_id))
+    initialSelected
+      .map((t) => String(t.id || t.user_id))
+      .filter(Boolean)
   );
 
-  // Fetch approved trainees & calculate session status
+  // ============================================================
+  // FETCH TRAINEES
+  // ============================================================
+
   useEffect(() => {
     let isMounted = true;
 
@@ -30,8 +43,11 @@ export default function SelectTrainees({
       setErrorMsg(null);
 
       try {
-        // 1. Fetch ONLY approved trainees from profiles
-        const { data: approvedTrainees, error: profilesError } = await supabase
+        // 1. Fetch approved trainees
+        const {
+          data: approvedTrainees,
+          error: profilesError,
+        } = await supabase
           .from("profiles")
           .select(`
             id,
@@ -48,29 +64,46 @@ export default function SelectTrainees({
             )
           `)
           .eq("role", "trainee")
-          .or("is_approved.eq.true,registration_status.eq.Approved");
+          .or(
+            "is_approved.eq.true,registration_status.eq.Approved"
+          );
 
-        if (profilesError) throw profilesError;
+        if (profilesError) {
+          throw profilesError;
+        }
 
-        // 2. Fetch all trainee IDs currently assigned to an assessment
-        const { data: activeAssignments, error: assignError } = await supabase
+        // 2. Fetch currently assigned trainees
+        const {
+          data: activeAssignments,
+          error: assignError,
+        } = await supabase
           .from("assignments")
           .select("trainee_id");
 
-        if (assignError) throw assignError;
+        if (assignError) {
+          throw assignError;
+        }
 
-        // Build a Set of assigned trainee IDs for fast O(1) lookup
+        // Build Set for fast lookup
         const assignedTraineeIds = new Set(
-          (activeAssignments || []).map((a) => String(a.trainee_id))
+          (activeAssignments || [])
+            .map((assignment) => assignment.trainee_id)
+            .filter(Boolean)
+            .map((id) => String(id))
         );
 
         if (isMounted && approvedTrainees) {
           const formatted = approvedTrainees.map((item) => {
-            const rawTraineeProf = Array.isArray(item.trainee_profiles)
+            const rawTraineeProf = Array.isArray(
+              item.trainee_profiles
+            )
               ? item.trainee_profiles[0]
               : item.trainee_profiles;
 
-            const name = [item.first_name, item.last_name]
+            const name = [
+              item.first_name,
+              item.last_name,
+            ]
               .filter(Boolean)
               .join(" ");
 
@@ -81,16 +114,21 @@ export default function SelectTrainees({
 
             const traineeIdStr = String(item.id);
 
-            // DYNAMIC STATUS CALCULATION
-            const sessionStatus = assignedTraineeIds.has(traineeIdStr)
-              ? "In Another Session"
-              : "Active";
+            const sessionStatus =
+              assignedTraineeIds.has(traineeIdStr)
+                ? "In Another Session"
+                : "Active";
 
             return {
               id: traineeIdStr,
-              fullName: name.trim() || item.email || "Unnamed Trainee",
-              email: item.email || "No Email",
-              qualification: qualification,
+              fullName:
+                name.trim() ||
+                item.email ||
+                "Unnamed Trainee",
+              email:
+                item.email ||
+                "No Email",
+              qualification,
               assessmentStatus: sessionStatus,
               raw: item,
             };
@@ -99,12 +137,21 @@ export default function SelectTrainees({
           setTraineeList(formatted);
         }
       } catch (err) {
-        console.error("Supabase trainees fetch error:", err.message);
+        console.error(
+          "Supabase trainees fetch error:",
+          err.message
+        );
+
         if (isMounted) {
-          setErrorMsg("Failed to load trainees from DB: " + err.message);
+          setErrorMsg(
+            "Failed to load trainees from DB: " +
+            err.message
+          );
         }
       } finally {
-        if (isMounted) setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
@@ -115,216 +162,555 @@ export default function SelectTrainees({
     };
   }, []);
 
-  // Filter trainees based on search input & qualification dropdown
+  // ============================================================
+  // FILTER TRAINEES
+  // ============================================================
+
   const filteredTrainees = useMemo(() => {
+    const normalizedSearch = search
+      .trim()
+      .toLowerCase();
+
     return traineeList.filter((trainee) => {
-      const searchTarget =
-        `${trainee.fullName} ${trainee.id} ${trainee.email}`.toLowerCase();
-      const matchesSearch = searchTarget.includes(search.toLowerCase());
-      const matchesQual =
+      const searchTarget = `
+        ${trainee.fullName}
+        ${trainee.id}
+        ${trainee.email}
+      `.toLowerCase();
+
+      const matchesSearch =
+        searchTarget.includes(normalizedSearch);
+
+      const matchesQualification =
         qualificationFilter === "All" ||
         trainee.qualification.toLowerCase() ===
-          qualificationFilter.toLowerCase();
+        qualificationFilter.toLowerCase();
 
-      return matchesSearch && matchesQual;
+      return (
+        matchesSearch &&
+        matchesQualification
+      );
     });
-  }, [traineeList, search, qualificationFilter]);
+  }, [
+    traineeList,
+    search,
+    qualificationFilter,
+  ]);
 
-  // Filter for trainees that are active and available for selection
+  // ============================================================
+  // SELECTABLE TRAINEES
+  // Only Active trainees can be selected.
+  // ============================================================
+
   const selectableTrainees = useMemo(() => {
-    return filteredTrainees.filter((t) => t.assessmentStatus === "Active");
+    return filteredTrainees.filter(
+      (trainee) =>
+        trainee.assessmentStatus === "Active"
+    );
   }, [filteredTrainees]);
 
-  // Bulk check box selection logic (Only active trainees)
+  // ============================================================
+  // PAGINATION
+  // ============================================================
+
+  const totalPages = Math.ceil(
+    filteredTrainees.length /
+    ITEMS_PER_PAGE
+  );
+
+  const paginatedTrainees = useMemo(() => {
+    const startIndex =
+      (currentPage - 1) *
+      ITEMS_PER_PAGE;
+
+    const endIndex =
+      startIndex + ITEMS_PER_PAGE;
+
+    return filteredTrainees.slice(
+      startIndex,
+      endIndex
+    );
+  }, [
+    filteredTrainees,
+    currentPage,
+  ]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    search,
+    qualificationFilter,
+  ]);
+
+  // Make sure current page is still valid
+  useEffect(() => {
+    if (
+      totalPages > 0 &&
+      currentPage > totalPages
+    ) {
+      setCurrentPage(totalPages);
+    }
+  }, [
+    currentPage,
+    totalPages,
+  ]);
+
+  // ============================================================
+  // SHOWING X-Y OF Z
+  // ============================================================
+
+  const showingStart =
+    filteredTrainees.length === 0
+      ? 0
+      : (currentPage - 1) *
+      ITEMS_PER_PAGE +
+      1;
+
+  const showingEnd =
+    Math.min(
+      currentPage * ITEMS_PER_PAGE,
+      filteredTrainees.length
+    );
+
+  // ============================================================
+  // SELECT ALL
+  // ============================================================
+
   const allSelected =
     selectableTrainees.length > 0 &&
-    selectableTrainees.every((t) => selectedIds.includes(String(t.id)));
+    selectableTrainees.every((trainee) =>
+      selectedIds.includes(
+        String(trainee.id)
+      )
+    );
 
   const toggleSelectAll = () => {
     if (allSelected) {
-      const selectableIds = new Set(selectableTrainees.map((t) => String(t.id)));
-      setSelectedIds((prev) => prev.filter((id) => !selectableIds.has(id)));
+      const selectableIds = new Set(
+        selectableTrainees.map((trainee) =>
+          String(trainee.id)
+        )
+      );
+
+      setSelectedIds((previous) =>
+        previous.filter(
+          (id) =>
+            !selectableIds.has(id)
+        )
+      );
     } else {
-      const newIds = selectableTrainees.map((t) => String(t.id));
-      setSelectedIds((prev) => Array.from(new Set([...prev, ...newIds])));
+      const newIds =
+        selectableTrainees.map(
+          (trainee) =>
+            String(trainee.id)
+        );
+
+      setSelectedIds((previous) =>
+        Array.from(
+          new Set([
+            ...previous,
+            ...newIds,
+          ])
+        )
+      );
     }
   };
 
+  // ============================================================
+  // SELECT ONE TRAINEE
+  // ============================================================
+
   const toggleSelectOne = (id) => {
-    const targetTrainee = traineeList.find((t) => String(t.id) === String(id));
-    if (targetTrainee && targetTrainee.assessmentStatus !== "Active") return;
+    const targetTrainee =
+      traineeList.find(
+        (trainee) =>
+          String(trainee.id) ===
+          String(id)
+      );
+
+    // Do not allow unavailable trainees
+    if (
+      targetTrainee &&
+      targetTrainee.assessmentStatus !==
+      "Active"
+    ) {
+      return;
+    }
 
     const stringId = String(id);
-    setSelectedIds((prev) =>
-      prev.includes(stringId)
-        ? prev.filter((item) => item !== stringId)
-        : [...prev, stringId]
+
+    setSelectedIds((previous) =>
+      previous.includes(stringId)
+        ? previous.filter(
+          (item) =>
+            item !== stringId
+        )
+        : [
+          ...previous,
+          stringId,
+        ]
     );
   };
 
-  const handleContinue = () => {
-    const selectedObjects = traineeList.filter((t) =>
-      selectedIds.includes(String(t.id))
-    );
+  // ============================================================
+  // NEXT
+  // ============================================================
 
-    setAssessmentData((prev) => ({
-      ...prev,
+  const handleContinue = () => {
+    const selectedObjects =
+      traineeList.filter((trainee) =>
+        selectedIds.includes(
+          String(trainee.id)
+        )
+      );
+
+    setAssessmentData((previous) => ({
+      ...previous,
       trainees: selectedObjects,
-      selectedTrainees: selectedObjects,
+      selectedTrainees:
+        selectedObjects,
     }));
 
     onNext();
   };
 
+  // ============================================================
+  // RENDER
+  // ============================================================
+
   return (
     <div className="-mt-4 rounded-2xl bg-white px-5 py-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
+
+      {/* ==========================================================
+          TITLE
+      ========================================================== */}
+
       <h2 className="mb-4 text-xl font-semibold text-gray-900">
         Step 2: Select Trainees
       </h2>
 
-      {/* Controls: Search Bar + Qualification Select */}
+      {/* ==========================================================
+          SEARCH + FILTER
+      ========================================================== */}
+
       <div className="mb-4 flex flex-col gap-3 md:flex-row">
+
+        {/* Search */}
         <label className="relative flex-1">
           <Search
             size={18}
             className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
           />
+
           <input
+            type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) =>
+              setSearch(
+                event.target.value
+              )
+            }
             placeholder="Search trainee name or email"
             className="w-full rounded-xl border border-gray-400 py-3 pl-12 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-[#001F5B]"
           />
         </label>
+
+        {/* Qualification */}
         <select
           value={qualificationFilter}
-          onChange={(e) => setQualificationFilter(e.target.value)}
+          onChange={(event) =>
+            setQualificationFilter(
+              event.target.value
+            )
+          }
           className="rounded-xl border border-gray-400 px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#001F5B]"
         >
-          <option value="All">All Qualifications</option>
-          <option value="NC II">NC II</option>
-          <option value="IT 2">IT 2</option>
+          <option value="All">
+            All Qualifications
+          </option>
+
+          <option value="NC II">
+            NC II
+          </option>
+
+          <option value="IT 2">
+            IT 2
+          </option>
         </select>
+
       </div>
 
-      {/* Error Banner */}
+      {/* ==========================================================
+          ERROR
+      ========================================================== */}
+
       {errorMsg && (
-        <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600 border border-red-200">
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
           {errorMsg}
         </div>
       )}
 
-      {/* Table Container */}
+      {/* ==========================================================
+          TABLE
+      ========================================================== */}
+
       <div className="overflow-hidden rounded-xl border-2 border-gray-100">
+
         {loading ? (
           <div className="p-8 text-center text-gray-500">
             Loading trainees from database...
           </div>
         ) : (
           <table className="w-full text-left">
+
+            {/* TABLE HEADER */}
             <thead className="bg-gray-200 text-sm text-gray-700">
+
               <tr>
+
                 <th className="w-14 px-4 py-4 text-center">
+
                   <input
                     type="checkbox"
                     checked={allSelected}
-                    disabled={selectableTrainees.length === 0}
-                    onChange={toggleSelectAll}
-                    className="cursor-pointer accent-[#001F5B] disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={
+                      selectableTrainees.length ===
+                      0
+                    }
+                    onChange={
+                      toggleSelectAll
+                    }
+                    className="h-5 w-5 cursor-pointer accent-[#001F5B] disabled:cursor-not-allowed disabled:opacity-50"
                   />
-                </th>
-                <th className="px-4 py-4">Trainee Name</th>
-                <th className="px-4 py-4">Email</th>
-                <th className="px-4 py-4">Qualification</th>
-                <th className="px-4 py-4">Status</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm">
-              {filteredTrainees.map((trainee) => {
-                const isChecked = selectedIds.includes(String(trainee.id));
-                const isActive = trainee.assessmentStatus === "Active";
 
-                return (
-                  <tr
-                    key={trainee.id}
-                    onClick={() => toggleSelectOne(trainee.id)}
-                    className={`border-b border-gray-200 transition-colors ${
-                      isActive
+                </th>
+
+                <th className="px-4 py-4">
+                  Trainee Name
+                </th>
+
+                <th className="px-4 py-4">
+                  Email
+                </th>
+
+                <th className="px-4 py-4">
+                  Qualification
+                </th>
+
+                <th className="px-4 py-4">
+                  Status
+                </th>
+
+              </tr>
+
+            </thead>
+
+            {/* TABLE BODY */}
+            <tbody className="text-sm">
+
+              {paginatedTrainees.map(
+                (trainee) => {
+
+                  const isChecked =
+                    selectedIds.includes(
+                      String(
+                        trainee.id
+                      )
+                    );
+
+                  const isActive =
+                    trainee.assessmentStatus ===
+                    "Active";
+
+                  return (
+                    <tr
+                      key={trainee.id}
+                      onClick={() =>
+                        toggleSelectOne(
+                          trainee.id
+                        )
+                      }
+                      className={`border-b border-gray-200 transition-colors ${isActive
                         ? "cursor-pointer hover:bg-gray-100"
-                        : "cursor-not-allowed opacity-70 bg-gray-50"
-                    }`}
-                  >
-                    <td className="px-4 py-3 text-center">
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        disabled={!isActive}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={() => toggleSelectOne(trainee.id)}
-                        className="cursor-pointer accent-[#001F5B] disabled:cursor-not-allowed disabled:opacity-50"
-                      />
-                    </td>
-                    <td className="px-4 py-3 font-medium text-gray-900">
-                      {trainee.fullName}
-                    </td>
-                    <td className="px-4 py-3 text-gray-700">{trainee.email}</td>
-                    <td className="px-4 py-3 text-gray-700">
-                      {trainee.qualification}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
-                          isActive
+                        : "cursor-not-allowed bg-gray-50 opacity-70"
+                        }`}
+                    >
+
+                      {/* CHECKBOX */}
+                      <td className="px-4 py-3 text-center">
+
+                        <input
+                          type="checkbox"
+                          checked={
+                            isChecked
+                          }
+                          disabled={
+                            !isActive
+                          }
+                          onClick={(event) =>
+                            event.stopPropagation()
+                          }
+                          onChange={() =>
+                            toggleSelectOne(
+                              trainee.id
+                            )
+                          }
+                          className="h-5 w-5 cursor-pointer accent-[#001F5B] disabled:cursor-not-allowed disabled:opacity-50"
+                        />
+
+                      </td>
+
+                      {/* NAME */}
+                      <td className="px-4 py-3 font-medium text-gray-900">
+                        {trainee.fullName}
+                      </td>
+
+                      {/* EMAIL */}
+                      <td className="px-4 py-3 text-gray-700">
+                        {trainee.email}
+                      </td>
+
+                      {/* QUALIFICATION */}
+                      <td className="px-4 py-3 text-gray-700">
+                        {trainee.qualification}
+                      </td>
+
+                      {/* STATUS */}
+                      <td className="px-4 py-3">
+
+                        <span
+                          className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${isActive
                             ? "bg-green-100 text-green-700"
                             : "bg-amber-100 text-amber-700"
-                        }`}
-                      >
-                        {trainee.assessmentStatus}
-                      </span>
+                            }`}
+                        >
+                          {
+                            trainee.assessmentStatus
+                          }
+                        </span>
+
+                      </td>
+
+                    </tr>
+                  );
+                }
+              )}
+
+              {/* NO RESULTS */}
+              {filteredTrainees.length ===
+                0 &&
+                !loading && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="py-8 text-center text-gray-500"
+                    >
+                      No approved trainees found in database.
                     </td>
                   </tr>
-                );
-              })}
+                )}
 
-              {filteredTrainees.length === 0 && !loading && (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-gray-500">
-                    No approved trainees found in database.
-                  </td>
-                </tr>
-              )}
             </tbody>
+
           </table>
         )}
+
       </div>
 
-      {/* Footer / Action Controls */}
-      <div className="mt-4 flex items-center justify-between px-2 py-2 text-sm">
-        <p className="font-medium text-gray-700">
+      {/* Footer / Pagination / Action Controls */}
+      <div className="mt-4 flex items-start justify-between px-2 py-2 text-sm">
+        {/* LEFT: Selected trainees */}
+        <p className="pt-2 font-medium text-gray-700">
           Selected trainees:{" "}
-          <span className="font-bold text-[#001F5B]">{selectedIds.length}</span>
+          <span className="font-bold text-[#001F5B]">
+            {selectedIds.length}
+          </span>
         </p>
 
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 hover:bg-gray-100 transition"
-          >
-            Back
-          </button>
-          <button
-            type="button"
-            disabled={selectedIds.length === 0}
-            onClick={handleContinue}
-            className={`rounded-lg px-6 py-3 font-semibold text-white transition ${
-              selectedIds.length > 0
-                ? "bg-[#001F5B] hover:bg-[#001746]"
-                : "cursor-not-allowed bg-gray-300"
-            }`}
-          >
-            Continue
-          </button>
+        {/* RIGHT: Pagination + Back/Next */}
+        <div className="flex flex-col items-end gap-4">
+          {/* Pagination */}
+          {filteredTrainees.length >= ITEMS_PER_PAGE && (
+            <div className="flex items-center gap-3 text-gray-600">
+              <span>
+                Showing{" "}
+                {(currentPage - 1) * ITEMS_PER_PAGE + 1}-
+                {Math.min(
+                  currentPage * ITEMS_PER_PAGE,
+                  filteredTrainees.length
+                )}{" "}
+                of {filteredTrainees.length} trainees
+              </span>
+
+              {/* Previous */}
+              <button
+                type="button"
+                onClick={() =>
+                  setCurrentPage((prev) => Math.max(prev - 1, 1))
+                }
+                disabled={currentPage === 1}
+                className="rounded-md border border-gray-300 px-3 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ‹
+              </button>
+
+              {/* Page Numbers */}
+              {Array.from(
+                { length: totalPages },
+                (_, index) => index + 1
+              ).map((page) => (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  className={`rounded-md border px-3 py-1 font-medium ${currentPage === page
+                      ? "border-gray-300 bg-gray-100"
+                      : "border-gray-300 hover:bg-gray-50"
+                    }`}
+                >
+                  {page}
+                </button>
+              ))}
+
+              {/* Next Page */}
+              <button
+                type="button"
+                onClick={() =>
+                  setCurrentPage((prev) =>
+                    Math.min(prev + 1, totalPages)
+                  )
+                }
+                disabled={currentPage === totalPages}
+                className="rounded-md border border-gray-300 px-3 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ›
+              </button>
+            </div>
+          )}
+
+          {/* Back / Next */}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onBack}
+              className="rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 transition hover:bg-gray-100"
+            >
+              Back
+            </button>
+
+            <button
+              type="button"
+              disabled={selectedIds.length === 0}
+              onClick={handleContinue}
+              className={`rounded-lg px-6 py-3 font-semibold text-white transition ${selectedIds.length > 0
+                  ? "bg-[#001F5B] hover:bg-[#001746]"
+                  : "cursor-not-allowed bg-gray-300"
+                }`}
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
     </div>
