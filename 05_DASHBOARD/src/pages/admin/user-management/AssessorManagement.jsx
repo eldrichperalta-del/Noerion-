@@ -5,7 +5,6 @@ import { supabase } from "../../../supabaseClient";
 
 import SearchBar from "../../../components/admin/shared/SearchBar";
 import AssessorStatusFilter from "../../../components/admin/assessor-management/AssessorStatusFilter";
-import AssessorVerificationFilter from "../../../components/admin/assessor-management/AssessorVerificationFilter";
 import AssessorTable from "../../../components/admin/assessor-management/AssessorTable";
 
 function AssessorManagement() {
@@ -16,7 +15,6 @@ function AssessorManagement() {
   // ==========================================
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [verificationFilter, setVerificationFilter] = useState("All");
 
   const [assessors, setAssessors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -272,11 +270,7 @@ function AssessorManagement() {
     const matchesStatus =
       statusFilter === "All" || assessor.status === statusFilter;
 
-    const matchesVerification =
-      verificationFilter === "All" ||
-      assessor.verificationStatus === verificationFilter;
-
-    return matchesSearch && matchesStatus && matchesVerification;
+    return matchesSearch && matchesStatus;
   });
 
   // ==========================================
@@ -301,36 +295,34 @@ function AssessorManagement() {
     <>
       <div className="p-0">
         {/* PAGE HEADER */}
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-bold text-gray-900">Assessors</h1>
-            <p className="text-gray-600">Manage assessor accounts and access</p>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => navigate("/admin/user-management/add-assessor")}
-            className="flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-blue-700 px-6 py-3 font-medium text-white transition hover:bg-blue-800 shadow-md self-start sm:self-auto"
-          >
-            <Plus size={20} />
-            Add Assessor
-          </button>
+        <div className="mb-6">
+          <h1 className="text-4xl font-bold text-gray-900">Assessors</h1>
+          <p className="text-gray-600">Manage assessor accounts and access</p>
         </div>
 
-        {/* SEARCH AND FILTERS */}
+        {/* SEARCH, STATUS FILTER, AND ADD ASSESSOR BUTTON */}
         <div className="mb-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-            <SearchBar search={search} setSearch={setSearch} />
-            <div className="flex flex-col gap-4 sm:flex-row lg:ml-auto">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center justify-between">
+            {/* LEFT CONTROLS: SEARCH & STATUS FILTER */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center flex-1">
+              <div className="flex-1 max-w-md">
+                <SearchBar search={search} setSearch={setSearch} />
+              </div>
               <AssessorStatusFilter
                 value={statusFilter}
                 onChange={setStatusFilter}
               />
-              <AssessorVerificationFilter
-                value={verificationFilter}
-                onChange={setVerificationFilter}
-              />
             </div>
+
+            {/* RIGHT CONTROL: ADD ASSESSOR BUTTON */}
+            <button
+              type="button"
+              onClick={() => navigate("/admin/user-management/add-assessor")}
+             className="flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-[#002f86] px-6 py-3 font-medium text-white transition hover:bg-[#001f5a] active:bg-[#001f5a] shadow-md self-start lg:self-auto"
+            >
+              <Plus size={20} />
+              Add Assessor
+            </button>
           </div>
         </div>
 

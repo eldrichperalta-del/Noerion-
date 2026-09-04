@@ -449,7 +449,7 @@ function TraineeTable({
                                 ? menuRef
                                 : null
                             }
-                            className="relative flex justify-center"
+                            className="relative flex"
                           >
 
                             <button

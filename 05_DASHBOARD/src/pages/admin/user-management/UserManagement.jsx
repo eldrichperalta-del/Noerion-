@@ -365,7 +365,7 @@ function UserManagement() {
   // =========================
 
   return (
-    <div className="min-h-screen px-6 py-10">
+    <div className="min-h-screen px-6 py-0">
 
       {/* PAGE HEADER */}
       <div className="relative mb-12 text-left">
@@ -437,7 +437,7 @@ function UserManagement() {
 
           <Link
             to="/admin/user-management/trainees"
-            className="mt-auto block w-full rounded-xl bg-blue-700 py-3 text-center text-lg font-semibold text-white transition-all duration-300 hover:bg-blue-800"
+           className="mt-auto block w-full rounded-xl bg-[#002f86] py-3 text-center text-lg font-semibold text-white transition-all duration-300 hover:bg-[#001f5a] active:bg-[#001f5a]"
           >
             Manage Trainees
           </Link>
@@ -498,7 +498,7 @@ function UserManagement() {
 
           <Link
             to="/admin/user-management/assessors"
-            className="mt-auto block w-full rounded-xl bg-blue-700 py-3 text-center text-lg font-semibold text-white transition-all duration-300 hover:bg-blue-800"
+            className="mt-auto block w-full rounded-xl bg-[#002f86] py-3 text-center text-lg font-semibold text-white transition-all duration-300 hover:bg-[#001f5a] active:bg-[#001f5a]"
           >
             Manage Assessors
           </Link>
@@ -590,7 +590,7 @@ function UserManagement() {
                     </td>
 
                     <td className="px-4 py-5 text-center">
-                      <div className="flex items-center justify-center">
+                      <div className="flex items-center">
                         <span
                           className={
                             activity.status === "Pending"
@@ -615,7 +615,7 @@ function UserManagement() {
                             ? menuRef
                             : null
                         }
-                        className="relative flex items-center justify-center"
+                        className="relative flex items-center"
                       >
                         <button
                           type="button"

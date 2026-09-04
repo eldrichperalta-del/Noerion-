@@ -206,7 +206,7 @@ function AssessorTable({
                       <td className="px-4 py-3">
                         <div
                           ref={openMenuId === assessor.id ? menuRef : null}
-                          className="relative flex justify-center"
+                          className="relative flex"
                         >
                           <button
                             type="button"
