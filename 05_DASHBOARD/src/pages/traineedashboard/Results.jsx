@@ -23,10 +23,15 @@ export default function Results() {
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 5;
 
+  // =========================================================
+  // FETCH RESULTS
+  // =========================================================
+
   useEffect(() => {
     async function fetchResults() {
       try {
         setLoading(true);
+
         const {
           data: { user },
         } = await supabase.auth.getUser();
@@ -55,10 +60,15 @@ export default function Results() {
 
         if (error) throw error;
 
-        console.log("Raw Submissions from Supabase:", submissions);
+        console.log(
+          "Raw Submissions from Supabase:",
+          submissions
+        );
 
         const formatted = (submissions || []).map((sub) => {
-          const statusLower = (sub.status || "").toLowerCase().trim();
+          const statusLower = (sub.status || "")
+            .toLowerCase()
+            .trim();
 
           let outcome = "In evaluation";
 
@@ -78,26 +88,41 @@ export default function Results() {
           }
 
           const completedDate =
-            sub.submitted_at || sub.assignment?.assessment_date || null;
+            sub.submitted_at ||
+            sub.assignment?.assessment_date ||
+            null;
 
           return {
             id: sub.id,
             trainee_id: sub.trainee_id || user.id,
-            title: sub.assignment?.assessment_name || "Assessment Title",
+
+            title:
+              sub.assignment?.assessment_name ||
+              "Assessment Title",
+
             qualification:
               sub.assignment?.qualification ||
               sub.assignment?.assessment_type ||
               "NC II",
-            date: completedDate ? String(completedDate).split("T")[0] : "",
+
+            date: completedDate
+              ? String(completedDate).split("T")[0]
+              : "",
+
             rawDate: completedDate,
+
             result: outcome,
+
             score: sub.total_score || 0,
           };
         });
 
         setAssessments(formatted);
       } catch (err) {
-        console.error("Error loading assessment results:", err);
+        console.error(
+          "Error loading assessment results:",
+          err
+        );
       } finally {
         setLoading(false);
       }
@@ -106,27 +131,57 @@ export default function Results() {
     fetchResults();
   }, []);
 
+  // =========================================================
+  // FILTERING
+  // =========================================================
+
   const filteredAssessments = useMemo(() => {
     return assessments.filter((assessment) => {
+      const searchTerm = search.toLowerCase();
+
       const matchesSearch =
-        assessment.title.toLowerCase().includes(search.toLowerCase()) ||
-        assessment.qualification.toLowerCase().includes(search.toLowerCase());
+        assessment.title
+          .toLowerCase()
+          .includes(searchTerm) ||
+        assessment.qualification
+          .toLowerCase()
+          .includes(searchTerm);
 
       const matchesStatus =
-        statusFilter === "All" || assessment.result === statusFilter;
+        statusFilter === "All" ||
+        assessment.result === statusFilter;
 
-      const matchesDate = !dateFilter || assessment.date === dateFilter;
+      const matchesDate =
+        !dateFilter ||
+        assessment.date === dateFilter;
 
-      return matchesSearch && matchesStatus && matchesDate;
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesDate
+      );
     });
-  }, [assessments, search, statusFilter, dateFilter]);
+  }, [
+    assessments,
+    search,
+    statusFilter,
+    dateFilter,
+  ]);
 
-  const totalPages = Math.ceil(filteredAssessments.length / rowsPerPage) || 1;
+  // =========================================================
+  // PAGINATION
+  // =========================================================
 
-  const currentData = filteredAssessments.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  );
+  const totalPages =
+    Math.ceil(
+      filteredAssessments.length / rowsPerPage
+    ) || 1;
+
+  const currentData =
+    filteredAssessments.slice(
+      (currentPage - 1) * rowsPerPage,
+      currentPage * rowsPerPage
+    );
 
   const showingStart =
     filteredAssessments.length === 0
@@ -140,93 +195,123 @@ export default function Results() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, statusFilter, dateFilter]);
+  }, [
+    search,
+    statusFilter,
+    dateFilter,
+  ]);
+
+  // =========================================================
+  // RESULT BADGE
+  // =========================================================
 
   const getResultBadgeStyle = (result) => {
     switch (result) {
       case "Pass":
       case "Competent":
-        return "bg-green-100 text-green-700";
+        return "bg-green-50 text-green-700 border-green-200";
+
       case "Failed":
       case "Not Yet Competent":
-        return "bg-red-100 text-red-700";
+        return "bg-red-50 text-red-700 border-red-200";
+
       case "In evaluation":
       default:
-        return "bg-amber-100 text-amber-700";
+        return "bg-yellow-50 text-yellow-700 border-yellow-200";
     }
   };
 
+  // =========================================================
+  // PAGE
+  // =========================================================
+
   return (
-    <div className="p-0">
+    <div className="space-y-6">
+      {/* =====================================================
+          PAGE HEADER
+      ====================================================== */}
+
       <DashboardPageHeader
         title="Assessment Results"
         subtitle="Review your completed assessments, scores, and evaluation outcomes."
       />
 
-      {/* Filters */}
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      {/* =====================================================
+          FILTERS
+      ====================================================== */}
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/* Search */}
-        <div className="relative w-full lg:max-w-md">
+        <div className="relative w-full sm:max-w-md">
           <Search
             size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
           />
 
           <input
             type="text"
-            placeholder="Search results"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm outline-none shadow-sm focus:border-[#002f86] focus:ring-2 focus:ring-blue-100"
+            onChange={(e) =>
+              setSearch(e.target.value)
+            }
+            placeholder="Search assessment and qualification"
+            className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-11 pr-4 text-sm text-gray-700 shadow-sm focus:border-[#002f86] focus:outline-none focus:ring-1 focus:ring-[#002f86]"
           />
         </div>
 
+        {/* Filters */}
         <div className="flex flex-col gap-3 sm:flex-row">
           {/* Status */}
-          <div className="rounded-xl bg-white shadow-sm">
-            <div className="relative">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="appearance-none rounded-lg border border-gray-300 bg-white px-4 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="All">All</option>
-                <option value="Pass">Pass</option>
-                <option value="Failed">Failed</option>
-                <option value="In evaluation">In evaluation</option>
-              </select>
+          <div className="relative">
+            <select
+              value={statusFilter}
+              onChange={(e) =>
+                setStatusFilter(e.target.value)
+              }
+              className="appearance-none rounded-xl border border-gray-200 bg-white px-4 py-2.5 pr-10 text-sm text-gray-700 shadow-sm focus:border-[#002f86] focus:outline-none focus:ring-1 focus:ring-[#002f86]"
+            >
+              <option value="All">All Results</option>
+              <option value="Pass">Pass</option>
+              <option value="Failed">Failed</option>
+              <option value="In evaluation">
+                In evaluation
+              </option>
+            </select>
 
-              <ChevronDown
-                size={16}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
-              />
-            </div>
+            <ChevronDown
+              size={16}
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+            />
           </div>
 
           {/* Date */}
-          <div className="rounded-xl bg-white shadow-sm">
-            <div className="relative">
-              <CalendarDays
-                size={17}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
-              />
+          <div className="relative">
+            <CalendarDays
+              size={17}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+            />
 
-              <input
-                type="date"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="rounded-lg border border-gray-300 bg-white pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) =>
+                setDateFilter(e.target.value)
+              }
+              className="rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-700 shadow-sm focus:border-[#002f86] focus:outline-none focus:ring-1 focus:ring-[#002f86]"
+            />
           </div>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-2xl p-6 shadow-[0_4px_12px_rgba(0,0,0,0.30)]">
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+      {/* =====================================================
+          RESULTS TABLE
+      ====================================================== */}
+
+      <section className="overflow-visible rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
           <table className="w-full">
-            <thead className="bg-gray-800 text-left text-sm font-semibold text-gray-700">
+            {/* TABLE HEADER */}
+            <thead className="bg-gray-50 text-left text-sm font-semibold text-gray-500">
               <tr>
                 <th className="px-5 py-4">Assessment Title</th>
                 <th className="px-5 py-4">Qualification / Course</th>
@@ -236,10 +321,14 @@ export default function Results() {
               </tr>
             </thead>
 
-            <tbody>
+            {/* TABLE BODY */}
+            <tbody className="divide-y divide-gray-100 text-sm">
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="py-10 text-center text-gray-500">
+                  <td
+                    colSpan="5"
+                    className="px-6 py-12 text-center text-gray-500"
+                  >
                     Loading results...
                   </td>
                 </tr>
@@ -247,28 +336,38 @@ export default function Results() {
                 currentData.map((assessment) => (
                   <tr
                     key={assessment.id}
-                    className="border-t hover:bg-gray-100 transition"
+                    className="transition-colors hover:bg-gray-50/60"
                   >
-                    <td className="px-5 py-4">{assessment.title}</td>
+                    {/* Assessment Title */}
+                    <td className="px-6 py-4 font-semibold text-gray-900">
+                      {assessment.title}
+                    </td>
 
-                    <td className="px-5 py-4">{assessment.qualification}</td>
+                    {/* Qualification */}
+                    <td className="px-6 py-4 text-gray-600">
+                      {assessment.qualification}
+                    </td>
 
-                    <td className="px-5 py-4">
+                    {/* Date */}
+                    <td className="px-6 py-4 text-gray-600">
                       {assessment.rawDate
-                        ? new Date(assessment.rawDate).toLocaleDateString(
-                            "en-US",
-                            {
-                              month: "long",
-                              day: "numeric",
-                              year: "numeric",
-                            }
-                          )
+                        ? new Date(
+                          assessment.rawDate
+                        ).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          }
+                        )
                         : "N/A"}
                     </td>
 
-                    <td className="px-5 py-4">
+                    {/* Result */}
+                    <td className="px-6 py-4">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold ${getResultBadgeStyle(
+                        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getResultBadgeStyle(
                           assessment.result
                         )}`}
                       >
@@ -276,23 +375,29 @@ export default function Results() {
                       </span>
                     </td>
 
-                    <td className="px-5 py-4 text-center">
-                      <button
-                        onClick={() =>
-                          navigate("/trainee/assessment-summary", {
-                            state: { assessment },
-                          })
-                        }
-                        className="bg-blue-700 hover:bg-blue-800 text-white px-5 py-2 rounded-full text-sm font-medium transition"
-                      >
-                        View Results
-                      </button>
+                    {/* Actions */}
+                    <td className="px-6 py-4 text-right">
+                      <td className="px-5 py-4 text-center whitespace-nowrap">
+                        <button
+                          onClick={() =>
+                            navigate("/trainee/assessment-summary", {
+                              state: { assessment },
+                            })
+                          }
+                          className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-blue-700 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-800"
+                        >
+                          View Results
+                        </button>
+                      </td>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="py-10 text-center text-gray-500">
+                  <td
+                    colSpan="5"
+                    className="px-6 py-12 text-center text-gray-500"
+                  >
                     No completed assessments found.
                   </td>
                 </tr>
@@ -302,34 +407,40 @@ export default function Results() {
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between border-t border-gray-200 px-4 py-4 text-sm">
-          <p className="font-medium text-gray-700">
-            Showing {showingStart}-{showingEnd} of {filteredAssessments.length}
-          </p>
+        {filteredAssessments.length >= 6 && (
+          <div className="flex items-center justify-between border-t border-gray-200 px-4 py-4 text-sm">
+            <p className="font-medium text-gray-700">
+              Showing {showingStart}-{showingEnd} of {filteredAssessments.length}
+            </p>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-              disabled={currentPage === 1}
-              className="flex items-center gap-1 text-gray-500 disabled:opacity-40"
-            >
-              <ChevronLeft size={16} />
-              Prev
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                disabled={currentPage === 1}
+                className="flex items-center gap-1 text-gray-500 disabled:opacity-40"
+              >
+                <ChevronLeft size={16} />
+                Prev
+              </button>
 
-            <span className="px-3 py-2 border rounded-lg">{currentPage}</span>
+              <span className="px-3 py-2 border rounded-lg">
+                {currentPage}
+              </span>
 
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-              disabled={currentPage >= totalPages}
-              className="flex items-center gap-1 text-gray-500 disabled:opacity-40"
-            >
-              Next
-              <ChevronRight size={16} />
-            </button>
+              <button
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(p + 1, totalPages))
+                }
+                disabled={currentPage >= totalPages}
+                className="flex items-center gap-1 text-gray-500 disabled:opacity-40"
+              >
+                Next
+                <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
-        </div>
-      </div>
+        )}
+      </section>
     </div>
   );
 }

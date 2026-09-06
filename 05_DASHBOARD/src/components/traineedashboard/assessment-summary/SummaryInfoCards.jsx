@@ -10,33 +10,54 @@ export default function SummaryInfoCards({ assessment }) {
   // Safe extraction of properties with fallbacks
   const title = assessment?.title || "Assessment Title";
   const qualification = assessment?.qualification || "N/A";
-  
+
   const rawDate = assessment?.date || assessment?.rawDate;
+
   const formattedDate = rawDate
     ? new Date(rawDate).toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      })
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    })
     : "N/A";
 
-  // Score & Percentage Calculation (37 / 40 * 100 = 93%)
-  const rawScore = assessment?.total_score ?? assessment?.score ?? 0;
-  const totalItems = assessment?.total_items ?? assessment?.totalItems ?? 40;
-  
-  const scorePercentage =
-    rawScore > totalItems
-      ? Math.round(rawScore)
-      : Math.min(Math.round((rawScore / totalItems) * 100), 100);
+  // ---------------------------------------------------------------------------
+  // Score
+  // ---------------------------------------------------------------------------
+  // Use the actual score and total number of assessment items.
+  //
+  // Example:
+  // total_score = 24
+  // total_items = 40
+  //
+  // Display:
+  // 24 / 40
+  // ---------------------------------------------------------------------------
+
+  const rawScore = Number(
+    assessment?.total_score ?? assessment?.score ?? 0
+  );
+
+  const totalItems = Number(
+    assessment?.total_items ?? assessment?.totalItems ?? 40
+  );
+
+  const displayScore = `${rawScore} / ${totalItems}`;
 
   const rawStatus = assessment?.result || "In evaluation";
 
-  // Standardize classification display (e.g. Pass -> Passed)
+  // Standardize classification display
+  // Example:
+  // Pass -> Passed
+  // Fail -> Failed
   const formatResultStatus = (status) => {
     if (!status) return "In evaluation";
+
     const str = status.toString().trim();
+
     if (str.toLowerCase() === "pass") return "Passed";
     if (str.toLowerCase() === "fail") return "Failed";
+
     return str;
   };
 
@@ -50,10 +71,12 @@ export default function SummaryInfoCards({ assessment }) {
       case "Competent":
       case "Completed":
         return "bg-green-100 text-green-700";
+
       case "Fail":
       case "Failed":
       case "Not Yet Competent":
         return "bg-red-100 text-red-700";
+
       case "In evaluation":
       default:
         return "bg-amber-100 text-amber-700";
@@ -78,7 +101,7 @@ export default function SummaryInfoCards({ assessment }) {
     },
     {
       title: "Final Score",
-      value: `${scorePercentage}%`,
+      value: displayScore,
       icon: Trophy,
     },
     {
@@ -97,17 +120,23 @@ export default function SummaryInfoCards({ assessment }) {
         return (
           <div
             key={index}
-            className="bg-white rounded-2xl border border-gray-200 shadow-[0_4px_12px_rgba(0,0,0,0.35)] p-5 flex flex-col justify-between"
+            className="bg-white rounded-2xl border border-gray-200 shadow-[0_4px_12px_rgba(0,0,0,0.35)] p-5 min-h-[150px] flex flex-col"
           >
-            <div className="flex items-center gap-2 mb-4">
-              <Icon size={20} className="text-blue-700 shrink-0" />
+            {/* Header stays at the top-left */}
+            <div className="flex items-center gap-2">
+              <Icon
+                size={20}
+                className="text-blue-700 shrink-0"
+              />
+
               <p className="text-sm font-semibold text-gray-500 truncate">
                 {card.title}
               </p>
             </div>
 
-            {card.badge ? (
-              <div>
+            {/* DATA — CENTER OF THE CARD */}
+            <div className="flex-1 flex items-center justify-center text-center">
+              {card.badge ? (
                 <span
                   className={`inline-flex rounded-full px-4 py-2 text-sm font-semibold ${getBadgeClass(
                     card.value
@@ -115,15 +144,19 @@ export default function SummaryInfoCards({ assessment }) {
                 >
                   {card.value}
                 </span>
-              </div>
-            ) : (
-              <h2 className="text-lg font-bold text-gray-800 break-words" title={card.value}>
-                {card.value}
-              </h2>
-            )}
+              ) : (
+                <h2
+                  className="text-lg font-bold text-gray-800 break-words"
+                  title={card.value}
+                >
+                  {card.value}
+                </h2>
+              )}
+            </div>
           </div>
         );
       })}
     </div>
   );
 }
+

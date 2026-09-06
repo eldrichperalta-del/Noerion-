@@ -170,7 +170,7 @@ input[aria-label="Schedule date"] {
 
     /* Footer */
     .certificate-screen-preview .certificate-footer-grid {
-        transform: translateY(-1.0rem);
+        transform: translateY(-1.1rem);
     }
 
     .certificate-screen-preview .certificate-qr {
@@ -190,7 +190,7 @@ input[aria-label="Schedule date"] {
 
     .certificate-screen-preview .certificate-verification {
         width: 100%;
-        margin-top: 0.25rem;
+        margin-top: -1rem;
         font-size: 11px;
         line-height: 1.2;
         text-align: center;
