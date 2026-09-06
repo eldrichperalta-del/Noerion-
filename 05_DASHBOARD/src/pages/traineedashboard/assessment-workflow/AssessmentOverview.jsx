@@ -224,14 +224,14 @@ export default function AssessmentOverview() {
   const taskStateMap = {
     Pending: {
       label: "Not Started",
-      button: "START ASSESSMENT",
+      button: "START BASELINE",
       badgeColor: "bg-yellow-100 text-yellow-700",
       statusDot: "bg-yellow-400",
       disabled: false,
     },
     Scheduled: {
       label: "Scheduled",
-      button: "START ASSESSMENT",
+      button: "START BASELINE",
       badgeColor: "bg-blue-100 text-blue-700",
       statusDot: "bg-blue-500",
       disabled: true, // Greyed out if in scheduled state
@@ -411,7 +411,7 @@ export default function AssessmentOverview() {
                       : "bg-[#003C8F] text-white hover:bg-blue-800"
                   }`}
                 >
-                  {current.disabled ? "START ASSESSMENT (SCHEDULED)" : current.button}
+                  {current.disabled ? "START BASELINE (SCHEDULED)" : current.button}
                 </button>
               </div>
             </div>
