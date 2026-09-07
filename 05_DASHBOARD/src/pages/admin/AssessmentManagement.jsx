@@ -1,376 +1,625 @@
 import { useEffect, useMemo, useState } from "react";
+import { Search, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Archive, Copy, MoreVertical, RotateCcw, Search, Trash2 } from "lucide-react";
 import { supabase } from "../../supabaseClient";
 
-const qualificationLevel = (value) =>
-  value?.match(/NC\s+(?:I{1,3}|IV)/)?.[0] || value || "NC II";
+/* ============================================================
+   FORMAT DATE
+   ============================================================ */
 
-const formatStatus = (str) => {
-  if (!str) return "Draft";
-  const lower = str.toLowerCase();
-  if (lower === "active") return "Active";
-  if (lower === "archived" || lower === "archive") return "Archived";
-  if (lower === "completed") return "Completed";
-  return "Draft";
-};
-
-const badge = (value) => {
-  switch (value) {
-    case "Active":
-      return "bg-green-100 text-green-700";
-    case "Completed":
-      return "bg-amber-100 text-amber-800";
-    case "Archived":
-      return "bg-gray-200 text-gray-700";
-    case "Draft":
-    default:
-      return "bg-blue-100 text-blue-800";
+function formatDate(value) {
+  if (!value) {
+    return "—";
   }
-};
 
-function MenuItem({ label, Icon, onClick, destructive = false }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition hover:bg-gray-50 ${
-        destructive ? "text-red-600 hover:bg-red-50" : "text-gray-700"
-      }`}
-    >
-      <Icon size={16} />
-      {label}
-    </button>
-  );
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
+
+/* ============================================================
+   ASSESSMENT MANAGEMENT
+   ============================================================ */
 
 export default function AssessmentManagement() {
   const navigate = useNavigate();
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [qualification, setQualification] = useState("All");
-  const [status, setStatus] = useState("All");
-  const [sort, setSort] = useState("Last Updated");
-  const [openMenu, setOpenMenu] = useState(null);
 
-  const loadAssessments = async () => {
+  /* ==========================================================
+     STATE
+     ========================================================== */
+
+  const [courses, setCourses] = useState([]);
+  const [assessments, setAssessments] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const [search, setSearch] = useState("");
+
+  /* ==========================================================
+     LOAD DATA
+     ========================================================== */
+
+  const loadData = async () => {
     setLoading(true);
+    setErrorMessage("");
+
     try {
-      // Query assessments with courses and question count
-      const { data, error } = await supabase
+      /* ========================================================
+         1. LOAD COURSES
+         ======================================================== */
+
+      const {
+        data: courseData,
+        error: courseError,
+      } = await supabase
+        .from("courses")
+        .select(`
+          id,
+          code,
+          title,
+          qualification_level,
+          description,
+          created_at
+        `)
+        .order("title", {
+          ascending: true,
+        });
+
+      if (courseError) {
+        throw new Error(
+          `Courses query failed: ${courseError.message}`
+        );
+      }
+
+      /* ========================================================
+         2. LOAD ASSESSMENTS
+         ======================================================== */
+
+      const {
+        data: assessmentData,
+        error: assessmentError,
+      } = await supabase
         .from("assessments")
         .select(`
           id,
+          course_id,
           title,
           set_type,
           total_items,
           time_limit_minutes,
-          status,
+          is_active,
           created_at,
-          courses ( id, code, title, qualification_level ),
-          questions ( id )
+          status
         `)
-        .order("created_at", { ascending: false });
+        .order("created_at", {
+          ascending: false,
+        });
 
-      if (error) throw error;
+      if (assessmentError) {
+        throw new Error(
+          `Assessments query failed: ${assessmentError.message}`
+        );
+      }
 
-      const formattedItems = (data || []).map((assessment) => ({
-        id: assessment.id,
-        course: assessment.title,
-        qualification: qualificationLevel(
-          assessment.courses?.qualification_level || assessment.courses?.title || assessment.title
-        ),
-        type: assessment.set_type || "Written",
-        // Count total questions from joined questions table or total_items column
-        questions: assessment.questions?.length || assessment.total_items || 0,
-        updated: assessment.created_at
-          ? new Date(assessment.created_at).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })
-          : "Jul 31, 2026",
-        status: formatStatus(assessment.status),
-        raw: assessment,
-      }));
+      /* ========================================================
+         3. SAVE DATA
+         ======================================================== */
 
-      setItems(formattedItems);
-    } catch (err) {
-      console.error("Error fetching assessments:", err.message);
+      setCourses(courseData || []);
+      setAssessments(assessmentData || []);
+    } catch (error) {
+      console.error(
+        "ERROR LOADING ASSESSMENT LIBRARY:",
+        error
+      );
+
+      setErrorMessage(
+        error?.message ||
+        "Unable to load the Assessment Library."
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  /* ==========================================================
+     INITIAL LOAD
+     ========================================================== */
+
   useEffect(() => {
-    loadAssessments();
+    loadData();
   }, []);
 
-  const assessments = useMemo(() => {
-    return items
-      .filter((item) => {
-        const matchesQualification = qualification === "All" || item.qualification === qualification;
-        const matchesStatus =
-          status === "All" ||
-          item.status === (status === "Archive" ? "Archived" : status);
-        const matchesSearch = item.course.toLowerCase().includes(search.toLowerCase());
+  /* ==========================================================
+     BUILD ONE COURSE TABLE
 
-        return matchesQualification && matchesStatus && matchesSearch;
-      })
-      .sort((first, second) =>
-        sort === "Last Updated"
-          ? String(second.updated).localeCompare(String(first.updated))
-          : first.course.localeCompare(second.course)
-      );
-  }, [items, search, qualification, status, sort]);
+     Every course gets:
+       - assessments
+       - latest assessment
+       - assessment count
 
-  const closeMenu = () => setOpenMenu(null);
+     Everything is displayed in ONE table.
+     ========================================================== */
 
-  const changeStatus = async (id, nextStatus) => {
-    try {
-      let { error } = await supabase
-        .from("assessments")
-        .update({ status: nextStatus })
-        .eq("id", id);
-
-      if (error) {
-        const { error: lowerErr } = await supabase
-          .from("assessments")
-          .update({ status: nextStatus.toLowerCase() })
-          .eq("id", id);
-
-        if (lowerErr) throw lowerErr;
-      }
-
-      setItems((current) =>
-        current.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                status: formatStatus(nextStatus),
-                updated: new Date().toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                }),
-              }
-            : item
+  const courseTables = useMemo(() => {
+    return courses.map((course) => {
+      const courseAssessments = assessments
+        .filter(
+          (assessment) =>
+            assessment.course_id === course.id
         )
+        .sort(
+          (a, b) =>
+            new Date(b.created_at || 0).getTime() -
+            new Date(a.created_at || 0).getTime()
+        );
+
+      return {
+        ...course,
+
+        assessments: courseAssessments,
+
+        assessmentCount:
+          courseAssessments.length,
+
+        latestAssessment:
+          courseAssessments[0] || null,
+      };
+    });
+  }, [courses, assessments]);
+
+  /* ==========================================================
+     SEARCH
+
+     Searches:
+       - Course title
+       - Course code
+       - Qualification level
+       - Assessment title
+       - Assessment type
+     ========================================================== */
+
+  const filteredCourses = useMemo(() => {
+    const searchValue = search
+      .trim()
+      .toLowerCase();
+
+    if (!searchValue) {
+      return courseTables;
+    }
+
+    return courseTables.filter((course) => {
+      const courseTitle = String(
+        course.title || ""
+      ).toLowerCase();
+
+      const courseCode = String(
+        course.code || ""
+      ).toLowerCase();
+
+      const qualification = String(
+        course.qualification_level || ""
+      ).toLowerCase();
+
+      const assessmentMatch =
+        course.assessments.some(
+          (assessment) => {
+            const title = String(
+              assessment.title || ""
+            ).toLowerCase();
+
+            const setType = String(
+              assessment.set_type || ""
+            ).toLowerCase();
+
+            return (
+              title.includes(searchValue) ||
+              setType.includes(searchValue)
+            );
+          }
+        );
+
+      return (
+        courseTitle.includes(searchValue) ||
+        courseCode.includes(searchValue) ||
+        qualification.includes(searchValue) ||
+        assessmentMatch
       );
-    } catch (err) {
-      alert(`Unable to update status: ${err.message}`);
-    } finally {
-      closeMenu();
-    }
-  };
+    });
+  }, [courseTables, search]);
 
-  const duplicate = async (item) => {
-    try {
-      const source = item.raw;
-      const { error } = await supabase.from("assessments").insert({
-        course_id: source?.courses?.id || null,
-        title: `${item.course} - Copy`,
-        set_type: source?.set_type || "Written",
-        total_items: source?.total_items || 0,
-        time_limit_minutes: source?.time_limit_minutes || 30,
-        status: "Draft",
-      });
+  /* ==========================================================
+     VIEW ASSESSMENT
+     ========================================================== */
 
-      if (error) throw error;
-      await loadAssessments();
-    } catch (err) {
-      alert(`Error duplicating assessment: ${err.message}`);
-    } finally {
-      closeMenu();
-    }
-  };
-
-  const remove = async (id, permanent = false) => {
-    if (
-      permanent &&
-      !window.confirm("Permanently delete this assessment? This cannot be undone.")
-    ) {
+  const handleViewAssessment = (course) => {
+    if (!course?.id) {
       return;
     }
 
-    try {
-      const { error } = await supabase.from("assessments").delete().eq("id", id);
-      if (error) throw error;
+    navigate(
+      `/admin/assessments/course/${course.id}`,
+      {
+        state: {
+          courseName: course.title,
 
-      setItems((current) => current.filter((item) => item.id !== id));
-    } catch (err) {
-      alert(`Error deleting assessment: ${err.message}`);
-    } finally {
-      closeMenu();
-    }
+          courseCode: course.code,
+
+          qualification:
+            course.qualification_level,
+        },
+      }
+    );
   };
 
-  const actions = (item) => (
-    <div
-      className={`absolute right-4 top-12 z-10 w-52 origin-top-right overflow-hidden rounded-xl border bg-white py-1 shadow-lg transition-all duration-200 ${
-        openMenu === item.id
-          ? "visible translate-y-0 scale-100 opacity-100"
-          : "invisible -translate-y-2 scale-95 opacity-0"
-      }`}
-    >
-      {item.status === "Archived" ? (
-        <>
-          <MenuItem
-            label="Restore"
-            Icon={RotateCcw}
-            onClick={() => changeStatus(item.id, "Active")}
-          />
-          <MenuItem label="Duplicate" Icon={Copy} onClick={() => duplicate(item)} />
-          <MenuItem
-            label="Delete Permanently"
-            Icon={Trash2}
-            onClick={() => remove(item.id, true)}
-            destructive
-          />
-        </>
-      ) : (
-        <>
-          <MenuItem label="Duplicate" Icon={Copy} onClick={() => duplicate(item)} />
-          <MenuItem
-            label="Archive"
-            Icon={Archive}
-            onClick={() => changeStatus(item.id, "Archived")}
-          />
-          <MenuItem
-            label="Delete"
-            Icon={Trash2}
-            onClick={() => remove(item.id)}
-            destructive
-          />
-        </>
-      )}
-    </div>
-  );
+  /* ==========================================================
+     CREATE ASSESSMENT
+     ========================================================== */
+
+  const handleCreateAssessment = () => {
+    navigate("/admin/assessments/create");
+  };
+
+  /* ==========================================================
+     PAGE
+     ========================================================== */
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900">Assessment Library</h1>
-          <p className="mt-2 text-gray-600">
-            Create, organize, and manage reusable assessment templates.
-          </p>
-        </div>
+
+      {/* ======================================================
+          HEADER
+      ====================================================== */}
+
+      <header>
+        <h1 className="text-4xl font-bold text-gray-900">
+          Assessment Library
+        </h1>
+
+        <p className="mt-2 text-gray-600">
+          Create, organize, and manage reusable assessment templates.
+        </p>
+      </header>
+
+      {/* ======================================================
+          SEARCH + CREATE
+      ====================================================== */}
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+        <label className="relative block w-full sm:max-w-md">
+
+          <Search
+            size={19}
+            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+          />
+
+          <input
+            type="text"
+            value={search}
+            onChange={(event) =>
+              setSearch(event.target.value)
+            }
+            placeholder="Search courses or assessments..."
+            className="w-full rounded-xl border border-gray-300 bg-white py-3 pl-11 pr-4 text-sm outline-none transition focus:border-[#002f86] focus:ring-2 focus:ring-[#002f86]/10"
+          />
+
+        </label>
+
         <button
           type="button"
-          onClick={() => navigate("/admin/assessments/create")}
-          className="rounded-xl bg-[#002f86] px-5 py-3 font-semibold text-white shadow-md hover:bg-[#001f59]"
+          onClick={handleCreateAssessment}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#002f86] px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-[#001f59] sm:w-auto"
         >
-          + Create Assessment
+          <Plus size={18} />
+
+          Create Assessment
         </button>
+
       </div>
 
-      <div className="flex flex-col gap-3 lg:flex-row">
-        <label className="relative flex-1">
-          <Search size={19} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search"
-            className="w-full rounded-xl border border-gray-300 bg-white py-3 pl-11 pr-4 outline-none focus:border-[#002f86]"
-          />
-        </label>
-        <select
-          value={qualification}
-          onChange={(event) => setQualification(event.target.value)}
-          className="rounded-xl border border-gray-300 bg-white px-4 py-3"
-        >
-          <option value="All">Qualification</option>
-          <option>NC I</option>
-          <option>NC II</option>
-          <option>NC III</option>
-          <option>NC IV</option>
-        </select>
-        <select
-          value={status}
-          onChange={(event) => setStatus(event.target.value)}
-          className="rounded-xl border border-gray-300 bg-white px-4 py-3"
-        >
-          <option value="All">Status</option>
-          <option>Active</option>
-          <option>Draft</option>
-          <option>Completed</option>
-          <option>Archive</option>
-        </select>
-        <select
-          value={sort}
-          onChange={(event) => setSort(event.target.value)}
-          className="rounded-xl border border-gray-300 bg-white px-4 py-3"
-        >
-          <option>Last Updated</option>
-          <option>Course Name</option>
-        </select>
-      </div>
+      {/* ======================================================
+          ERROR
+      ====================================================== */}
 
-      {loading ? (
-        <div className="py-12 text-center text-gray-500">Loading assessment library...</div>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {assessments.map((item) => (
-            <article
-              key={item.id}
-              className="relative rounded-2xl border border-gray-200 bg-white p-6 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
-            >
-              <button
-                onClick={() => setOpenMenu(openMenu === item.id ? null : item.id)}
-                className="absolute right-4 top-4 rounded-lg p-1 text-gray-500 transition hover:bg-gray-100"
-                aria-label="Assessment actions"
-              >
-                <MoreVertical size={22} />
-              </button>
+      {errorMessage && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
 
-              {actions(item)}
+          <p className="text-sm font-semibold text-red-700">
+            Unable to load Assessment Library
+          </p>
 
-              <h2 className="pr-8 text-xl font-bold text-gray-900">{item.course}</h2>
+          <p className="mt-1 text-sm text-red-600">
+            {errorMessage}
+          </p>
 
-              <dl className="mt-6 space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <dt>Qualification</dt>
-                  <dd className="font-semibold">{item.qualification}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>Assessment Type</dt>
-                  <dd className="font-semibold">{item.type}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>Total Questions</dt>
-                  <dd className="font-semibold">{item.questions}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>Last Updated</dt>
-                  <dd className="font-semibold">{item.updated}</dd>
-                </div>
-                <div className="flex items-center justify-between">
-                  <dt>Status</dt>
-                  <dd className={`rounded-full px-3 py-1 text-xs font-semibold ${badge(item.status)}`}>
-                    {item.status}
-                  </dd>
-                </div>
-              </dl>
+          <button
+            type="button"
+            onClick={loadData}
+            className="mt-3 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+          >
+            Try Again
+          </button>
 
-              <button
-                type="button"
-                onClick={() => navigate(`/admin/assessments/${item.id}`)}
-                className="mt-6 w-full rounded-lg bg-[#002f86] py-3 font-semibold text-white hover:bg-[#001f59]"
-              >
-                View Assessment
-              </button>
-            </article>
-          ))}
-
-          {!assessments.length && (
-            <p className="col-span-full py-8 text-center text-gray-500">
-              No assessments match your filters.
-            </p>
-          )}
         </div>
       )}
+
+      {/* ======================================================
+          CONTENT
+      ====================================================== */}
+
+      {loading ? (
+
+        <div className="rounded-2xl border border-gray-200 bg-white py-12 text-center shadow-sm">
+
+          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-[#002f86]" />
+
+          <p className="font-medium text-gray-500">
+            Loading assessment library...
+          </p>
+
+        </div>
+
+      ) : !errorMessage && courses.length === 0 ? (
+
+        <div className="rounded-2xl border border-gray-200 bg-white px-6 py-12 text-center shadow-sm">
+
+          <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-gray-100">
+            <Search
+              size={22}
+              className="text-gray-400"
+            />
+          </div>
+
+          <p className="font-semibold text-gray-700">
+            No courses available.
+          </p>
+
+          <p className="mt-1 text-sm text-gray-500">
+            Create a course first to manage its assessments.
+          </p>
+
+        </div>
+
+      ) : filteredCourses.length === 0 ? (
+
+        <div className="rounded-2xl border border-gray-200 bg-white px-6 py-12 text-center shadow-sm">
+
+          <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-gray-100">
+            <Search
+              size={22}
+              className="text-gray-400"
+            />
+          </div>
+
+          <p className="font-semibold text-gray-700">
+            No courses found.
+          </p>
+
+          <p className="mt-1 text-sm text-gray-500">
+            Try a different search term.
+          </p>
+
+        </div>
+
+      ) : (
+
+        /* ====================================================
+           ONE TABLE FOR ALL COURSES
+        ==================================================== */
+
+        <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+
+          <div className="overflow-x-auto">
+
+            <table className="w-full min-w-[900px] border-collapse">
+
+              {/* ==================================================
+                  TABLE HEADER
+              ================================================== */}
+
+              <thead>
+
+                <tr className="border-b border-gray-200 bg-gray-120">
+
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+                    Course
+                  </th>
+
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">
+                    No. of Assessments
+                  </th>
+
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
+                    Latest Assessment
+                  </th>
+
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">
+                    Action
+                  </th>
+
+                </tr>
+
+              </thead>
+
+              {/* ==================================================
+                  TABLE BODY
+              ================================================== */}
+
+              <tbody>
+
+                {filteredCourses.map((course) => {
+
+                  const latest =
+                    course.latestAssessment;
+
+                  return (
+                    <tr
+                      key={course.id}
+                      className="border-b border-gray-100 last:border-0 hover:bg-gray-100"
+                    >
+
+                      {/* ========================================
+                          COURSE
+                      ======================================== */}
+
+                      <td className="px-6 py-5">
+
+                        <div className="min-w-0">
+
+                          <p className="font-semibold text-gray-900">
+                            {course.title}
+                          </p>
+
+                        </div>
+
+                      </td>
+
+                      {/* ========================================
+                          NUMBER OF ASSESSMENTS
+                      ======================================== */}
+
+                      <td className="px-6 py-5 text-center">
+
+                        <span className="font-semibold text-gray-900">
+                          {course.assessmentCount}
+                        </span>
+
+                      </td>
+
+                      {/* ========================================
+                          LATEST ASSESSMENT
+                      ======================================== */}
+
+                      <td className="px-6 py-5">
+
+                        {latest ? (
+
+                          <div>
+
+                            <p className="font-semibold text-gray-900">
+                              {latest.title}
+                            </p>
+
+                            <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-gray-500">
+
+                              <span>
+                                {latest.set_type || "Written"}
+                              </span>
+
+                              <span>
+                                •
+                              </span>
+
+                              <span>
+                                {latest.total_items ?? 0} questions
+                              </span>
+
+                              {latest.time_limit_minutes !== null &&
+                                latest.time_limit_minutes !== undefined && (
+                                  <>
+                                    <span>
+                                      •
+                                    </span>
+
+                                    <span>
+                                      {latest.time_limit_minutes} min
+                                    </span>
+                                  </>
+                                )}
+
+                              <span>
+                                •
+                              </span>
+
+                              <span>
+                                {formatDate(
+                                  latest.created_at
+                                )}
+                              </span>
+
+                            </div>
+
+                            {latest.status && (
+
+                              <div className="mt-2">
+
+                                <span
+                                  className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${String(
+                                    latest.status
+                                  ).toLowerCase() ===
+                                      "active"
+                                      ? "bg-green-100 text-green-700"
+                                      : String(
+                                        latest.status
+                                      ).toLowerCase() ===
+                                        "archived"
+                                        ? "bg-gray-100 text-gray-600"
+                                        : "bg-blue-100 text-blue-700"
+                                    }`}
+                                >
+                                  {latest.status}
+                                </span>
+
+                              </div>
+
+                            )}
+
+                          </div>
+
+                        ) : (
+
+                          <span className="text-sm text-gray-400">
+                            No assessment yet
+                          </span>
+
+                        )}
+
+                      </td>
+
+                      {/* ========================================
+                          ACTION
+                      ======================================== */}
+
+                      <td className="px-6 py-5 text-center">
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleViewAssessment(
+                              course
+                            )
+                          }
+                          className="inline-flex items-center justify-center whitespace-nowrap rounded-lg border border-[#002f86] px-4 py-2.5 text-sm font-semibold text-[#002f86] transition hover:bg-[#002f86] hover:text-white"
+                        >
+                          View Assessment
+                        </button>
+
+                      </td>
+
+                    </tr>
+                  );
+                })}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </section>
+
+      )}
+
     </div>
   );
 }

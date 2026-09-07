@@ -44,25 +44,32 @@ function AdminNavbar() {
 
     const pageTitles = {
         "/admin": "Home",
+
         "/admin/user-management": "User Management",
         "/admin/user-management/trainees": "Trainee Management",
         "/admin/user-management/assessors": "Assessor Management",
         "/admin/user-management/add-assessor": "Add Assessor",
+
+        // Main Assessment Library
         "/admin/assessments": "Assessment Management",
+
         "/admin/assessments/create": "Assessment Management",
         "/admin/assessments/schedule": "Assessment Management",
         "/admin/assessments/schedule/choose": "Assessment Management",
+
         "/admin/results": "Results Monitoring",
         "/admin/certificates": "Certificate Management",
         "/admin/settings": "My Account",
         "/admin/logout": "Logout",
     };
 
-    const currentTitle = pageTitles[location.pathname]
-        || (/^\/admin\/assessments\/[^/]+$/.test(location.pathname)
-            ? "Assessment Details"
-            : "Admin Dashboard");
-
+    const currentTitle =
+        pageTitles[location.pathname] ||
+        (/^\/admin\/assessments\/course\/[^/]+$/.test(location.pathname)
+            ? "Course Assessment"
+            : /^\/admin\/assessments\/[^/]+$/.test(location.pathname)
+                ? "Assessment Details"
+                : "Admin Dashboard");
     return (
         <header
             className="

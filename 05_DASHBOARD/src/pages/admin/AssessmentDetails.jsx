@@ -1,419 +1,1433 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, MoreVertical, Plus, X } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
+import QuestionsContainer from "../../components/admin/assessment-details/QuestionsContainer";
 
-const TYPES = ["Multiple Choice", "True / False", "Identification", "Matching Type"];
+/* ============================================================
+   FORMAT DATE
+   ============================================================ */
 
-function QuestionModal({ initial, onClose, onSave }) {
-  const editing = Boolean(initial);
-  const [type, setType] = useState(initial?.type || "");
-  const [text, setText] = useState(initial?.question || "");
-  const [answer, setAnswer] = useState(initial?.answer || "");
-  const [choices, setChoices] = useState(initial?.choices?.length ? initial.choices : ["", "", "", ""]);
-  const [selectedChoice, setSelectedChoice] = useState(() => Math.max((initial?.choices || []).indexOf(initial?.answer), -1));
-  const [pairs, setPairs] = useState(initial?.pairs?.length ? initial.pairs.map(({ left, right }) => ({ left, right })) : [{ left: "", right: "" }]);
+function formatDate(value) {
+  if (!value) return "—";
 
-  const updateChoice = (index, value) => setChoices((items) => items.map((item, itemIndex) => itemIndex === index ? value : item));
-  const updatePair = (index, key, value) => setPairs((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item));
+  const date = new Date(value);
 
-  const submit = (event) => {
-    event.preventDefault();
-    const resolvedAnswer = type === "Multiple Choice" ? choices[selectedChoice] : answer;
-    if (!type || !text.trim() || (!resolvedAnswer && type !== "Matching Type")) return;
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
 
-    const question = {
-      ...initial,
-      id: initial?.id,
-      type,
-      question: text.trim(),
-      answer: resolvedAnswer,
-      choices: type === "Multiple Choice" ? choices.filter(Boolean) : type === "True / False" ? ["True", "False"] : [],
-    };
-
-    if (type === "Matching Type") {
-      question.pairs = pairs;
-      question.options = pairs.filter((pair) => pair.right.trim()).map((pair, index) => ({ letter: String.fromCharCode(65 + index), description: pair.right }));
-    }
-    onSave(question);
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
-      <form onSubmit={submit} className="flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white text-gray-900 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-5">
-          <h2 className="text-xl font-bold">{editing ? "Edit Question" : "Add Question"}</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="text-gray-500"><X /></button>
-        </div>
-        <div className="overflow-y-auto px-6 py-5">
-          {!editing && (
-            <>
-              <p className="text-sm font-semibold">Question Type</p>
-              <div className="mt-2 grid grid-cols-2 gap-3">
-                {TYPES.map((item) => (
-                  <button key={item} type="button" onClick={() => { setType(item); setAnswer(""); setSelectedChoice(-1); }} className={`rounded-xl border p-3 font-semibold ${type === item ? "bg-[#002f86] text-white" : "text-gray-900"}`}>
-                    {item}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-
-          {type && (
-            <>
-              <label className="mt-5 block font-semibold">Question
-                <textarea value={text} onChange={(event) => setText(event.target.value)} className="mt-1 min-h-24 w-full rounded-lg border p-3 font-normal" required />
-              </label>
-
-              {type === "Multiple Choice" && (
-                <fieldset className="mt-4"><legend className="font-semibold">Choices</legend>
-                  {choices.map((choice, index) => (
-                    <label key={index} className="mt-3 flex items-center gap-3">
-                      <input type="radio" name="answer" checked={selectedChoice === index} onChange={() => setSelectedChoice(index)} />
-                      <input value={choice} onChange={(event) => updateChoice(index, event.target.value)} placeholder={`Choice ${index + 1}`} className="w-full rounded-lg border p-3" required />
-                    </label>
-                  ))}
-                </fieldset>
-              )}
-
-              {type === "True / False" && (
-                <fieldset className="mt-4"><legend className="font-semibold">Choices</legend>
-                  {["True", "False"].map((choice) => (
-                    <label key={choice} className="mt-3 flex items-center gap-3">
-                      <input type="radio" name="answer" checked={answer === choice} onChange={() => setAnswer(choice)} />
-                      <span className="w-full rounded-lg border bg-gray-50 p-3">{choice}</span>
-                    </label>
-                  ))}
-                </fieldset>
-              )}
-
-              {type === "Identification" && (
-                <label className="mt-4 block font-semibold">Correct Answer
-                  <input value={answer} onChange={(event) => setAnswer(event.target.value)} className="mt-1 w-full rounded-lg border p-3 font-normal" required />
-                </label>
-              )}
-
-              {type === "Matching Type" && (
-                <fieldset className="mt-4"><legend className="font-semibold">Matching Pairs</legend>
-                  {pairs.map((pair, index) => (
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2" key={index}>
-                      <input value={pair.left} onChange={(event) => updatePair(index, "left", event.target.value)} placeholder={`Item ${index + 1}`} className="rounded-lg border p-3" required />
-                      <input value={pair.right} onChange={(event) => updatePair(index, "right", event.target.value)} placeholder={`Match ${index + 1}`} className="rounded-lg border p-3" required />
-                    </div>
-                  ))}
-                  <button type="button" onClick={() => setPairs((items) => [...items, { left: "", right: "" }])} className="mt-3 rounded border border-[#002f86] px-3 py-2 text-[#002f86]">+ Add Pair</button>
-                </fieldset>
-              )}
-            </>
-          )}
-        </div>
-        <div className="flex shrink-0 justify-end gap-3 border-t border-gray-200 bg-white px-6 py-4">
-          <button type="button" onClick={onClose}>Cancel</button>
-          <button disabled={!type} className="rounded-lg bg-[#002f86] px-4 py-2 font-semibold text-white">Save Question</button>
-        </div>
-      </form>
-    </div>
-  );
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
+/* ============================================================
+   FORMAT TIME LIMIT
+   ============================================================ */
+
+function formatTimeLimit(minutes) {
+  if (
+    minutes === null ||
+    minutes === undefined ||
+    minutes === ""
+  ) {
+    return "—";
+  }
+
+  const value = Number(minutes);
+
+  if (!Number.isFinite(value) || value <= 0) {
+    return "—";
+  }
+
+  if (value < 60) {
+    return `${value} minutes`;
+  }
+
+  const hours = Math.floor(value / 60);
+  const remainingMinutes = value % 60;
+
+  if (remainingMinutes === 0) {
+    return `${hours} hour${hours > 1 ? "s" : ""}`;
+  }
+
+  return `${hours} hour${hours > 1 ? "s" : ""} ${remainingMinutes} minutes`;
+}
+
+/* ============================================================
+   STATUS BADGE
+   ============================================================ */
+
 function StatusBadge({ status }) {
-  const normalized = (status || "").toLowerCase();
-  const isDark = normalized === "active";
-  const label = normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : "Draft";
+  const normalized = String(status || "Draft")
+    .trim()
+    .toLowerCase();
+
+  let className =
+    "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold";
+
+  if (normalized === "active") {
+    className += " bg-green-100 text-green-700";
+  } else if (normalized === "archived") {
+    className += " bg-gray-100 text-gray-600";
+  } else {
+    className += " bg-yellow-100 text-yellow-700";
+  }
 
   return (
-    <span className={`rounded-full px-3 py-1 text-sm font-semibold ${isDark ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"}`}>
-      {label}
+    <span className={className}>
+      {String(status || "Draft")}
     </span>
   );
 }
 
+/* ============================================================
+   NORMALIZE QUESTION TYPE
+   ============================================================ */
+
+function normalizeQuestionType(value) {
+  const type = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, " ");
+
+  if (
+    type === "multiple choice" ||
+    type === "multiplechoice" ||
+    type === "mc"
+  ) {
+    return "Multiple Choice";
+  }
+
+  if (
+    type === "true false" ||
+    type === "truefalse" ||
+    type === "true/false"
+  ) {
+    return "True/False";
+  }
+
+  if (
+    type === "matching" ||
+    type === "matching type"
+  ) {
+    return "Matching Type";
+  }
+
+  if (
+    type === "identification" ||
+    type === "identify"
+  ) {
+    return "Identification";
+  }
+
+  if (
+    type === "situational" ||
+    type === "situation"
+  ) {
+    return "Situational";
+  }
+
+  return value || "Multiple Choice";
+}
+
+/* ============================================================
+   PARSE MATCHING PAIRS
+   ============================================================ */
+
+function parseMatchingPairs(value) {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed =
+      typeof value === "string"
+        ? JSON.parse(value)
+        : value;
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.map((pair, index) => ({
+      item:
+        pair?.item ??
+        pair?.left ??
+        "",
+
+      match:
+        pair?.match ??
+        pair?.right ??
+        "",
+
+      itemLabel:
+        pair?.itemLabel ||
+        `Item ${index + 1}`,
+
+      matchLabel:
+        pair?.matchLabel ||
+        `Match ${index + 1}`,
+    }));
+  } catch (error) {
+    console.warn(
+      "Unable to parse matching pairs:",
+      error
+    );
+
+    return [];
+  }
+}
+
+/* ============================================================
+   GET ANSWER KEY VALUE
+   ============================================================ */
+
+function getAnswerKeyValue(answerKey) {
+  if (!answerKey) {
+    return "";
+  }
+
+  return (
+    answerKey.correct_answer ??
+    answerKey.answer ??
+    answerKey.answer_text ??
+    answerKey.correct_option ??
+    ""
+  );
+}
+
+/* ============================================================
+   MAIN COMPONENT
+   ============================================================ */
+
 export default function AssessmentDetails() {
   const { id } = useParams();
-  const [assessment, setAssessment] = useState(null);
-  const [questions, setQuestions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState({});
-  const [modal, setModal] = useState(null);
-  const [menu, setMenu] = useState(null);
-  const [status, setStatus] = useState("Draft");
+
+  /* ==========================================================
+     STATE
+     ========================================================== */
+
+  const [assessment, setAssessment] =
+    useState(null);
+
+  const [course, setCourse] =
+    useState(null);
+
+  const [questions, setQuestions] =
+    useState([]);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [errorMessage, setErrorMessage] =
+    useState("");
+
+  const [successMessage, setSuccessMessage] =
+    useState("");
+
+  const [openSections, setOpenSections] =
+    useState({});
+
+  const [status, setStatus] =
+    useState("Draft");
+
+  /* ==========================================================
+     LOAD ASSESSMENT
+     ========================================================== */
 
   const loadAssessment = async () => {
-    setLoading(true);
-    try {
-      // 1. Fetch main assessment details
-      const { data: assessmentData, error: assessmentError } = await supabase
-        .from("assessments")
-        .select(`*, courses ( title, code )`)
-        .eq("id", id)
-        .single();
+    if (!id) {
+      setErrorMessage(
+        "Assessment ID is missing."
+      );
 
-      if (assessmentError) throw assessmentError;
+      return;
+    }
+
+    setErrorMessage("");
+
+    try {
+      /* ========================================================
+         1. LOAD ASSESSMENT
+         ======================================================== */
+
+      const {
+        data: assessmentData,
+        error: assessmentError,
+      } = await supabase
+        .from("assessments")
+        .select(`
+          id,
+          course_id,
+          title,
+          set_type,
+          total_items,
+          time_limit_minutes,
+          is_active,
+          created_at,
+          status
+        `)
+        .eq("id", id)
+        .maybeSingle();
+
+      if (assessmentError) {
+        throw assessmentError;
+      }
+
+      if (!assessmentData) {
+        throw new Error(
+          "The assessment could not be found."
+        );
+      }
 
       setAssessment(assessmentData);
-      setStatus(assessmentData.status || "Draft");
 
-      // 2. Fetch primary questions safely
-      const { data: qData, error: qError } = await supabase
+      setStatus(
+        assessmentData.status ||
+        "Draft"
+      );
+
+      /* ========================================================
+         2. LOAD COURSE
+         ======================================================== */
+
+      if (assessmentData.course_id) {
+        const {
+          data: courseData,
+          error: courseError,
+        } = await supabase
+          .from("courses")
+          .select(`
+            id,
+            code,
+            title,
+            qualification_level
+          `)
+          .eq(
+            "id",
+            assessmentData.course_id
+          )
+          .maybeSingle();
+
+        if (courseError) {
+          console.warn(
+            "Unable to load course:",
+            courseError
+          );
+
+          setCourse(null);
+        } else {
+          setCourse(
+            courseData || null
+          );
+        }
+      } else {
+        setCourse(null);
+      }
+
+      /* ========================================================
+         3. LOAD QUESTIONS
+         ======================================================== */
+
+      const {
+        data: questionData,
+        error: questionError,
+      } = await supabase
         .from("questions")
         .select("*")
         .eq("assessment_id", id)
-        .order("item_number", { ascending: true });
+        .order("item_number", {
+          ascending: true,
+        });
 
-      if (qError) throw qError;
+      if (questionError) {
+        throw questionError;
+      }
 
-      const rawQuestions = qData || [];
-      const questionIds = rawQuestions.map((q) => q.id);
+      const baseQuestions =
+        questionData || [];
 
-      // 3. Fetch choices/options and answers separately to prevent joint/null errors
-      let optionsMap = {};
-      let answersMap = {};
+      /* ========================================================
+         4. LOAD OPTIONS + ANSWER KEYS
+         ======================================================== */
+
+      const questionIds =
+        baseQuestions
+          .map(
+            (question) =>
+              question.id
+          )
+          .filter(Boolean);
+
+      let options = [];
+      let answerKeys = [];
 
       if (questionIds.length > 0) {
-        const { data: optData } = await supabase
-          .from("question_options")
-          .select("*")
-          .in("question_id", questionIds);
+        const [
+          optionsResponse,
+          answerKeysResponse,
+        ] = await Promise.all([
+          supabase
+            .from("question_options")
+            .select("*")
+            .in(
+              "question_id",
+              questionIds
+            ),
 
-        (optData || []).forEach((opt) => {
-          if (!optionsMap[opt.question_id]) optionsMap[opt.question_id] = [];
-          optionsMap[opt.question_id].push(opt);
-        });
+          supabase
+            .from("answer_keys")
+            .select("*")
+            .in(
+              "question_id",
+              questionIds
+            ),
+        ]);
 
-        const { data: ansData } = await supabase
-          .from("answer_keys")
-          .select("*")
-          .in("question_id", questionIds);
+        if (optionsResponse.error) {
+          console.warn(
+            "Unable to load question options:",
+            optionsResponse.error
+          );
+        } else {
+          options =
+            optionsResponse.data || [];
+        }
 
-        (ansData || []).forEach((ans) => {
-          answersMap[ans.question_id] = ans.correct_answer;
-        });
+        if (answerKeysResponse.error) {
+          console.warn(
+            "Unable to load answer keys:",
+            answerKeysResponse.error
+          );
+        } else {
+          answerKeys =
+            answerKeysResponse.data || [];
+        }
       }
 
-      // 4. Map questions with options
-      const formattedQuestions = rawQuestions.map((q) => {
-        const type = q.test_section || "Multiple Choice";
-        const qOptions = optionsMap[q.id] || [];
-        const choices = qOptions
-          .sort((a, b) => (a.option_letter || "").localeCompare(b.option_letter || ""))
-          .map((o) => o.option_text);
+      /* ========================================================
+         5. FORMAT QUESTIONS
+         ======================================================== */
 
-        return {
-          id: q.id,
-          type,
-          question: q.question_text,
-          answer: answersMap[q.id] || "",
-          choices,
-          itemNumber: q.item_number,
-        };
-      });
+      const formattedQuestions =
+        baseQuestions.map(
+          (question) => {
+            /* --------------------------------------------------
+               QUESTION TYPE
+            -------------------------------------------------- */
 
-      setQuestions(formattedQuestions);
+            const section =
+              normalizeQuestionType(
+                question.test_section ||
+                question.question_type ||
+                "Multiple Choice"
+              );
 
-      // Default all accordion groups to expanded
-      const initialOpenState = {};
-      formattedQuestions.forEach((q) => {
-        initialOpenState[q.type] = true;
-      });
-      setOpen(initialOpenState);
+            /* --------------------------------------------------
+               OPTIONS
+            -------------------------------------------------- */
 
-    } catch (err) {
-      console.error("Error loading assessment:", err.message);
-    } finally {
-      setLoading(false);
+            const questionOptions =
+              options
+                .filter(
+                  (option) =>
+                    String(
+                      option.question_id
+                    ) ===
+                    String(question.id)
+                )
+                .sort((a, b) => {
+                  const aOrder =
+                    Number(
+                      a.option_order ??
+                      a.order_number ??
+                      0
+                    );
+
+                  const bOrder =
+                    Number(
+                      b.option_order ??
+                      b.order_number ??
+                      0
+                    );
+
+                  if (
+                    aOrder !==
+                    bOrder
+                  ) {
+                    return (
+                      aOrder - bOrder
+                    );
+                  }
+
+                  return (
+                    Number(a.id) -
+                    Number(b.id)
+                  );
+                });
+
+            /* --------------------------------------------------
+               ANSWER KEY
+            -------------------------------------------------- */
+
+            const questionAnswerKey =
+              answerKeys.find(
+                (answerKey) =>
+                  String(
+                    answerKey.question_id
+                  ) ===
+                  String(question.id)
+              );
+
+            /* --------------------------------------------------
+               CORRECT ANSWER
+
+               Priority:
+               1. questions.correct_answer
+               2. questions.answer
+               3. answer_keys.correct_answer
+               4. answer_keys.answer
+               5. answer_keys.answer_text
+               6. answer_keys.correct_option
+            -------------------------------------------------- */
+
+            let correctAnswer =
+              question.correct_answer ??
+              question.answer ??
+              "";
+
+            if (
+              !correctAnswer &&
+              questionAnswerKey
+            ) {
+              correctAnswer =
+                getAnswerKeyValue(
+                  questionAnswerKey
+                );
+            }
+
+            /* --------------------------------------------------
+               CHOICES
+
+               Preserve the actual option data as well as
+               the simple string array.
+            -------------------------------------------------- */
+
+            const choices =
+              questionOptions.map(
+                (option) =>
+                  option.option_text ??
+                  option.text ??
+                  option.option ??
+                  option.value ??
+                  ""
+              );
+
+            /* --------------------------------------------------
+               MATCHING PAIRS
+            -------------------------------------------------- */
+
+            let matchingPairs = [];
+
+            if (
+              section ===
+              "Matching Type" ||
+              section === "Matching"
+            ) {
+              matchingPairs =
+                parseMatchingPairs(
+                  correctAnswer
+                );
+            }
+
+            /* --------------------------------------------------
+               RETURN NORMALIZED QUESTION
+            -------------------------------------------------- */
+
+            return {
+              ...question,
+
+              id: question.id,
+
+              item_number:
+                question.item_number,
+
+              test_section:
+                section,
+
+              question_type:
+                section,
+
+              question_text:
+                question.question_text ||
+                question.question ||
+                "",
+
+              points:
+                question.points ===
+                  null ||
+                  question.points ===
+                  undefined
+                  ? 1
+                  : Number(
+                    question.points
+                  ) || 1,
+
+              correct_answer:
+                correctAnswer,
+
+              answer:
+                correctAnswer,
+
+              choices,
+
+              options:
+                questionOptions,
+
+              matching_pairs:
+                matchingPairs,
+            };
+          }
+        );
+
+      /* ========================================================
+         6. UPDATE QUESTION STATE
+         ======================================================== */
+
+      setQuestions(
+        formattedQuestions
+      );
+
+      /* ========================================================
+         7. INITIAL SECTION STATE
+         
+         Keep sections CLOSED when the page loads.
+      ======================================================== */
+
+      const initialSections = {};
+
+      formattedQuestions.forEach(
+        (question) => {
+          const section =
+            question.test_section ||
+            "Multiple Choice";
+
+          if (
+            initialSections[
+            section
+            ] === undefined
+          ) {
+            initialSections[
+              section
+            ] = false;
+          }
+        }
+      );
+
+      setOpenSections(
+        initialSections
+      );
+    } catch (error) {
+      console.error(
+        "Error loading assessment:",
+        error
+      );
+
+      setAssessment(null);
+      setCourse(null);
+      setQuestions([]);
+
+      setErrorMessage(
+        error?.message ||
+        "Unable to load the assessment."
+      );
     }
   };
+
+  /* ==========================================================
+     LOAD WHEN ID CHANGES
+     ========================================================== */
 
   useEffect(() => {
-    if (id) loadAssessment();
+    loadAssessment();
   }, [id]);
 
-  const groups = useMemo(
-    () => Object.entries(questions.reduce((result, question) => ({ ...result, [question.type]: [...(result[question.type] || []), question] }), {})),
-    [questions]
-  );
+  /* ==========================================================
+     COURSE LABEL
+     ========================================================== */
 
-  const saveQuestion = async (qData) => {
+  const courseLabel = useMemo(() => {
+    if (!course) {
+      return "—";
+    }
+
+    const code =
+      course.code || "";
+
+    const title =
+      course.title || "";
+
+    if (code && title) {
+      return `${code} - ${title}`;
+    }
+
+    return (
+      code ||
+      title ||
+      "—"
+    );
+  }, [course]);
+
+  /* ==========================================================
+     GROUP QUESTIONS
+     ========================================================== */
+
+  const groupedQuestions =
+    useMemo(() => {
+      return questions.reduce(
+        (groups, question) => {
+          const section =
+            normalizeQuestionType(
+              question.test_section ||
+              question.question_type ||
+              "Multiple Choice"
+            );
+
+          if (!groups[section]) {
+            groups[section] = [];
+          }
+
+          groups[section].push(
+            question
+          );
+
+          return groups;
+        },
+        {}
+      );
+    }, [questions]);
+
+  /* ==========================================================
+     TOGGLE SECTION
+     ========================================================== */
+
+  const toggleSection = (
+    section
+  ) => {
+    setOpenSections(
+      (previous) => ({
+        ...previous,
+
+        [section]:
+          !previous[section],
+      })
+    );
+  };
+
+  /* ==========================================================
+     SAVE QUESTION
+     ========================================================== */
+
+  const saveQuestion = async (
+    form
+  ) => {
+    if (!id) {
+      setErrorMessage(
+        "Assessment ID is missing."
+      );
+
+      return;
+    }
+
+    setSaving(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
     try {
-      let questionId = qData.id;
+      /* ========================================================
+         NORMALIZE TYPE
+         
+         IMPORTANT:
+         Edit mode sends the existing type.
+         We DO NOT change it from a dropdown here.
+      ======================================================== */
+
+      const questionType =
+        normalizeQuestionType(
+          form.test_section ||
+          form.question_type
+        );
+
+      /* ========================================================
+         QUESTION TEXT
+      ======================================================== */
+
+      const questionText =
+        String(
+          form.question_text ??
+          form.question ??
+          ""
+        ).trim();
+
+      if (!questionText) {
+        throw new Error(
+          "Question text is required."
+        );
+      }
+
+      /* ========================================================
+         QUESTION PAYLOAD
+      ======================================================== */
+
+      const questionPayload = {
+        assessment_id: id,
+
+        question_text:
+          questionText,
+
+        test_section:
+          questionType,
+
+        points:
+          Number(form.points) ||
+          1,
+      };
+
+      let questionId =
+        form.question_id ??
+        form.id ??
+        null;
+
+      /* ========================================================
+         UPDATE EXISTING QUESTION
+      ======================================================== */
 
       if (questionId) {
-        await supabase
+        const {
+          error:
+          updateQuestionError,
+        } = await supabase
           .from("questions")
-          .update({ question_text: qData.question, test_section: qData.type })
-          .eq("id", questionId);
-      } else {
-        const nextItemNumber = questions.length + 1;
-        const { data: newQ, error: newQErr } = await supabase
+          .update(
+            questionPayload
+          )
+          .eq(
+            "id",
+            questionId
+          );
+
+        if (
+          updateQuestionError
+        ) {
+          throw updateQuestionError;
+        }
+      }
+
+      /* ========================================================
+         INSERT NEW QUESTION
+      ======================================================== */
+
+      else {
+        const itemNumbers =
+          questions
+            .map(
+              (question) =>
+                Number(
+                  question.item_number
+                ) || 0
+            );
+
+        const highestItemNumber =
+          itemNumbers.length > 0
+            ? Math.max(
+              ...itemNumbers
+            )
+            : 0;
+
+        const nextItemNumber =
+          highestItemNumber + 1;
+
+        const {
+          data:
+          insertedQuestion,
+          error:
+          insertQuestionError,
+        } = await supabase
           .from("questions")
           .insert({
-            assessment_id: id,
-            item_number: nextItemNumber,
-            test_section: qData.type,
-            question_text: qData.question,
+            ...questionPayload,
+
+            item_number:
+              nextItemNumber,
           })
-          .select()
+          .select("id")
           .single();
 
-        if (newQErr) throw newQErr;
-        questionId = newQ.id;
+        if (
+          insertQuestionError
+        ) {
+          throw insertQuestionError;
+        }
+
+        questionId =
+          insertedQuestion?.id;
+
+        if (!questionId) {
+          throw new Error(
+            "The question was created but its ID could not be retrieved."
+          );
+        }
       }
 
-      if (qData.type === "Multiple Choice" && qData.choices?.length) {
-        await supabase.from("question_options").delete().eq("question_id", questionId);
-        const optionsToInsert = qData.choices.map((text, idx) => ({
-          question_id: questionId,
-          option_letter: String.fromCharCode(65 + idx),
-          option_text: text,
-        }));
-        await supabase.from("question_options").insert(optionsToInsert);
+      /* ========================================================
+         DELETE OLD OPTIONS
+         
+         Only Multiple Choice normally uses these.
+         Deleting them during edit prevents stale choices.
+      ======================================================== */
+
+      const {
+        error:
+        deleteOptionsError,
+      } = await supabase
+        .from("question_options")
+        .delete()
+        .eq(
+          "question_id",
+          questionId
+        );
+
+      if (
+        deleteOptionsError
+      ) {
+        throw deleteOptionsError;
       }
 
-      if (qData.answer) {
-        await supabase.from("answer_keys").delete().eq("question_id", questionId);
-        await supabase.from("answer_keys").insert({
-          question_id: questionId,
-          correct_answer: qData.answer,
-        });
+      /* ========================================================
+         INSERT MULTIPLE CHOICE OPTIONS
+      ======================================================== */
+
+      if (
+        questionType ===
+        "Multiple Choice"
+      ) {
+        const validChoices =
+          (
+            form.choices ||
+            []
+          )
+            .map(
+              (choice) =>
+                String(
+                  choice ?? ""
+                ).trim()
+            )
+            .filter(Boolean);
+
+        if (
+          validChoices.length >
+          0
+        ) {
+          const optionRows =
+            validChoices.map(
+              (
+                choice,
+                index
+              ) => ({
+                question_id:
+                  questionId,
+
+                option_text:
+                  choice,
+
+                option_order:
+                  index + 1,
+
+                option_letter:
+                  String.fromCharCode(
+                    65 + index
+                  ),
+              })
+            );
+
+          /*
+           * Some databases may not have option_letter.
+           * Try the complete row first, then fall back
+           * to the columns already used by the application.
+           */
+
+          let {
+            error:
+            insertOptionsError,
+          } = await supabase
+            .from("question_options")
+            .insert(
+              optionRows
+            );
+
+          if (
+            insertOptionsError
+          ) {
+            const fallbackRows =
+              validChoices.map(
+                (
+                  choice,
+                  index
+                ) => ({
+                  question_id:
+                    questionId,
+
+                  option_text:
+                    choice,
+
+                  option_order:
+                    index + 1,
+                })
+              );
+
+            const fallbackResult =
+              await supabase
+                .from(
+                  "question_options"
+                )
+                .insert(
+                  fallbackRows
+                );
+
+            insertOptionsError =
+              fallbackResult.error;
+          }
+
+          if (
+            insertOptionsError
+          ) {
+            throw insertOptionsError;
+          }
+        }
       }
 
-      // Sync total_items count on assessments table
-      await supabase
-        .from("assessments")
-        .update({ total_items: questions.length + (qData.id ? 0 : 1) })
-        .eq("id", id);
+      /* ========================================================
+         DELETE OLD ANSWER KEY
+      ======================================================== */
+
+      const {
+        error:
+        deleteAnswerKeyError,
+      } = await supabase
+        .from("answer_keys")
+        .delete()
+        .eq(
+          "question_id",
+          questionId
+        );
+
+      if (
+        deleteAnswerKeyError
+      ) {
+        throw deleteAnswerKeyError;
+      }
+
+      /* ========================================================
+         BUILD CORRECT ANSWER
+      ======================================================== */
+
+      let correctAnswer = "";
+
+      /* ========================================================
+         MATCHING TYPE
+      ======================================================== */
+
+      if (
+        questionType ===
+        "Matching Type"
+      ) {
+        const validPairs =
+          (
+            form.matching_pairs ||
+            []
+          )
+            .map(
+              (pair, index) => ({
+                item:
+                  String(
+                    pair?.item ??
+                    ""
+                  ).trim(),
+
+                match:
+                  String(
+                    pair?.match ??
+                    ""
+                  ).trim(),
+
+                itemLabel:
+                  pair?.itemLabel ||
+                  `Item ${index + 1
+                  }`,
+
+                matchLabel:
+                  pair?.matchLabel ||
+                  `Match ${index + 1
+                  }`,
+              })
+            )
+            .filter(
+              (pair) =>
+                pair.item &&
+                pair.match
+            );
+
+        if (
+          validPairs.length >
+          0
+        ) {
+          correctAnswer =
+            JSON.stringify(
+              validPairs
+            );
+        }
+      }
+
+      /* ========================================================
+         OTHER QUESTION TYPES
+      ======================================================== */
+
+      else {
+        correctAnswer =
+          String(
+            form.correct_answer ??
+            form.answer ??
+            ""
+          ).trim();
+      }
+
+      /* ========================================================
+         INSERT ANSWER KEY
+      ======================================================== */
+
+      if (correctAnswer) {
+        const {
+          error:
+          insertAnswerKeyError,
+        } = await supabase
+          .from("answer_keys")
+          .insert({
+            question_id:
+              questionId,
+
+            correct_answer:
+              correctAnswer,
+          });
+
+        if (
+          insertAnswerKeyError
+        ) {
+          throw insertAnswerKeyError;
+        }
+      }
+
+      /* ========================================================
+         UPDATE TOTAL ITEMS
+      ======================================================== */
+
+      const {
+        count,
+        error: countError,
+      } = await supabase
+        .from("questions")
+        .select(
+          "id",
+          {
+            count: "exact",
+            head: true,
+          }
+        )
+        .eq(
+          "assessment_id",
+          id
+        );
+
+      if (!countError) {
+        const {
+          error:
+          assessmentUpdateError,
+        } = await supabase
+          .from("assessments")
+          .update({
+            total_items:
+              Number(count) || 0,
+          })
+          .eq(
+            "id",
+            id
+          );
+
+        if (
+          assessmentUpdateError
+        ) {
+          console.warn(
+            "Unable to update total_items:",
+            assessmentUpdateError
+          );
+        }
+      }
+
+      /* ========================================================
+         SUCCESS
+      ======================================================== */
+
+      setSuccessMessage(
+        questionId &&
+          form.question_id
+          ? "Question updated successfully."
+          : "Question saved successfully."
+      );
+
+      /* ========================================================
+         RELOAD DATABASE DATA
+         
+         This is important because the edit modal should
+         always receive the latest choices and answer.
+      ======================================================== */
 
       await loadAssessment();
-      setModal(null);
-    } catch (err) {
-      alert(`Error saving question: ${err.message}`);
+    } catch (error) {
+      console.error(
+        "Error saving question:",
+        error
+      );
+
+      setErrorMessage(
+        error?.message ||
+        "Unable to save the question."
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
-  const updateStatus = async (nextStatus) => {
-    try {
-      let { error } = await supabase
-        .from("assessments")
-        .update({ status: nextStatus })
-        .eq("id", id);
-
-      if (error) {
-        const { error: lowerErr } = await supabase
-          .from("assessments")
-          .update({ status: nextStatus.toLowerCase() })
-          .eq("id", id);
-
-        if (lowerErr) throw lowerErr;
-      }
-
-      setStatus(nextStatus);
-      alert(`Assessment status successfully changed to ${nextStatus}!`);
-    } catch (err) {
-      alert(`Unable to update status: ${err.message}`);
-    }
-  };
-
-  if (loading) return <div className="p-8 text-center text-gray-500">Loading assessment details...</div>;
-  if (!assessment) return <div className="p-8 text-center text-gray-500">Assessment not found.</div>;
-
-  const info = [
-    ["Assessment Name", assessment.title],
-    ["Course Code / Title", assessment.courses ? `${assessment.courses.code} - ${assessment.courses.title}` : "—"],
-    ["Assessment Type", assessment.set_type || "Written"],
-    ["Time Limit", assessment.time_limit_minutes ? `${assessment.time_limit_minutes} minutes` : "N/A"],
-    ["Created Date", new Date(assessment.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })],
-  ];
+  /* ==========================================================
+     PAGE
+     ========================================================== */
 
   return (
-    <div className="space-y-5">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="space-y-6">
+
+      {/* ========================================================
+          HEADER
+      ======================================================== */}
+
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+
         <div>
-          <nav className="flex gap-2 text-sm font-semibold">
-            <Link to="/admin/assessments" className="text-gray-500 hover:text-[#002f86] hover:underline">Assessment Library</Link>
-            <span>&gt;</span>
-            <span className="text-[#002f86]">Assessment Details</span>
+
+          {/* ======================================================
+              BREADCRUMBS
+          ====================================================== */}
+
+          <nav className="mb-3 flex flex-wrap items-center gap-2 text-sm font-semibold">
+
+            <Link
+              to="/admin/assessments"
+              className="text-gray-500 hover:text-[#002f86] hover:underline"
+            >
+              Assessment Library
+            </Link>
+
+            <span className="text-gray-400">
+              &gt;
+            </span>
+
+            {assessment?.course_id ? (
+              <Link
+                to={`/admin/assessments/course/${assessment.course_id}`}
+                className="max-w-[260px] truncate text-gray-500 hover:text-[#002f86] hover:underline"
+                title={
+                  assessment?.title ||
+                  "Assessment"
+                }
+              >
+                {assessment?.title ||
+                  "Assessment"}
+              </Link>
+            ) : (
+              <span className="max-w-[260px] truncate text-gray-500">
+                {assessment?.title ||
+                  "Assessment"}
+              </span>
+            )}
+
+            <span className="text-gray-400">
+              &gt;
+            </span>
+
+            <span className="text-[#002f86]">
+              Assessment Details
+            </span>
+
           </nav>
-          <h1 className="mt-2 text-2xl font-bold">{assessment.title}</h1>
-          <p className="mt-2 text-gray-600">Review and manage assessment questions and settings.</p>
+
+          {/* ======================================================
+              TITLE
+          ====================================================== */}
+
+          <div className="flex flex-wrap items-center gap-3">
+
+            <h1 className="text-3xl font-bold text-gray-900">
+              {assessment?.title ||
+                "Assessment Details"}
+            </h1>
+
+            <StatusBadge
+              status={status}
+            />
+
+          </div>
+
+          <p className="mt-2 text-gray-600">
+            Manage assessment information and questions.
+          </p>
+
         </div>
-        <button onClick={() => setModal("add")} className="flex items-center gap-2 rounded-lg bg-[#002f86] px-4 py-3 font-semibold text-white hover:bg-[#001f59]">
-          <Plus size={18} /> Add Question
-        </button>
-      </header>
 
-      <section className="rounded-2xl bg-white p-6 shadow-md">
-        <h2 className="text-2xl font-bold">Assessment Information</h2>
-        <div className="mt-5 grid gap-x-10 gap-y-4 md:grid-cols-2">
-          {info.map(([label, value]) => (
-            <p key={label}><b>{label}:</b> {value || "—"}</p>
-          ))}
-          <p><b>Status:</b> <StatusBadge status={status} /></p>
-        </div>
-      </section>
-
-      <section className="rounded-2xl bg-white p-6 shadow-md">
-        <h2 className="text-xl font-bold">Question Summary</h2>
-        <div className="mt-3 flex flex-wrap gap-5">
-          {groups.map(([type, list]) => (
-            <span key={type}><b>{type}:</b> {list.length}</span>
-          ))}
-          <b>Total Questions: {questions.length}</b>
-        </div>
-      </section>
-
-      {groups.map(([type, list]) => (
-        <section key={type} className="overflow-hidden rounded-2xl bg-white shadow-md">
-          <button onClick={() => setOpen((items) => ({ ...items, [type]: !items[type] }))} className="flex w-full items-center justify-between p-5 text-left font-bold">
-            {type} <span className="ml-2 font-normal text-gray-500">({list.length})</span>
-            <ChevronDown className={open[type] ? "ml-auto rotate-180" : "ml-auto"} />
-          </button>
-          {open[type] && (
-            <div className="border-t border-gray-200">
-              {list.map((question, index) => (
-                <div key={question.id} className="flex gap-4 border-b border-gray-200 p-5">
-                  <span className="grid h-8 w-8 place-items-center rounded bg-[#002f86] text-white font-semibold">
-                    {index + 1}
-                  </span>
-                  <div className="flex-1">
-                    <p className="font-medium">{question.question}</p>
-                    {question.choices?.length > 0 && (
-                      <ul className="mt-2 grid grid-cols-2 gap-1 text-sm text-gray-600">
-                        {question.choices.map((choice, i) => (
-                          <li key={i}>
-                            <b>{String.fromCharCode(65 + i)}:</b> {choice}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    <p className="mt-2 text-sm text-gray-700">
-                      <b>Answer:</b> {question.answer || "Matching pairs"}
-                    </p>
-                  </div>
-                  <div className="relative">
-                    <button onClick={() => setMenu(menu === question.id ? null : question.id)} aria-label="Question actions">
-                      <MoreVertical />
-                    </button>
-                    {menu === question.id && (
-                      <div className="absolute right-0 top-7 z-10 w-28 rounded border bg-white shadow">
-                        <button onClick={() => { setModal(question); setMenu(null); }} className="w-full px-3 py-2 text-left hover:bg-gray-50">
-                          Edit
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      ))}
-
-      <div className="flex justify-end gap-3">
-        <button onClick={() => updateStatus("Draft")} className="rounded border px-4 py-2 hover:bg-gray-50">Save as Draft</button>
-        <button onClick={() => updateStatus("Active")} className="rounded bg-[#002f86] px-4 py-2 text-white hover:bg-[#001f59]">Activate Assessment</button>
       </div>
 
-      {modal && <QuestionModal initial={modal === "add" ? null : modal} onClose={() => setModal(null)} onSave={saveQuestion} />}
+      {/* ========================================================
+          MESSAGES
+      ======================================================== */}
+
+      {errorMessage && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          {errorMessage}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+          {successMessage}
+        </div>
+      )}
+
+      {/* ========================================================
+          ASSESSMENT INFORMATION
+      ======================================================== */}
+
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+
+        <div className="border-b border-gray-200 px-6 py-5">
+
+          <h2 className="text-base font-bold text-gray-900">
+            Assessment Information
+          </h2>
+
+          <p className="mt-1 text-sm text-gray-500">
+            Basic information about this assessment.
+          </p>
+
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 px-6 py-6 sm:grid-cols-2 lg:grid-cols-3">
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+              Assessment Name
+            </p>
+
+            <p className="mt-1 text-sm font-semibold text-gray-900">
+              {assessment?.title ||
+                "—"}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+              Course Code / Title
+            </p>
+
+            <p className="mt-1 text-sm font-semibold text-gray-900">
+              {courseLabel}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+              Assessment Type
+            </p>
+
+            <p className="mt-1 text-sm font-semibold text-gray-900">
+              {assessment?.set_type ||
+                "—"}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+              Total Questions
+            </p>
+
+            <p className="mt-1 text-sm font-semibold text-gray-900">
+              {assessment?.total_items ??
+                questions.length}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+              Time Limit
+            </p>
+
+            <p className="mt-1 text-sm font-semibold text-gray-900">
+              {formatTimeLimit(
+                assessment?.time_limit_minutes
+              )}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+              Created Date
+            </p>
+
+            <p className="mt-1 text-sm font-semibold text-gray-900">
+              {formatDate(
+                assessment?.created_at
+              )}
+            </p>
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* ========================================================
+          QUESTIONS CONTAINER
+      ======================================================== */}
+
+      <QuestionsContainer
+        questions={questions}
+
+        groupedQuestions={
+          groupedQuestions
+        }
+
+        openSections={
+          openSections
+        }
+
+        toggleSection={
+          toggleSection
+        }
+
+        onSaveQuestion={
+          saveQuestion
+        }
+
+        saving={saving}
+      />
+
     </div>
   );
 }

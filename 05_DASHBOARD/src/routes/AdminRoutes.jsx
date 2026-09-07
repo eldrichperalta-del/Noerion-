@@ -12,6 +12,7 @@ import AddAssessor from "../pages/admin/user-management/AddAssessor";
 
 import AssessmentManagement from "../pages/admin/AssessmentManagement";
 import AssessmentDetails from "../pages/admin/AssessmentDetails";
+import CourseAssessment from "../pages/admin/assessment-library/CourseAssessment";
 import CreateAssessment from "../pages/admin/assessment-management/create-assessment/CreateAssessment";
 import ScheduleAssessmentPage from "../pages/admin/assessment-management/ScheduleAssessmentPage";
 import ScheduleAssessmentWorkflow from "../pages/admin/assessment-management/ScheduleAssessmentWorkflow";
@@ -70,7 +71,7 @@ export default function AdminRoutes() {
         }
       />
 
-      {/* Assessment Management */}
+      {/* Assessment Library */}
       <Route
         path="/assessments"
         element={
@@ -79,16 +80,47 @@ export default function AdminRoutes() {
           </AdminLayout>
         }
       />
+
+      {/* Course-specific Assessment Library */}
+      <Route
+        path="/assessments/course/:courseId"
+        element={
+          <AdminLayout>
+            <CourseAssessment />
+          </AdminLayout>
+        }
+      />
+
+      {/* Assessment Scheduling */}
       <Route
         path="/assessments/schedule"
-        element={<AdminLayout><ScheduleAssessmentPage /></AdminLayout>}
+        element={
+          <AdminLayout>
+            <ScheduleAssessmentPage />
+          </AdminLayout>
+        }
       />
+
       <Route
         path="/assessments/schedule/choose"
-        element={<AdminLayout><ScheduleAssessmentWorkflow /></AdminLayout>}
+        element={
+          <AdminLayout>
+            <ScheduleAssessmentWorkflow />
+          </AdminLayout>
+        }
       />
-      <Route path="/assessments/:id" element={<AdminLayout><AssessmentDetails /></AdminLayout>} />
 
+      {/* Individual Assessment Details */}
+      <Route
+        path="/assessments/:id"
+        element={
+          <AdminLayout>
+            <AssessmentDetails />
+          </AdminLayout>
+        }
+      />
+
+      {/* Create Assessment */}
       <Route
         path="/assessments/create"
         element={
