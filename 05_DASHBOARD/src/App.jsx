@@ -1,6 +1,9 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
-/* Public Pages */
+/* =========================
+   Public Pages
+========================= */
+
 import Landing from "./pages/landing/Landing";
 import Login from "./pages/login/Login";
 import Registration from "./pages/registration/Registration";
@@ -9,7 +12,10 @@ import Privacy from "./pages/privacy/Privacy";
 import CertificateVerification from "./pages/verification/CertificateVerification";
 import CertificateSearch from "./pages/verification/CertificateSearch";
 
-/* Route Groups */
+/* =========================
+   Route Groups
+========================= */
+
 import AdminRoutes from "./routes/AdminRoutes";
 import AssessorRoutes from "./routes/AssessorRoutes";
 import TraineeRoutes from "./routes/TraineeRoutes";
@@ -17,22 +23,80 @@ import TraineeRoutes from "./routes/TraineeRoutes";
 function App() {
   return (
     <Routes>
-      {/* Public */}
-      <Route path="/" element={<Landing />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Registration />} />
-      <Route path="/loading" element={<Loading />} />
-      <Route path="/privacy" element={<Privacy />} />
-      <Route path="/verify-certificate/:certificateId?" element={<CertificateVerification />} />
-      <Route path="/certificate-verification" element={<CertificateSearch />} />
+      {/* =========================
+          Public Routes
+      ========================= */}
 
-      {/* Dashboards */}
-      <Route path="/admin/*" element={<AdminRoutes />} />
-      <Route path="/assessor/*" element={<AssessorRoutes />} />
-      <Route path="/trainee/*" element={<TraineeRoutes />} />
+      <Route
+        path="/"
+        element={<Landing />}
+      />
 
-      {/* Catch All */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route
+        path="/login"
+        element={<Login />}
+      />
+
+      <Route
+        path="/register"
+        element={<Registration />}
+      />
+
+      <Route
+        path="/loading"
+        element={<Loading />}
+      />
+
+      <Route
+        path="/privacy"
+        element={<Privacy />}
+      />
+
+      <Route
+        path="/verify-certificate/:certificateId?"
+        element={<CertificateVerification />}
+      />
+
+      <Route
+        path="/certificate-verification"
+        element={<CertificateSearch />}
+      />
+
+      {/* =========================
+          Dashboard Route Groups
+      ========================= */}
+
+      {/* ADMIN ROUTES */}
+      <Route
+        path="/admin/*"
+        element={<AdminRoutes />}
+      />
+
+      {/* ASSESSOR ROUTES */}
+      <Route
+        path="/assessor/*"
+        element={<AssessorRoutes />}
+      />
+
+      {/* TRAINEE ROUTES */}
+      <Route
+        path="/trainee/*"
+        element={<TraineeRoutes />}
+      />
+
+      {/* =========================
+          Catch-All Route
+      ========================= */}
+
+      <Route
+        path="*"
+        element={
+          <Navigate
+            to="/"
+            replace
+          />
+        }
+      />
     </Routes>
   );
 }
