@@ -1,120 +1,69 @@
 import EvaluationCourseCard from "./EvaluationCourseCard";
 
-// ============================================================================
-// EvaluationCourseGrid Component
-// ----------------------------------------------------------------------------
-// Displays all assigned courses in a responsive grid.
-//
-// Props:
-// - courses
-//      Array of assigned courses.
-//
-// - searchTerm
-//      Search keyword entered by the assessor.
-//
-// - progressFilter
-//      Selected progress filter.
-//
-// BACKEND HANDOFF:
-//
-// Replace the mock course array with live data fetched from Supabase.
-//
-// For large datasets, searching and filtering should ideally be performed
-// server-side to improve performance.
-//
-// Expected Course Object:
-//
-// {
-//     id,
-//     qualificationName,
-//     totalTrainees,
-//     completedEvaluations
-// }
-//
-// ============================================================================
-
 export default function EvaluationCourseGrid({
-  courses,
-  searchTerm,
-  progressFilter,
+  courses = [],
+  loading = false,
+  searchTerm = "",
 }) {
-  // ==========================================================================
-  // Filter Courses
-  // ==========================================================================
-  const filteredCourses = courses.filter((course) => {
-    const progress =
-      course.totalTrainees === 0
-        ? 0
-        : Math.round(
-            (course.completedEvaluations / course.totalTrainees) * 100
-          );
+  /* ================================================================
+     LOADING
+  ================================================================= */
 
-    // ------------------------------------------------------------
-    // Search Filter
-    // ------------------------------------------------------------
-    const matchesSearch = course.qualificationName
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        {[1, 2, 3].map((item) => (
+          <div
+            key={item}
+            className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
+          >
+            <div className="animate-pulse p-6">
+              <div className="mb-2 h-5 w-72 rounded bg-gray-200" />
 
-    // ------------------------------------------------------------
-    // Progress Filter
-    // ------------------------------------------------------------
-    let matchesProgress = true;
+              <div className="mb-6 h-4 w-40 rounded bg-gray-100" />
 
-    switch (progressFilter) {
-      case "Not Started":
-        matchesProgress = progress === 0;
-        break;
+              <div className="h-16 w-full rounded bg-gray-100" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
-      case "In Progress":
-        matchesProgress = progress > 0 && progress < 100;
-        break;
+  /* ================================================================
+     EMPTY
+  ================================================================= */
 
-      case "Completed":
-        matchesProgress = progress === 100;
-        break;
+  if (!courses.length) {
+    return (
+      <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center shadow-sm">
+        <h3 className="text-base font-semibold text-gray-900">
+          No courses found
+        </h3>
 
-      default:
-        matchesProgress = true;
-    }
+        <p className="mt-2 text-sm text-gray-500">
+          {searchTerm
+            ? "No courses or assessments match your search."
+            : "There are no courses available to display."}
+        </p>
+      </div>
+    );
+  }
 
-    return matchesSearch && matchesProgress;
-  });
+  /* ================================================================
+     COURSE SECTIONS
+
+     Each course receives its OWN card/table.
+  ================================================================= */
 
   return (
-    <>
-      {/* ========================================================= */}
-      {/* Empty State */}
-      {/* ========================================================= */}
-
-      {filteredCourses.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-800">
-            No Assigned Courses Found
-          </h3>
-
-          <p className="mt-2 text-sm text-gray-500">
-            Try adjusting your search or filter to view assigned courses.
-          </p>
-        </div>
-      ) : (
-        <div
-          className="
-            grid
-            grid-cols-1
-            md:grid-cols-2
-            xl:grid-cols-3
-            gap-6
-          "
-        >
-          {filteredCourses.map((course) => (
-            <EvaluationCourseCard
-              key={course.id}
-              course={course}
-            />
-          ))}
-        </div>
-      )}
-    </>
+    <div className="space-y-6">
+      {courses.map((course) => (
+        <EvaluationCourseCard
+          key={course.id}
+          course={course}
+        />
+      ))}
+    </div>
   );
 }
