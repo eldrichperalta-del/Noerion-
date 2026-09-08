@@ -23,7 +23,8 @@
 }
 
 .overview-heading {
-  margin-bottom: 24px; /* adjust as needed */
+  margin-bottom: 24px;
+  /* adjust as needed */
 }
 
 .kpi-grid {
@@ -36,7 +37,7 @@
   background: #fff;
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 .kpi-card h3 {
@@ -56,7 +57,7 @@
   background: #fff;
   padding: 15px;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
   height: 260px;
 }
 
@@ -90,7 +91,7 @@
   background: #fff;
   padding: 15px;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 table {
@@ -98,7 +99,8 @@ table {
   border-collapse: collapse;
 }
 
-th, td {
+th,
+td {
   padding: 12px;
   text-align: left;
   border-bottom: 1px solid #eee;
@@ -128,3 +130,92 @@ th {
   font-size: 18px;
   cursor: pointer;
 }
+
+/* ============================================================
+   COMPLETION RATE CHART
+   ============================================================ */
+
+.completion-chart-wrapper {
+  position: relative;
+  width: 100%;
+  height: 220px;
+}
+
+.completion-y-axis {
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 45px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+
+  padding-right: 5px;
+
+  pointer-events: none;
+  z-index: 2;
+}
+
+.completion-y-axis span {
+  font-size: 12px;
+  line-height: 1;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   PASS VS FAIL EMPTY CHART
+   ============================================================ */
+
+.pass-fail-chart {
+  width: 100%;
+  height: 220px;
+  position: relative;
+}
+
+.empty-pie-chart {
+  height: 175px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-pie-circle {
+  width: 140px;
+  height: 140px;
+  border: 2px solid #d1d5db;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.empty-pie-legend {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.empty-pie-legend span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.empty-pie-legend i {
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+}
+
+.legend-pass {
+  background: #22c55e;
+}
+
+.legend-fail {
+  background: #ef4444;
+}
+

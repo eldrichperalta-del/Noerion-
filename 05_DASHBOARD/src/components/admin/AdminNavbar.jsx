@@ -65,11 +65,20 @@ function AdminNavbar() {
 
     const currentTitle =
         pageTitles[location.pathname] ||
-        (/^\/admin\/assessments\/course\/[^/]+$/.test(location.pathname)
-            ? "Course Assessment"
-            : /^\/admin\/assessments\/[^/]+$/.test(location.pathname)
-                ? "Assessment Details"
-                : "Admin Dashboard");
+
+        // Course Results page
+        (/^\/admin\/results\/course\/[^/]+$/.test(location.pathname)
+            ? "Course Results"
+
+            // Course Assessment page
+            : /^\/admin\/assessments\/course\/[^/]+$/.test(location.pathname)
+                ? "Course Assessment"
+
+                // Assessment Details page
+                : /^\/admin\/assessments\/[^/]+$/.test(location.pathname)
+                    ? "Assessment Details"
+
+                    : "Admin Dashboard");
     return (
         <header
             className="

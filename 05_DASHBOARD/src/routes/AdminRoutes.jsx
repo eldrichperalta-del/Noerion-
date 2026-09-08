@@ -18,6 +18,7 @@ import ScheduleAssessmentPage from "../pages/admin/assessment-management/Schedul
 import ScheduleAssessmentWorkflow from "../pages/admin/assessment-management/ScheduleAssessmentWorkflow";
 
 import ResultsMonitoring from "../pages/admin/ResultsMonitoring";
+import CourseResults from "../pages/admin/results-monitoring/CourseResults";
 import CertificateManagement from "../pages/admin/CertificateManagement";
 import Settings from "../pages/admin/Settings";
 
@@ -130,12 +131,21 @@ export default function AdminRoutes() {
         }
       />
 
-      {/* Results */}
+      {/* Results Monitoring */}
       <Route
         path="/results"
         element={
           <AdminLayout>
             <ResultsMonitoring />
+          </AdminLayout>
+        }
+      />
+
+      <Route
+        path="/results/course/:courseId"
+        element={
+          <AdminLayout>
+            <CourseResults />
           </AdminLayout>
         }
       />
