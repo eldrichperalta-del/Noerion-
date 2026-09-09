@@ -183,15 +183,31 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!certificate) {
+      console.log(
+        "Certificate not found:",
+        certificateId,
+      );
+
       return new Response(
         JSON.stringify({
-          success: false,
+          success: true,
           verified: false,
+          certificate: null,
+          checks: {
+            tokenValid: false,
+            databaseHashValid: false,
+            qrHashValid: false,
+            signatureValid: false,
+            signatureMatchesDatabase: false,
+            certificateStatusValid: false,
+          },
+          verificationMethod:
+            "QR / Certificate Number",
           error:
             "Certificate could not be found.",
         }),
         {
-          status: 404,
+          status: 200,
           headers: {
             ...corsHeaders,
             "Content-Type":
@@ -200,7 +216,6 @@ Deno.serve(async (req: Request) => {
         },
       );
     }
-
     // ============================================
     // FETCH TRAINEE PROFILE
     // ============================================

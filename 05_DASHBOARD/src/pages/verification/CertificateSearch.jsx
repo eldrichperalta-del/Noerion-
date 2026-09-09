@@ -25,16 +25,34 @@ export default function CertificateSearch() {
 
         scanner.clear().catch(() => { });
 
-        try {
-          const url = new URL(decodedText);
+        const scannedValue = decodedText.trim();
 
-          navigate(url.pathname + url.search);
+        if (!scannedValue) {
+          navigate("/verify-certificate");
+          return;
+        }
+
+        try {
+          const url = new URL(scannedValue);
+
+          const currentOrigin = globalThis.location.origin;
+
+          const isSameOrigin = url.origin === currentOrigin;
+
+          const isVerificationPath =
+            url.pathname.startsWith("/verify/") ||
+            url.pathname.startsWith("/verify-certificate/");
+
+          if (isSameOrigin && isVerificationPath) {
+            navigate(url.pathname + url.search);
+            return;
+          }
+
+          // Fake/external/unrecognized QR
+          navigate("/verify-certificate");
         } catch {
-          navigate(
-            `/verify-certificate/${encodeURIComponent(
-              decodedText.trim()
-            )}`
-          );
+          // QR is not a URL → treat it as an invalid QR
+          navigate("/verify-certificate");
         }
       },
       () => {

@@ -51,7 +51,7 @@ export default function ViewCertificate() {
           setCertificate(null);
           setErrorMessage(
             error?.message ||
-              "Unable to load certificate."
+            "Unable to load certificate."
           );
         }
       } finally {
