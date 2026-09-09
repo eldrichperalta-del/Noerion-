@@ -14,10 +14,13 @@ import { useAssessments } from "../../../context/AssessmentContext.jsx";
 // HELPERS
 // ============================================================================
 
-const normalize = (value) =>
-  value === null || value === undefined
-    ? ""
-    : String(value).trim().toLowerCase();
+const normalize = (value) => {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return String(value).trim().toLowerCase();
+};
 
 
 const firstExisting = (...values) =>
@@ -37,27 +40,21 @@ export default function TraineesForEvaluation() {
   const navigate = useNavigate();
   const { state } = useLocation();
 
+  // --------------------------------------------------------------------------
+  // NAVIGATION DATA
+  // --------------------------------------------------------------------------
+
   const selectedCourse =
     state?.selectedCourse ??
-    "Assessment Batch";
+    null;
 
-  /*
-   * IMPORTANT:
-   *
-   * These values can be:
-   *
-   * - UUIDs from the database
-   * - numeric mock IDs such as 1
-   *
-   * We DO NOT directly send them into a UUID database column.
-   */
   const batchId =
     state?.batchId ??
     null;
 
   const assessmentId =
     state?.assessmentId ??
-    state?.courseId ??
+    state?.assessment?.id ??
     null;
 
   const batchCode =
@@ -65,6 +62,10 @@ export default function TraineesForEvaluation() {
     state?.courseCode ??
     "N/A";
 
+
+  // --------------------------------------------------------------------------
+  // STATE
+  // --------------------------------------------------------------------------
 
   const [trainees, setTrainees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -78,7 +79,23 @@ export default function TraineesForEvaluation() {
 
 
   // ==========================================================================
-  // FETCH MOCK DATABASE RECORDS
+  // COURSE LABEL
+  // ==========================================================================
+
+  const courseLabel =
+    typeof selectedCourse === "string"
+      ? selectedCourse
+      : firstExisting(
+        selectedCourse?.qualificationName,
+        selectedCourse?.courseName,
+        selectedCourse?.name,
+        selectedCourse?.qualification,
+        "Selected Course"
+      );
+
+
+  // ==========================================================================
+  // FETCH ASSIGNED TRAINEES
   // ==========================================================================
 
   useEffect(() => {
@@ -91,6 +108,10 @@ export default function TraineesForEvaluation() {
 
 
       try {
+        console.log(
+          "===================================================="
+        );
+
         console.log(
           "=== TRAINEES FOR EVALUATION ==="
         );
@@ -105,25 +126,112 @@ export default function TraineesForEvaluation() {
           assessmentId
         );
 
+        console.log(
+          "Selected course:",
+          selectedCourse
+        );
+
 
         // ====================================================================
-        // 1. FETCH ASSIGNMENTS
+        // 1. GET CURRENT AUTHENTICATED USER
         //
-        // DO NOT put assessmentId into .eq("assessment_id", ...)
-        //
-        // The page can receive mock ID "1", while assessment_id in Supabase
-        // can be UUID.
-        //
-        // We therefore fetch the mock assignment records first and match them
-        // safely in JavaScript.
+        // assignments.assessor_id contains the Supabase Auth user UUID.
+        // Therefore, this is the most important filter.
         // ====================================================================
+
+        const {
+          data: {
+            user,
+          },
+          error: authError,
+        } = await supabase.auth.getUser();
+
+
+        if (authError) {
+          throw authError;
+        }
+
+
+        if (!user?.id) {
+          throw new Error(
+            "No authenticated assessor was found."
+          );
+        }
+
+
+        const currentAssessorId =
+          user.id;
+
+
+        console.log(
+          "Current authenticated assessor:",
+          currentAssessorId
+        );
+
+
+        // ====================================================================
+        // 2. FETCH ASSIGNMENTS FOR THIS ASSESSOR ONLY
+        //
+        // IMPORTANT:
+        //
+        // We DO NOT fetch every assignment anymore.
+        //
+        // This prevents:
+        //
+        // Assessor A seeing Assessor B's trainees.
+        // ====================================================================
+
+        let assignmentsQuery =
+          supabase
+            .from("assignments")
+            .select("*")
+            .eq(
+              "assessor_id",
+              currentAssessorId
+            );
+
+
+        // ====================================================================
+        // 3. FILTER BY BATCH WHEN AVAILABLE
+        //
+        // This ensures the page shows trainees assigned to this assessor
+        // specifically for the selected assessment batch.
+        // ====================================================================
+
+        if (batchId) {
+          assignmentsQuery =
+            assignmentsQuery.eq(
+              "batch_id",
+              batchId
+            );
+        }
+
+
+        // ====================================================================
+        // 4. FILTER BY ASSESSMENT WHEN AVAILABLE
+        //
+        // Example:
+        //
+        // Computer Systems Servicing Set B
+        // assessment_id =
+        // 804760a0-44fc-4187-ad73-cbb081071355
+        //
+        // Only assignments for that assessment are returned.
+        // ====================================================================
+
+        if (assessmentId) {
+          assignmentsQuery =
+            assignmentsQuery.eq(
+              "assessment_id",
+              assessmentId
+            );
+        }
+
 
         const {
           data: assignmentsData,
           error: assignmentsError,
-        } = await supabase
-          .from("assignments")
-          .select("*");
+        } = await assignmentsQuery;
 
 
         if (assignmentsError) {
@@ -136,11 +244,72 @@ export default function TraineesForEvaluation() {
 
 
         console.log(
-          "Assignments from database:",
-          JSON.stringify(assignments, null, 2)
+          "Assignments for current assessor:",
+          JSON.stringify(
+            assignments,
+            null,
+            2
+          )
         );
 
+
+        // ====================================================================
+        // 5. NEVER FALL BACK TO ALL ASSIGNMENTS
+        //
+        // If there are no assignments for this assessor/batch/assessment,
+        // the correct result is an empty table.
+        // ====================================================================
+
         if (assignments.length === 0) {
+          console.log(
+            "No trainees are assigned to this assessor for the selected batch/assessment."
+          );
+
+
+          if (isMounted) {
+            setTrainees([]);
+          }
+
+
+          return;
+        }
+
+
+        // ====================================================================
+        // 6. SAFETY CHECK
+        //
+        // Even though the database query already filters assessor_id,
+        // perform a second JavaScript-level check.
+        //
+        // This makes sure that only assignments belonging to the currently
+        // authenticated assessor reach the UI.
+        // ====================================================================
+
+        const assessorAssignments =
+          assignments.filter(
+            (assignment) =>
+              normalize(
+                assignment.assessor_id
+              ) ===
+              normalize(
+                currentAssessorId
+              )
+          );
+
+
+        console.log(
+          "Verified assessor assignments:",
+          JSON.stringify(
+            assessorAssignments,
+            null,
+            2
+          )
+        );
+
+
+        if (
+          assessorAssignments.length === 0
+        ) {
           if (isMounted) {
             setTrainees([]);
           }
@@ -150,105 +319,12 @@ export default function TraineesForEvaluation() {
 
 
         // ====================================================================
-        // 2. FILTER ASSIGNMENTS SAFELY
-        //
-        // We compare values as strings.
-        //
-        // This means:
-        //
-        // UUID === UUID
-        // "1" === 1
-        //
-        // without sending an invalid "1" into PostgreSQL's UUID comparison.
-        // ====================================================================
-
-        const normalizedBatchId =
-          normalize(batchId);
-
-        const normalizedAssessmentId =
-          normalize(assessmentId);
-
-
-        const filteredAssignments =
-          assignments.filter((assignment) => {
-
-            const assignmentBatchId =
-              normalize(
-                assignment.batch_id
-              );
-
-            const assignmentAssessmentId =
-              normalize(
-                assignment.assessment_id
-              );
-
-
-            /*
-             * If a batch ID exists in navigation state,
-             * match it only when the database record contains it.
-             */
-            if (
-              normalizedBatchId &&
-              assignmentBatchId
-            ) {
-              if (
-                assignmentBatchId !==
-                normalizedBatchId
-              ) {
-                return false;
-              }
-            }
-
-
-            /*
-             * If an assessment ID exists in navigation state,
-             * match it only when both values actually match.
-             *
-             * This is safe even if the navigation value is "1".
-             */
-            if (
-              normalizedAssessmentId &&
-              assignmentAssessmentId
-            ) {
-              if (
-                assignmentAssessmentId !==
-                normalizedAssessmentId
-              ) {
-                return false;
-              }
-            }
-
-
-            return true;
-          });
-
-
-        /*
-         * If filtering produced nothing, do NOT manufacture trainees.
-         *
-         * However, when the navigation ID is a local/mock ID that doesn't
-         * correspond to the UUID stored in the database, we can still use
-         * the database mock records when there is only one logical batch.
-         */
-        const usableAssignments =
-          filteredAssignments.length > 0
-            ? filteredAssignments
-            : assignments;
-
-
-        console.log(
-          "Assignments used for evaluation:",
-          usableAssignments
-        );
-
-
-        // ====================================================================
-        // 3. EXTRACT REAL TRAINEE UUIDs
+        // 7. EXTRACT TRAINEE IDS
         // ====================================================================
 
         const traineeIds = [
           ...new Set(
-            usableAssignments
+            assessorAssignments
               .map(
                 (assignment) =>
                   assignment.trainee_id
@@ -258,9 +334,13 @@ export default function TraineesForEvaluation() {
         ];
 
 
+        // ====================================================================
+        // 8. EXTRACT ASSIGNMENT IDS
+        // ====================================================================
+
         const assignmentIds = [
           ...new Set(
-            usableAssignments
+            assessorAssignments
               .map(
                 (assignment) =>
                   assignment.id
@@ -271,29 +351,24 @@ export default function TraineesForEvaluation() {
 
 
         console.log(
-          "Real trainee IDs from assignments:",
+          "Trainee IDs:",
           traineeIds
         );
 
         console.log(
-          "Real assignment IDs:",
+          "Assignment IDs:",
           assignmentIds
         );
 
 
         // ====================================================================
-        // 4. FETCH PROFILES
-        //
-        // IMPORTANT:
-        // The values here come directly from assignment.trainee_id.
-        // We never use state.assessmentId.
+        // 9. FETCH PROFILES
         // ====================================================================
 
         const profilesMap = {};
 
 
         if (traineeIds.length > 0) {
-
           const {
             data: profilesData,
             error: profilesError,
@@ -319,7 +394,7 @@ export default function TraineesForEvaluation() {
           (profilesData || []).forEach(
             (profile) => {
               profilesMap[
-                profile.id
+                String(profile.id)
               ] = profile;
             }
           );
@@ -327,19 +402,13 @@ export default function TraineesForEvaluation() {
 
 
         // ====================================================================
-        // 5. FETCH TRAINEE PROFILES
-        //
-        // This is optional because the exact structure may differ between
-        // database versions.
-        //
-        // We load the records and match them in JavaScript.
+        // 10. FETCH TRAINEE PROFILES
         // ====================================================================
 
         const traineeProfilesMap = {};
 
 
         if (traineeIds.length > 0) {
-
           const {
             data: traineeProfilesData,
             error: traineeProfilesError,
@@ -349,17 +418,13 @@ export default function TraineesForEvaluation() {
 
 
           if (traineeProfilesError) {
-
             console.warn(
               "trainee_profiles query failed:",
               traineeProfilesError
             );
-
           } else {
-
             (traineeProfilesData || []).forEach(
               (traineeProfile) => {
-
                 const possibleId =
                   firstExisting(
                     traineeProfile.trainee_id,
@@ -374,42 +439,43 @@ export default function TraineesForEvaluation() {
                     String(possibleId)
                   ] = traineeProfile;
                 }
-
               }
             );
-
           }
         }
 
 
         // ====================================================================
-        // 6. FETCH ASSESSMENT SUBMISSIONS
+        // 11. FETCH SUBMISSIONS
         //
-        // We use REAL assignment IDs and REAL trainee IDs obtained from the
-        // database.
+        // We only need submissions belonging to:
+        //
+        // - this assessor
+        // - these assignments
+        // - these trainees
+        //
+        // We can safely fetch the assessor's submissions and match them
+        // against the already-filtered assignments.
         // ====================================================================
 
-        const submissionsMap = {};
-
-
-        let submissionsData = [];
+        const submissionsMapByAssignment = {};
+        const submissionsMapByTrainee = {};
 
 
         if (
           assignmentIds.length > 0 ||
           traineeIds.length > 0
         ) {
-
-          /*
-           * Fetch all mock submissions instead of constructing a potentially
-           * invalid UUID filter.
-           */
           const {
-            data,
+            data: submissionsData,
             error: submissionsError,
           } = await supabase
             .from("assessment_submissions")
-            .select("*");
+            .select("*")
+            .eq(
+              "assessor_id",
+              currentAssessorId
+            );
 
 
           if (submissionsError) {
@@ -417,55 +483,57 @@ export default function TraineesForEvaluation() {
           }
 
 
-          submissionsData =
-            data || [];
+          console.log(
+            "Submissions for current assessor:",
+            JSON.stringify(
+              submissionsData || [],
+              null,
+              2
+            )
+          );
+
+
+          (submissionsData || []).forEach(
+            (submission) => {
+              // --------------------------------------------------------------
+              // Match by assignment_id
+              // --------------------------------------------------------------
+
+              if (
+                submission.assignment_id
+              ) {
+                submissionsMapByAssignment[
+                  String(
+                    submission.assignment_id
+                  )
+                ] = submission;
+              }
+
+
+              // --------------------------------------------------------------
+              // Match by trainee_id
+              // --------------------------------------------------------------
+
+              if (
+                submission.trainee_id
+              ) {
+                submissionsMapByTrainee[
+                  String(
+                    submission.trainee_id
+                  )
+                ] = submission;
+              }
+            }
+          );
         }
 
 
-        console.log(
-          "Assessment submissions:",
-          JSON.stringify(submissionsData, null, 2)
-        );
-
-
-        submissionsData.forEach(
-          (submission) => {
-
-            if (
-              submission.assignment_id
-            ) {
-
-              submissionsMap[
-                String(
-                  submission.assignment_id
-                )
-              ] = submission;
-
-            }
-
-
-            if (
-              submission.trainee_id
-            ) {
-
-              submissionsMap[
-                String(
-                  submission.trainee_id
-                )
-              ] = submission;
-
-            }
-
-          }
-        );
-
-
         // ====================================================================
-        // 7. FORMAT TRAINEES
+        // 12. FORMAT TRAINEES
         // ====================================================================
 
         const formattedTrainees =
-          usableAssignments.map(
+          assessorAssignments.map(
             (assignment) => {
 
               const traineeId =
@@ -475,26 +543,34 @@ export default function TraineesForEvaluation() {
               const profile =
                 traineeId
                   ? profilesMap[
-                  String(traineeId)
-                  ]
+                  String(
+                    traineeId
+                  )
+                  ] || null
                   : null;
 
 
               const traineeProfile =
                 traineeId
                   ? traineeProfilesMap[
-                  String(traineeId)
-                  ]
+                  String(
+                    traineeId
+                  )
+                  ] || null
                   : null;
 
 
+              // --------------------------------------------------------------
+              // Prefer exact assignment match for submission.
+              // --------------------------------------------------------------
+
               const submission =
-                submissionsMap[
+                submissionsMapByAssignment[
                 String(
                   assignment.id
                 )
                 ] ||
-                submissionsMap[
+                submissionsMapByTrainee[
                 String(
                   traineeId
                 )
@@ -502,9 +578,9 @@ export default function TraineesForEvaluation() {
                 null;
 
 
-              // ================================================================
-              // RESOLVE NAME
-              // ================================================================
+              // ==============================================================
+              // RESOLVE TRAINEE NAME
+              // ==============================================================
 
               const fullName =
                 firstExisting(
@@ -533,16 +609,15 @@ export default function TraineesForEvaluation() {
                 );
 
 
-              // ================================================================
+              // ==============================================================
               // RESOLVE STATUS
-              // ================================================================
+              // ==============================================================
 
               let status =
                 "Not Started";
 
 
               if (submission) {
-
                 const rawStatus =
                   normalize(
                     submission.status
@@ -563,7 +638,6 @@ export default function TraineesForEvaluation() {
                   rawStatus ===
                   "in evaluated"
                 ) {
-
                   status =
                     "Evaluated";
 
@@ -573,7 +647,6 @@ export default function TraineesForEvaluation() {
                   rawOverallResult ===
                   "submitted"
                 ) {
-
                   status =
                     "Submitted";
 
@@ -585,7 +658,6 @@ export default function TraineesForEvaluation() {
                   rawStatus ===
                   "in evaluate"
                 ) {
-
                   status =
                     "In Evaluation";
 
@@ -595,10 +667,8 @@ export default function TraineesForEvaluation() {
                   rawStatus ===
                   "in progress"
                 ) {
-
                   status =
                     "In Progress";
-
                 }
 
               } else {
@@ -615,7 +685,6 @@ export default function TraineesForEvaluation() {
                   assignmentStatus ===
                   "evaluated"
                 ) {
-
                   status =
                     "Evaluated";
 
@@ -625,38 +694,43 @@ export default function TraineesForEvaluation() {
                   assignmentStatus ===
                   "in progress"
                 ) {
-
                   status =
                     "In Progress";
-
                 }
-
               }
 
 
-              // ================================================================
-              // RETURN NORMALIZED TRAINEE
-              // ================================================================
+              // ==============================================================
+              // RETURN TRAINEE RECORD
+              // ==============================================================
 
               return {
 
-                /*
-                 * IMPORTANT:
-                 *
-                 * This is the actual trainee UUID from the database.
-                 */
+                // ------------------------------------------------------------
+                // REAL TRAINEE UUID
+                // ------------------------------------------------------------
+
                 id:
                   traineeId ||
                   assignment.id,
 
 
                 traineeId:
-                  traineeId || null,
+                  traineeId ||
+                  null,
 
+
+                // ------------------------------------------------------------
+                // REAL ASSIGNMENT ID
+                // ------------------------------------------------------------
 
                 assignmentId:
                   assignment.id,
 
+
+                // ------------------------------------------------------------
+                // BATCH
+                // ------------------------------------------------------------
 
                 batchId:
                   assignment.batch_id ||
@@ -664,77 +738,216 @@ export default function TraineesForEvaluation() {
                   null,
 
 
+                batchCode:
+                  batchCode,
+
+
+                batchName:
+                  assignment.batch_name ||
+                  null,
+
+
+                // ------------------------------------------------------------
+                // ASSESSMENT
+                // ------------------------------------------------------------
+
                 assessmentId:
                   assignment.assessment_id ||
                   assessmentId ||
                   null,
 
 
-                fullName,
+                assessmentName:
+                  assignment.assessment_name ||
+                  null,
 
 
-                /*
-                 * Do not replace the real database ID with "1".
-                 *
-                 * The UI can still display a friendly trainee ID.
-                 */
-                displayTraineeId:
-                  traineeId
-                    ? `#TR-${String(
-                      traineeId
-                    ).slice(0, 8).toUpperCase()}`
-                    : `#ASSIGN-${String(
-                      assignment.id
-                    ).slice(0, 8).toUpperCase()}`,
+                assessmentType:
+                  assignment.assessment_type ||
+                  null,
 
+
+                // ------------------------------------------------------------
+                // COURSE
+                // ------------------------------------------------------------
 
                 course:
                   selectedCourse,
 
 
-                status,
+                courseName:
+                  assignment.assessment_name ||
+                  courseLabel,
 
+
+                qualification:
+                  assignment.qualification ||
+                  null,
+
+
+                // ------------------------------------------------------------
+                // TRAINEE
+                // ------------------------------------------------------------
+
+                fullName:
+
+
+                  fullName,
+
+
+                displayTraineeId:
+                  traineeId
+                    ? `#TR-${String(
+                      traineeId
+                    )
+                      .slice(
+                        0,
+                        8
+                      )
+                      .toUpperCase()}`
+                    : `#ASSIGN-${String(
+                      assignment.id
+                    )
+                      .slice(
+                        0,
+                        8
+                      )
+                      .toUpperCase()}`,
+
+
+                // ------------------------------------------------------------
+                // STATUS
+                // ------------------------------------------------------------
+
+                status:
+
+
+                  status,
+
+
+                // ------------------------------------------------------------
+                // SUBMISSION
+                // ------------------------------------------------------------
 
                 submission:
-                  submission || null,
+                  submission ||
+                  null,
 
 
                 submissionId:
-                  submission?.id || null,
+                  submission?.id ||
+                  null,
 
 
                 submission_id:
-                  submission?.id || null,
+                  submission?.id ||
+                  null,
 
 
-                /*
-                 * Preserve the original database records so the next page
-                 * does not need to query using guessed IDs.
-                 */
-                assignment,
+                // ------------------------------------------------------------
+                // ORIGINAL DATABASE RECORDS
+                // ------------------------------------------------------------
+
+                assignment:
+                  assignment,
 
 
                 profile:
-                  profile || null,
+                  profile,
 
 
                 traineeProfile:
-                  traineeProfile || null,
-
+                  traineeProfile,
               };
             }
           );
 
 
-        console.log(
-          "Final formatted trainees:",
-          JSON.stringify(formattedTrainees, null, 2)
+        // ====================================================================
+        // 13. REMOVE DUPLICATE TRAINEES
+        //
+        // A trainee should normally have one assignment for the selected
+        // batch/assessment. This prevents accidental duplicate rows.
+        // ====================================================================
+
+        const uniqueTrainees = [];
+        const seenTrainees = new Set();
+
+
+        formattedTrainees.forEach(
+          (trainee) => {
+
+            const uniqueKey =
+              trainee.assignmentId ||
+              trainee.traineeId;
+
+
+            if (
+              !seenTrainees.has(
+                String(uniqueKey)
+              )
+            ) {
+              seenTrainees.add(
+                String(uniqueKey)
+              );
+
+              uniqueTrainees.push(
+                trainee
+              );
+            }
+          }
         );
 
 
+        // ====================================================================
+        // 14. DEBUG OUTPUT
+        // ====================================================================
+
+        console.log(
+          "===================================================="
+        );
+
+        console.log(
+          "Current assessor:",
+          currentAssessorId
+        );
+
+        console.log(
+          "Selected batch:",
+          batchId
+        );
+
+        console.log(
+          "Selected assessment:",
+          assessmentId
+        );
+
+        console.log(
+          "Verified assignments:",
+          assessorAssignments.length
+        );
+
+        console.log(
+          "Final formatted trainees:",
+          JSON.stringify(
+            uniqueTrainees,
+            null,
+            2
+          )
+        );
+
+        console.log(
+          "===================================================="
+        );
+
+
+        // ====================================================================
+        // 15. SET UI DATA
+        // ====================================================================
+
         if (isMounted) {
           setTrainees(
-            formattedTrainees
+            uniqueTrainees
           );
         }
 
@@ -750,10 +963,11 @@ export default function TraineesForEvaluation() {
 
           setTrainees([]);
 
+
           setErrorMessage(
+            error?.message ||
             "Unable to load the trainees for evaluation. Please try again."
           );
-
         }
 
       } finally {
@@ -761,7 +975,6 @@ export default function TraineesForEvaluation() {
         if (isMounted) {
           setLoading(false);
         }
-
       }
     }
 
@@ -777,6 +990,7 @@ export default function TraineesForEvaluation() {
     batchId,
     assessmentId,
     selectedCourse,
+    batchCode,
   ]);
 
 
@@ -784,21 +998,50 @@ export default function TraineesForEvaluation() {
   // OPEN TRAINEE EVALUATION
   // ==========================================================================
 
-  const handleViewAssessment = (trainee) => {
+  const handleViewAssessment = (
+    trainee
+  ) => {
+
+    // ------------------------------------------------------------------------
+    // Use the REAL IDs from the assignment.
+    // ------------------------------------------------------------------------
+
+    const realAssessmentId =
+      trainee.assignment?.assessment_id ||
+      trainee.assessmentId ||
+      null;
+
+
+    const realBatchId =
+      trainee.assignment?.batch_id ||
+      trainee.batchId ||
+      null;
+
+
+    const realAssignmentId =
+      trainee.assignmentId ||
+      trainee.assignment?.id ||
+      null;
+
+
+    const realSubmissionId =
+      trainee.submissionId ||
+      trainee.submission?.id ||
+      null;
+
 
     const assessmentInfo = {
 
-      /*
-       * Prefer the REAL database assessment UUID.
-       */
       id:
-        trainee.assessmentId ||
-        null,
+        realAssessmentId,
 
 
       batchId:
-        trainee.batchId ||
-        null,
+        realBatchId,
+
+
+      assignmentId:
+        realAssignmentId,
 
 
       courseCode:
@@ -806,67 +1049,86 @@ export default function TraineesForEvaluation() {
 
 
       courseName:
-        selectedCourse,
-
+        trainee.assignment?.assessment_name ||
+        courseLabel,
     };
 
 
     console.log(
-      "Opening trainee evaluation:",
+      "Opening trainee evaluation:"
+    );
+
+
+    console.log(
+      "Trainee:",
       trainee
     );
 
 
+    console.log(
+      "Assessment info:",
+      assessmentInfo
+    );
+
+
+    // ------------------------------------------------------------------------
+    // Context
+    // ------------------------------------------------------------------------
+
     setSelectedAssessment(
       assessmentInfo
     );
+
 
     setSelectedTrainee(
       trainee
     );
 
 
-    /*
-     * IMPORTANT:
-     *
-     * The evaluation workflow should go directly to
-     * EvaluationSummary, not AssessmentOverview.
-     */
+    // ------------------------------------------------------------------------
+    // Navigate to Evaluation Summary
+    // ------------------------------------------------------------------------
+
     navigate(
       "/assessor/evaluation/summary",
       {
         state: {
 
-          selectedCourse,
+          selectedCourse:
+
+
+            selectedCourse,
+
 
           selectedTrainee:
             trainee,
 
+
           assessment:
             assessmentInfo,
 
-          batchId:
-            trainee.batchId ||
-            null,
 
-          batchCode,
+          batchId:
+            realBatchId,
+
+
+          batchCode:
+            batchCode,
+
 
           assessmentId:
-            trainee.assessmentId ||
-            null,
+            realAssessmentId,
+
 
           assignmentId:
-            trainee.assignmentId ||
-            null,
+            realAssignmentId,
+
 
           submissionId:
-            trainee.submissionId ||
-            null,
-
+            realSubmissionId,
         },
       }
     );
-
   };
 
 
@@ -878,31 +1140,46 @@ export default function TraineesForEvaluation() {
 
     <div className="space-y-6">
 
+      {/* ================================================================== */}
+      {/* BREADCRUMBS */}
+      {/* ================================================================== */}
+
       <AssessorBreadcrumbs
         items={[
 
           {
             label:
-              selectedCourse?.qualificationName ??
-              selectedCourse?.name ??
-              selectedCourse?.qualification ??
-              "Qualification",
+              courseLabel,
 
-            to: "/assessor/evaluation",
+            to:
+              "/assessor/evaluation",
 
             state: {
               selectedCourse,
             },
-          }, "Trainees for Evaluation",
+          },
+
+          "Trainees for Evaluation",
         ]}
       />
 
 
+      {/* ================================================================== */}
+      {/* PAGE HEADER */}
+      {/* ================================================================== */}
+
       <AssessorPageHeader
         title="Trainees for Evaluation"
-        subtitle="Select a trainee to review their evaluation results."
+        subtitle={
+          `Showing trainees assigned to you for ${courseLabel
+          }.`
+        }
       />
 
+
+      {/* ================================================================== */}
+      {/* ERROR */}
+      {/* ================================================================== */}
 
       {errorMessage && (
 
@@ -915,11 +1192,15 @@ export default function TraineesForEvaluation() {
       )}
 
 
+      {/* ================================================================== */}
+      {/* LOADING */}
+      {/* ================================================================== */}
+
       {loading ? (
 
         <div className="rounded-2xl border border-gray-200 bg-white py-12 text-center font-medium text-gray-500 shadow-sm">
 
-          Fetching assigned trainees for this batch...
+          Fetching trainees assigned to you...
 
         </div>
 
@@ -944,8 +1225,5 @@ export default function TraineesForEvaluation() {
       )}
 
     </div>
-
   );
-
 }
-
