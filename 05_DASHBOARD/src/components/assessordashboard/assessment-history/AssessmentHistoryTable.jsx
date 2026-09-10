@@ -3,15 +3,11 @@ import EmptyHistoryState from "./EmptyHistoryState";
 
 import AssessorPanel from "../shared/AssessorPanel";
 
-// ============================================================================
-// BACKEND HANDOFF
-// Receives the filtered assessment history records from AssessmentHistory.jsx.
-// Pagination, sorting, and server-side filtering can be added later if needed.
-// ============================================================================
-
-export default function AssessmentHistoryTable({ history }) {
+export default function AssessmentHistoryTable({
+  history = [],
+}) {
   return (
-    <AssessorPanel className="overflow-hidden p-0">
+    <AssessorPanel className="overflow-hidden p-0 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
       {history.length === 0 ? (
         <EmptyHistoryState />
       ) : (

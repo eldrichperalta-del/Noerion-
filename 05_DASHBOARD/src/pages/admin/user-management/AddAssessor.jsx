@@ -6,75 +6,174 @@ import BasicInformationForm from "../../../components/admin/add-assessor/BasicIn
 import FormProgressSidebar from "../../../components/admin/add-assessor/FormProgressSidebar";
 
 function AddAssessor() {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
 
-    const [fullName, setFullName] =
-        useState("");
+  // ============================================================
+  // BASIC INFORMATION STATE
+  // ============================================================
 
-    const [email, setEmail] =
-        useState("");
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    middleName: "",
+    suffix: "",
+    gender: "",
+    birthDate: "",
+    contactNumber: "",
+    email: "",
+  });
 
-    const [contactNumber, setContactNumber] =
-        useState("");
+  // ============================================================
+  // EMAIL VALIDATION
+  // ============================================================
 
-    const emailRegex =
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    const isNameCompleted =
-        fullName.trim() !== "";
+  const isValidEmail = emailRegex.test(
+    formData.email.trim()
+  );
 
-    const isValidEmail =
-        emailRegex.test(email);
+  // ============================================================
+  // REQUIRED FIELD VALIDATION
+  // ============================================================
 
-    const hasContactNumber =
-        contactNumber.trim() !== "";
+  const isFirstNameCompleted =
+    formData.firstName.trim() !== "";
 
-    const handleCancel = () => {
-        setFullName("");
-        setEmail("");
-        setContactNumber("");
-    };
+  const isLastNameCompleted =
+    formData.lastName.trim() !== "";
 
-    const handleNext = () => {
-        navigate(
-            "/user-management/add-assessor/account-setup"
-        );
-    };
+  const isGenderCompleted =
+    formData.gender.trim() !== "";
 
-    return (
-        <div className="h-full overflow-hidden px-6 pt-4 pb-0">
+  const isBirthDateCompleted =
+    formData.birthDate.trim() !== "";
 
-            <div className="mb-4">
-                <h1 className="text-2xl font-bold">
-                    Follow the steps to set up the new assessor.
-                </h1>
+  const isContactNumberCompleted =
+    formData.contactNumber.trim() !== "";
 
-            </div>
+  const isStepOneComplete =
+    isFirstNameCompleted &&
+    isLastNameCompleted &&
+    isGenderCompleted &&
+    isBirthDateCompleted &&
+    isContactNumberCompleted &&
+    isValidEmail;
 
-            <AddAssessorStepper />
+  // ============================================================
+  // UPDATE FORM FIELD
+  // ============================================================
 
-            <div className="mx-auto flex max-w-[1280px] items-start justify-center gap-6">
-                <BasicInformationForm
-                    fullName={fullName}
-                    setFullName={setFullName}
-                    email={email}
-                    setEmail={setEmail}
-                    contactNumber={contactNumber}
-                    setContactNumber={setContactNumber}
-                    isValidEmail={isValidEmail}
-                    isNameCompleted={isNameCompleted}
-                    onCancel={handleCancel}
-                    onNext={handleNext}
-                />
+  const handleChange = (event) => {
+    const { name, value } = event.target;
 
-                <FormProgressSidebar
-                    isNameCompleted={isNameCompleted}
-                    isValidEmail={isValidEmail}
-                    hasContactNumber={hasContactNumber}
-                />
-            </div>
-        </div>
+    setFormData((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  // ============================================================
+  // CANCEL
+  // ============================================================
+
+  const handleCancel = () => {
+    navigate("/admin/user-management/assessors");
+  };
+
+  // ============================================================
+  // NEXT STEP
+  // ============================================================
+
+  const handleNext = () => {
+    if (!isStepOneComplete) {
+      return;
+    }
+
+    navigate(
+      "/admin/user-management/add-assessor/account-setup",
+      {
+        state: {
+          assessorData: formData,
+        },
+      }
     );
+  };
+
+  // ============================================================
+  // RENDER
+  // ============================================================
+
+  return (
+    <div className="h-full overflow-y-auto px-6 pt-4 pb-6">
+
+      {/* ========================================================
+          PAGE HEADER
+      ======================================================== */}
+
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold text-[#15294b]">
+          Add New Assessor
+        </h1>
+
+        <p className="mt-1 text-sm text-gray-600">
+          Follow the steps below to register a new assessor and
+          send them an invitation to create their account password.
+        </p>
+      </div>
+
+      {/* ========================================================
+          STEPPER
+      ======================================================== */}
+
+      <AddAssessorStepper
+        currentStep={1}
+      />
+
+      {/* ========================================================
+          MAIN CONTENT
+      ======================================================== */}
+
+      <div className="mx-auto flex max-w-[1280px] items-start justify-center gap-6">
+
+        {/* FORM */}
+
+        <BasicInformationForm
+          formData={formData}
+          onChange={handleChange}
+          isValidEmail={isValidEmail}
+          onCancel={handleCancel}
+          onNext={handleNext}
+          isStepOneComplete={isStepOneComplete}
+        />
+
+        {/* PROGRESS SIDEBAR */}
+
+        <FormProgressSidebar
+          currentStep={1}
+          isFirstNameCompleted={
+            isFirstNameCompleted
+          }
+          isLastNameCompleted={
+            isLastNameCompleted
+          }
+          isGenderCompleted={
+            isGenderCompleted
+          }
+          isBirthDateCompleted={
+            isBirthDateCompleted
+          }
+          isContactNumberCompleted={
+            isContactNumberCompleted
+          }
+          isValidEmail={
+            isValidEmail
+          }
+        />
+
+      </div>
+    </div>
+  );
 }
 
 export default AddAssessor;

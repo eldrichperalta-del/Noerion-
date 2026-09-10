@@ -3,14 +3,25 @@ import { BarChart3, PenSquare } from "lucide-react";
 
 export default function PerformanceBreakdown({ assessment }) {
   // Extract raw score and total items from assessment object
-  const rawScore = assessment?.total_score ?? assessment?.score ?? 0;
-  const totalItems = assessment?.total_items ?? assessment?.totalItems ?? 40;
+  const rawScore = Number(
+    assessment?.total_score ?? assessment?.score ?? 0
+  );
 
-  // Calculate percentage: (37 / 40) * 100 = 92.5 => 93%
+  const totalItems = Number(
+    assessment?.total_items ?? assessment?.totalItems ?? 40
+  );
+
+  // Calculate percentage only for the progress bar and graph
   const computedPercentage =
-    rawScore > totalItems
-      ? Math.round(rawScore)
-      : Math.min(Math.round((rawScore / totalItems) * 100), 100);
+    totalItems > 0
+      ? Math.min(
+          Math.round((rawScore / totalItems) * 100),
+          100
+        )
+      : 0;
+
+  // Actual score display
+  const displayScore = `${rawScore} / ${totalItems}`;
 
   // Animated Progress State
   const [progress, setProgress] = useState(0);
@@ -23,7 +34,7 @@ export default function PerformanceBreakdown({ assessment }) {
     return () => clearTimeout(timer);
   }, [computedPercentage]);
 
-  // Bar Heights matching original ratio calculation
+  // Bar Heights matching the percentage ratio
   const blueHeight = progress * 0.5;
   const greenHeight = progress - blueHeight;
 
@@ -32,6 +43,7 @@ export default function PerformanceBreakdown({ assessment }) {
       {/* Header */}
       <div className="flex items-center gap-2 mb-6">
         <BarChart3 size={22} className="text-blue-700" />
+
         <h2 className="text-2xl font-bold text-gray-800">
           Performance Breakdown
         </h2>
@@ -43,9 +55,16 @@ export default function PerformanceBreakdown({ assessment }) {
           <div className="flex justify-between mb-3">
             <div className="flex items-center gap-2">
               <PenSquare size={18} className="text-gray-500" />
-              <span className="font-semibold text-gray-700">Written Score</span>
+
+              <span className="font-semibold text-gray-700">
+                Written Score
+              </span>
             </div>
-            <span className="font-bold text-blue-700">{progress}%</span>
+
+            {/* Actual Score */}
+            <span className="font-bold text-blue-700">
+              {displayScore}
+            </span>
           </div>
 
           {/* Progress Bar */}

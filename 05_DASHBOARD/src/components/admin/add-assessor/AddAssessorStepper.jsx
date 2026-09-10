@@ -1,125 +1,131 @@
-function AddAssessorStepper() {
+function AddAssessorStepper({
+  currentStep = 1,
+}) {
+  const steps = [
+    {
+      number: 1,
+      label: "Basic Information",
+    },
+    {
+      number: 2,
+      label: "Professional Information",
+    },
+    {
+      number: 3,
+      label: "Review & Confirm",
+    },
+  ];
+
   return (
-    <div className="mb-5 mx-auto flex w-full max-w-[1200px] overflow-hidden border border-gray-400 rounded-md shadow-[0_12px_32px_rgba(0,0,0,0.15)]">
-      {/* Step 1 */}
-      <div
-        className="
-          relative
-          flex-1
-          bg-[#001F5B]
-          text-white
-          text-center
-          py-3
-          font-semibold
-          border-r
-          border-gray-400
-        "
-      >
-        Step 1: Basic Information
+    <div className="mx-auto mb-6 flex w-full max-w-[1200px] overflow-hidden rounded-md border border-gray-300 shadow-[0_8px_20px_rgba(0,0,0,0.12)]">
+      {steps.map(
+        (step, index) => {
+          const isActive =
+            currentStep ===
+            step.number;
 
-        {/* Arrow border */}
-        <div
-          className="
-            absolute
-            top-[-1px]
-            right-[-42px]
-            w-0
-            h-0
-            border-t-[25px]
-            border-b-[25px]
-            border-l-[42px]
-            border-t-transparent
-            border-b-transparent
-            border-l-gray-400
-            z-20
-          "
-        />
+          const isCompleted =
+            currentStep >
+            step.number;
 
-        {/* Arrow fill */}
-        <div
-          className="
-            absolute
-            top-0
-            right-[-40px]
-            w-0
-            h-0
-            border-t-[24px]
-            border-b-[24px]
-            border-l-[40px]
-            border-t-transparent
-            border-b-transparent
-            border-l-[#001F5B]
-            z-30
-          "
-        />
-      </div>
+          return (
+            <div
+              key={
+                step.number
+              }
+              className={`
+                relative
+                flex
+                flex-1
+                items-center
+                justify-center
+                gap-2
+                px-4
+                py-3
+                text-center
+                text-sm
+                font-semibold
+                transition
 
-      {/* Step 2 */}
-      <div
-        className="
-          relative
-          flex-1
-          bg-white
-          text-gray-700
-          text-center
-          py-3
-          font-semibold
-          border-r
-          border-gray-400
-        "
-      >
-        Step 2: Account Set Up
+                ${
+                  isActive
+                    ? `
+                      bg-[#15294b]
+                      text-white
+                    `
+                    : isCompleted
+                    ? `
+                      bg-blue-50
+                      text-[#15294b]
+                    `
+                    : `
+                      bg-white
+                      text-gray-500
+                    `
+                }
 
-        {/* Arrow border */}
-        <div
-          className="
-            absolute
-            top-[-1px]
-            right-[-42px]
-            w-0
-            h-0
-            border-t-[25px]
-            border-b-[25px]
-            border-l-[42px]
-            border-t-transparent
-            border-b-transparent
-            border-l-gray-400
-            z-20
-          "
-        />
+                ${
+                  index <
+                  steps.length - 1
+                    ? `
+                      border-r
+                      border-gray-300
+                    `
+                    : ""
+                }
+              `}
+            >
+              {/* STEP NUMBER */}
 
-        {/* Arrow fill */}
-        <div
-          className="
-            absolute
-            top-0
-            right-[-40px]
-            w-0
-            h-0
-            border-t-[24px]
-            border-b-[24px]
-            border-l-[40px]
-            border-t-transparent
-            border-b-transparent
-            border-l-white
-            z-30
-          "
-        />
-      </div>
+              <span
+                className={`
+                  grid
+                  h-6
+                  w-6
+                  place-items-center
+                  rounded-full
+                  text-xs
+                  font-bold
 
-      {/* Step 3 */}
-      <div
-        className="
-          flex-1
-          bg-white
-          text-gray-700
-          text-center
-          py-3
-          font-semibold
-        "
-      >
-        Step 3: Review & Confirm
-      </div>
+                  ${
+                    isActive
+                      ? `
+                        bg-white
+                        text-[#15294b]
+                      `
+                      : isCompleted
+                      ? `
+                        bg-[#15294b]
+                        text-white
+                      `
+                      : `
+                        bg-gray-200
+                        text-gray-600
+                      `
+                  }
+                `}
+              >
+                {isCompleted
+                  ? "✓"
+                  : step.number}
+              </span>
+
+              {/* LABEL */}
+
+              <span>
+                Step{" "}
+                {
+                  step.number
+                }
+                :{" "}
+                {
+                  step.label
+                }
+              </span>
+            </div>
+          );
+        }
+      )}
     </div>
   );
 }

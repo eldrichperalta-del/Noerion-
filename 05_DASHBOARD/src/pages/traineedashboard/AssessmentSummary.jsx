@@ -1,4 +1,14 @@
-import { Link, useLocation, Navigate } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  Navigate,
+} from "react-router-dom";
+
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import SummaryInfoCards from "../../components/traineedashboard/assessment-summary/SummaryInfoCards";
 import PerformanceBreakdown from "../../components/traineedashboard/assessment-summary/PerformanceBreakdown";
@@ -14,25 +24,125 @@ import DashboardPageHeader from "../../components/common/DashboardPageHeader";
 export default function AssessmentSummary() {
   const { state } = useLocation();
 
-  // Prevent opening the page directly without data
+  /*
+   * ================================================================
+   * PREVENT DIRECT ACCESS WITHOUT ASSESSMENT DATA
+   * ================================================================
+   */
+
   if (!state?.assessment) {
-    return <Navigate to="/trainee/results" replace />;
+    return (
+      <Navigate
+        to="/trainee/results"
+        replace
+      />
+    );
   }
 
   const assessment = state.assessment;
 
-  // Log the object so you can inspect its keys in the browser console
-  console.log("Assessment object loaded:", assessment);
+  console.log(
+    "Assessment object loaded:",
+    assessment
+  );
 
-  // Fallback chain checking common key variations
+  /*
+   * ================================================================
+   * SUBMISSION ID
+   * ================================================================
+   */
+
   const submissionId =
     assessment?.submission_id ||
     assessment?.submissionId ||
     assessment?.id ||
     assessment?.assessment_id;
 
+  /*
+   * ================================================================
+   * AI COGNITIVE INSIGHTS HEIGHT
+   *
+   * AI Cognitive Insights is the MASTER container.
+   *
+   * Cognitive Metrics will receive this exact height.
+   * ================================================================
+   */
+
+  const aiInsightsRef = useRef(null);
+
+  const [
+    aiInsightsHeight,
+    setAiInsightsHeight,
+  ] = useState(0);
+
+  useEffect(() => {
+    const element =
+      aiInsightsRef.current;
+
+    if (!element) {
+      return;
+    }
+
+    const updateHeight = () => {
+      const height =
+        element.getBoundingClientRect()
+          .height;
+
+      if (height > 0) {
+        setAiInsightsHeight(
+          Math.round(height)
+        );
+      }
+    };
+
+    // Initial measurement
+    updateHeight();
+
+    /*
+     * Observe every size change.
+     */
+    const observer =
+      new ResizeObserver(() => {
+        updateHeight();
+      });
+
+    observer.observe(element);
+
+    /*
+     * Also check shortly after rendering because
+     * AI content may load asynchronously.
+     */
+    const timer1 = setTimeout(
+      updateHeight,
+      100
+    );
+
+    const timer2 = setTimeout(
+      updateHeight,
+      500
+    );
+
+    const timer3 = setTimeout(
+      updateHeight,
+      1000
+    );
+
+    return () => {
+      observer.disconnect();
+
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+    };
+  }, [assessment, submissionId]);
+
   return (
     <div className="space-y-6">
+
+      {/* ================================================================
+          BREADCRUMBS
+      ================================================================= */}
+
       <nav className="flex gap-2 text-sm font-semibold">
         <Link
           to="/trainee/results"
@@ -40,44 +150,148 @@ export default function AssessmentSummary() {
         >
           Results
         </Link>
+
         <span>&gt;</span>
-        <span className="text-[#002f86]">Assessment Summary</span>
+
+        <span className="text-[#002f86]">
+          Assessment Summary
+        </span>
       </nav>
+
+      {/* ================================================================
+          PAGE HEADER
+      ================================================================= */}
 
       <DashboardPageHeader
         title="Assessment Summary"
         subtitle="Review your performance, cognitive insights, and assessment feedback."
       />
 
-      <SummaryInfoCards assessment={assessment} />
+      {/* ================================================================
+          TOP SUMMARY
+      ================================================================= */}
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <PerformanceBreakdown assessment={assessment} />
-        <EEGAggregatedSummary assessment={assessment} />
-      </div>
+      <SummaryInfoCards
+        assessment={assessment}
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-6">
-        <CognitiveMetrics assessment={assessment} />
-        <AICognitiveInsights submissionId={submissionId} assessment={assessment} />
-        
-        {/* Fixed AssessorFeedback call passing explicit IDs and the full assessment object */}
-        <AssessorFeedback 
-          submissionId={submissionId}
-          traineeId={assessment?.trainee_id}
-          assessmentId={assessment?.assessment_id}
+      {/* ================================================================
+          ROW 1
+          
+          Performance Breakdown | EEG Aggregated Summary
+      ================================================================= */}
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
+
+        <PerformanceBreakdown
           assessment={assessment}
         />
 
-        <AIRecommendations submissionId={submissionId} assessment={assessment} />
+        <EEGAggregatedSummary
+          assessment={assessment}
+        />
+
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div className="xl:col-span-3">
-          <KeyInsights submissionId={submissionId} assessment={assessment} />
+      {/* ================================================================
+          ROW 2
+          
+          Cognitive Metrics | AI Cognitive Insights
+          
+          IMPORTANT:
+          
+          AI Cognitive Insights determines the height.
+          
+          Cognitive Metrics receives that height.
+      ================================================================= */}
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+
+        {/* ============================================================
+            COGNITIVE METRICS
+        ============================================================ */}
+
+        <div
+          className="w-full"
+          style={
+            aiInsightsHeight > 0
+              ? {
+                  height: `${aiInsightsHeight}px`,
+                }
+              : undefined
+          }
+        >
+          <CognitiveMetrics
+            assessment={assessment}
+            containerHeight={
+              aiInsightsHeight
+            }
+          />
         </div>
 
-        <ActionsCard assessment={assessment} />
+        {/* ============================================================
+            AI COGNITIVE INSIGHTS
+          
+            THIS IS THE MASTER HEIGHT.
+        ============================================================ */}
+
+        <div
+          ref={aiInsightsRef}
+          className="w-full self-start"
+        >
+          <AICognitiveInsights
+            submissionId={submissionId}
+            assessment={assessment}
+          />
+        </div>
+
       </div>
+
+      {/* ================================================================
+          ROW 3
+          
+          Assessor Feedback | AI Feedback & Recommendations
+      ================================================================= */}
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
+
+        <AssessorFeedback
+          submissionId={submissionId}
+          traineeId={
+            assessment?.trainee_id
+          }
+          assessmentId={
+            assessment?.assessment_id
+          }
+          assessment={assessment}
+        />
+
+        <AIRecommendations
+          submissionId={submissionId}
+          assessment={assessment}
+        />
+
+      </div>
+
+      {/* ================================================================
+          ROW 4
+          
+          Key Insights | Actions
+      ================================================================= */}
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
+
+        <KeyInsights
+          submissionId={submissionId}
+          assessment={assessment}
+        />
+
+        <ActionsCard
+          assessment={assessment}
+        />
+
+      </div>
+
     </div>
   );
 }
