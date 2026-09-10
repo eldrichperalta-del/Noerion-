@@ -1,232 +1,275 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../../supabaseClient";
+import { useNavigate } from "react-router-dom";
+import { Search } from "lucide-react";
 
-import ResultsOverviewCards from "../../components/admin/results-monitoring/ResultsOverviewCards";
-import ResultsFilters from "../../components/admin/results-monitoring/ResultsFilters";
-import ResultsTable from "../../components/admin/results-monitoring/ResultsTable";
+import { supabase } from "../../supabaseClient";
 import DashboardPageHeader from "../../components/common/DashboardPageHeader";
 
 import "../../styles/ResultsMonitoring.css";
 
 export default function ResultsMonitoring() {
-  // =========================
-  // STATE
-  // =========================
-  const [overviewData, setOverviewData] = useState({
-    totalAssessments: 0,
-    totalPassed: 0,
-    totalFailed: 0,
-    passRate: 0,
-  });
+  const navigate = useNavigate();
 
+  const [courses, setCourses] = useState([]);
   const [results, setResults] = useState([]);
-  const [error, setError] = useState(null);
 
-  const [loadingOverview, setLoadingOverview] = useState(false);
-  const [loadingResults, setLoadingResults] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // =========================
-  // FILTER STATE (FIXED: NO "All")
-  // =========================
   const [searchTerm, setSearchTerm] = useState("");
-  const [resultFilter, setResultFilter] = useState("");
   const [courseFilter, setCourseFilter] = useState("");
 
-  const [tempDay, setTempDay] = useState("");
-  const [tempMonth, setTempMonth] = useState("");
-  const [tempYear, setTempYear] = useState("");
+  // ============================================================
+  // LOAD COURSES + RESULTS
+  // ============================================================
 
-  const [dayFilter, setDayFilter] = useState("");
-  const [monthFilter, setMonthFilter] = useState("");
-  const [yearFilter, setYearFilter] = useState("");
-
-  // =========================
-  // INITIAL LOAD
-  // =========================
   useEffect(() => {
-    fetchData();
+    fetchCoursesAndResults();
   }, []);
 
-  const fetchData = async () => {
-    setError(null);
-    await Promise.all([fetchOverview(), fetchResults()]);
-  };
-
-  // =========================
-  // OVERVIEW (MOCK)
-  // =========================
-  const fetchOverview = async () => {
-    setLoadingOverview(true);
+  const fetchCoursesAndResults = async () => {
+    setLoading(true);
+    setError("");
 
     try {
-      const mockOverview = {
-        totalAssessments: 5,
-        totalPassed: 3,
-        totalFailed: 2,
-        passRate: 60,
+      // ==========================================================
+      // LOAD ALL COURSES
+      // ==========================================================
+
+      const {
+        data: courseData,
+        error: courseError,
+      } = await supabase
+        .from("courses")
+        .select(`
+          id,
+          code,
+          title,
+          qualification_level
+        `)
+        .order("title", {
+          ascending: true,
+        });
+
+      if (courseError) {
+        throw courseError;
+      }
+
+      // ==========================================================
+      // LOAD ASSESSMENT RESULTS
+      // ==========================================================
+
+      const {
+        data: resultData,
+        error: resultError,
+      } = await supabase
+        .from("assessment_submissions")
+        .select(`
+          id,
+          assessment_id,
+          trainee_id,
+          status,
+          total_score,
+          passed,
+          overall_result,
+          submitted_at,
+          created_at,
+          updated_at,
+          assessments!inner (
+            id,
+            course_id,
+            title,
+            total_items,
+            status,
+            courses!inner (
+              id,
+              code,
+              title,
+              qualification_level
+            )
+          )
+        `)
+        .in("status", ["submitted", "evaluated"])
+        .order("updated_at", {
+          ascending: false,
+        });
+
+      if (resultError) {
+        throw resultError;
+      }
+
+      setCourses(courseData || []);
+      setResults(resultData || []);
+    } catch (err) {
+      console.error(
+        "Results Monitoring error:",
+        err
+      );
+
+      setError(
+        err?.message ||
+          "Failed to load assessment results."
+      );
+
+      setCourses([]);
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ============================================================
+  // BUILD COURSE SUMMARY
+  //
+  // Every course from the courses table is included.
+  // Courses without results will show:
+  //
+  // No. of Results: 0
+  // Latest Results: No Results
+  // ============================================================
+
+  const courseResults = useMemo(() => {
+    return courses.map((course) => {
+      const courseSubmissions = results.filter(
+        (submission) =>
+          submission?.assessments?.course_id ===
+          course.id
+      );
+
+      const latestSubmission =
+        courseSubmissions.length > 0
+          ? courseSubmissions[0]
+          : null;
+
+      return {
+        id: course.id,
+
+        courseId: course.id,
+
+        name:
+          course.title ||
+          "Untitled Course",
+
+        code:
+          course.code ||
+          "",
+
+        qualificationLevel:
+          course.qualification_level ||
+          "",
+
+        resultCount:
+          courseSubmissions.length,
+
+        latestResult: latestSubmission
+          ? normalizeResult(
+              latestSubmission.overall_result,
+              latestSubmission.passed
+            )
+          : "No Results",
+
+        latestDate:
+          latestSubmission?.updated_at ||
+          latestSubmission?.submitted_at ||
+          latestSubmission?.created_at ||
+          null,
       };
+    });
+  }, [courses, results]);
 
-      setOverviewData(mockOverview);
-    } catch (err) {
-      setError(err.message || "Failed to load overview.");
-    } finally {
-      setLoadingOverview(false);
-    }
-  };
+  // ============================================================
+  // FILTER
+  // ============================================================
 
-  // =========================
-  // RESULTS (MOCK)
-  // =========================
-  const fetchResults = async () => {
-    setLoadingResults(true);
+  const filteredCourses = useMemo(() => {
+    const search = searchTerm
+      .trim()
+      .toLowerCase();
 
-    try {
-      const mockData = [
-        {
-          traineeId: "ASR-2023-011",
-          traineeName: "Emily Chen",
-          course: "Culinary Arts",
-          finalResult: "Fail",
-          dateCompleted: "2023-07-11",
-          writtenScore: 72,
-          aiSummary: "Needs improvement in execution and timing.",
-        },
-        {
-          traineeId: "ASR-2023-012",
-          traineeName: "Marcus Kim",
-          course: "Culinary Arts",
-          finalResult: "Pass",
-          dateCompleted: "2024-07-11",
-          writtenScore: 88,
-          aiSummary: "Strong performance with minimal errors.",
-        },
-        {
-          traineeId: "ASR-2023-013",
-          traineeName: "Sarah Jenkins",
-          course: "BSR / EG",
-          finalResult: "Pass",
-          dateCompleted: "2025-07-11",
-          writtenScore: 91,
-          aiSummary: "Excellent understanding and execution.",
-        },
-        {
-          traineeId: "ASR-2023-014",
-          traineeName: "MAMAMO",
-          course: "Culinary Arts",
-          finalResult: "Pass",
-          dateCompleted: "2026-07-11",
-          writtenScore: 85,
-          aiSummary: "Consistent and reliable performance.",
-        },
-        {
-          traineeId: "ASR-2023-015",
-          traineeName: "ANIMOSITY",
-          course: "PABIGAT",
-          finalResult: "Fail",
-          dateCompleted: "2026-07-11",
-          writtenScore: 60,
-          aiSummary: "Below competency threshold.",
-        },
-      ];
+    return courseResults.filter((course) => {
+      const matchesSearch =
+        !search ||
+        course.name
+          .toLowerCase()
+          .includes(search) ||
+        course.code
+          .toLowerCase()
+          .includes(search);
 
-      setResults(mockData);
-    } catch (err) {
-      setError(err.message || "Failed to load results.");
-    } finally {
-      setLoadingResults(false);
-    }
-  };
-
-  // =========================
-  // DATE NORMALIZATION
-  // =========================
-  const normalizedResults = useMemo(() => {
-    return results.map((r) => ({
-      ...r,
-      _date: new Date(r.dateCompleted),
-    }));
-  }, [results]);
-
-  // =========================
-  // APPLY DATE FILTERS
-  // =========================
-  const handleApplyDateFilter = () => {
-    setDayFilter(tempDay);
-    setMonthFilter(tempMonth);
-    setYearFilter(tempYear);
-  };
-
-  // =========================
-  // CLEAR ALL FILTERS (FIXED)
-  // =========================
-  const handleClearFilters = () => {
-    setSearchTerm("");
-    setResultFilter("");
-    setCourseFilter("");
-
-    setTempDay("");
-    setTempMonth("");
-    setTempYear("");
-
-    setDayFilter("");
-    setMonthFilter("");
-    setYearFilter("");
-  };
-
-  // =========================
-  // COURSES LIST (FIXED)
-  // =========================
-  const courses = useMemo(() => {
-    return [...new Set(results.map((r) => r.course))];
-  }, [results]);
-
-  // =========================
-  // FILTER LOGIC (FIXED CORE BUG HERE)
-  // =========================
-  const filteredResults = useMemo(() => {
-    return normalizedResults.filter((r) => {
-      const searchMatch =
-        !searchTerm ||
-        r.traineeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.traineeId.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const resultMatch =
-        !resultFilter || r.finalResult === resultFilter;
-
-      const courseMatch =
-        !courseFilter || r.course === courseFilter;
-
-      const dayMatch =
-        !dayFilter || r._date.getDate() === Number(dayFilter);
-
-      const monthMatch =
-        !monthFilter || r._date.getMonth() + 1 === Number(monthFilter);
-
-      const yearMatch =
-        !yearFilter || r._date.getFullYear() === Number(yearFilter);
+      const matchesCourse =
+        !courseFilter ||
+        course.courseId === courseFilter;
 
       return (
-        searchMatch &&
-        resultMatch &&
-        courseMatch &&
-        dayMatch &&
-        monthMatch &&
-        yearMatch
+        matchesSearch &&
+        matchesCourse
       );
     });
   }, [
-    normalizedResults,
+    courseResults,
     searchTerm,
-    resultFilter,
     courseFilter,
-    dayFilter,
-    monthFilter,
-    yearFilter,
   ]);
 
-  // =========================
+  // ============================================================
+  // NAVIGATION
+  // ============================================================
+
+  const handleViewResults = (course) => {
+    /*
+     * AdminRoutes is mounted under:
+     *
+     * /admin/*
+     *
+     * Therefore:
+     *
+     * /admin/results/course/:courseId
+     */
+
+    navigate(
+      `/admin/results/course/${course.courseId}`,
+      {
+        state: {
+          courseName: course.name,
+          courseId: course.courseId,
+        },
+      }
+    );
+  };
+
+  // ============================================================
+  // DATE FORMAT
+  // ============================================================
+
+  const formatDate = (date) => {
+    if (!date) {
+      return "—";
+    }
+
+    const parsedDate = new Date(date);
+
+    if (
+      Number.isNaN(
+        parsedDate.getTime()
+      )
+    ) {
+      return "—";
+    }
+
+    return parsedDate.toLocaleDateString(
+      "en-US",
+      {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }
+    );
+  };
+
+  // ============================================================
   // UI
-  // =========================
+  // ============================================================
+
   return (
     <div className="results-page">
 
@@ -235,38 +278,281 @@ export default function ResultsMonitoring() {
         subtitle="Track assessment performance, completion outcomes, and trainee results."
       />
 
-      <ResultsOverviewCards
-        stats={overviewData}
-        loading={loadingOverview}
-      />
-
       <div className="results-container">
 
-        <ResultsFilters
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          resultFilter={resultFilter}
-          setResultFilter={setResultFilter}
-          courseFilter={courseFilter}
-          setCourseFilter={setCourseFilter}
-          day={tempDay}
-          setDay={setTempDay}
-          month={tempMonth}
-          setMonth={setTempMonth}
-          year={tempYear}
-          setYear={setTempYear}
-          onApply={handleApplyDateFilter}
-          onClear={handleClearFilters}
-          courses={courses}
-        />
+        {/* ======================================================
+            CONTROLS
+        ======================================================= */}
 
-        <ResultsTable
-          results={filteredResults}
-          loading={loadingResults}
-          error={error}
-        />
+        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+
+          {/* SEARCH */}
+
+          <label className="relative w-full md:max-w-md">
+
+            <Search
+              size={18}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(event) =>
+                setSearchTerm(
+                  event.target.value
+                )
+              }
+              placeholder="Search course..."
+              className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm shadow-sm outline-none transition focus:border-[#002f86] focus:ring-2 focus:ring-blue-100"
+            />
+
+          </label>
+
+          {/* COURSE FILTER */}
+
+          <select
+            value={courseFilter}
+            onChange={(event) =>
+              setCourseFilter(
+                event.target.value
+              )
+            }
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-[#002f86] focus:ring-2 focus:ring-blue-100 md:w-72"
+          >
+
+            <option value="">
+              All Courses
+            </option>
+
+            {courses.map((course) => (
+              <option
+                key={course.id}
+                value={course.id}
+              >
+                {course.title}
+              </option>
+            ))}
+
+          </select>
+
+        </div>
+
+        {/* ======================================================
+            ERROR
+        ======================================================= */}
+
+        {error && (
+          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            {error}
+          </div>
+        )}
+
+        {/* ======================================================
+            COURSE TABLE
+        ======================================================= */}
+
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
+
+          <div className="overflow-x-auto">
+
+            <table className="w-full min-w-[800px]">
+
+              <thead className="border-b border-gray-200 bg-gray-50">
+
+                <tr>
+
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Course
+                  </th>
+
+                  <th className="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    No. of Results
+                  </th>
+
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Latest Results
+                  </th>
+
+                  <th className="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Action
+                  </th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                {loading ? (
+
+                  <tr>
+
+                    <td
+                      colSpan={4}
+                      className="px-6 py-12 text-center text-sm text-gray-500"
+                    >
+                      Loading courses...
+                    </td>
+
+                  </tr>
+
+                ) : filteredCourses.length === 0 ? (
+
+                  <tr>
+
+                    <td
+                      colSpan={4}
+                      className="px-6 py-12 text-center text-sm text-gray-500"
+                    >
+                      No courses found.
+                    </td>
+
+                  </tr>
+
+                ) : (
+
+                  filteredCourses.map((course) => (
+
+                    <tr
+                      key={course.id}
+                      className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
+                    >
+
+                      {/* ==================================================
+                          COURSE
+                      =================================================== */}
+
+                      <td className="px-6 py-5">
+
+                        <div className="font-semibold text-gray-800">
+                          {course.name}
+                        </div>
+
+
+                      </td>
+
+                      {/* ==================================================
+                          NUMBER OF RESULTS
+                      =================================================== */}
+
+                      <td className="px-6 py-5 text-center">
+
+                        <span className="font-semibold text-gray-700">
+                          {course.resultCount}
+                        </span>
+
+                      </td>
+
+                      {/* ==================================================
+                          LATEST RESULT
+                      =================================================== */}
+
+                      <td className="px-6 py-5">
+
+                        <div className="flex flex-col gap-1">
+
+                          <span
+                            className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${
+                              course.latestResult ===
+                              "Pass"
+                                ? "bg-green-100 text-green-700"
+                                : course.latestResult ===
+                                  "Fail"
+                                ? "bg-red-100 text-red-700"
+                                : course.latestResult ===
+                                  "In Evaluation"
+                                ? "bg-yellow-100 text-yellow-700"
+                                : "bg-gray-100 text-gray-500"
+                            }`}
+                          >
+                            {course.latestResult}
+                          </span>
+
+                          {course.latestDate && (
+                            <span className="text-xs text-gray-400">
+                              {formatDate(
+                                course.latestDate
+                              )}
+                            </span>
+                          )}
+
+                        </div>
+
+                      </td>
+
+                      {/* ==================================================
+                          ACTION
+                      =================================================== */}
+
+                      <td className="px-6 py-5 text-center">
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleViewResults(
+                              course
+                            )
+                          }
+                          className="rounded-lg bg-[#002f86] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#001f5c]"
+                        >
+                          View Results
+                        </button>
+
+                      </td>
+
+                    </tr>
+
+                  ))
+
+                )}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </div>
 
       </div>
+
     </div>
   );
+}
+
+// ============================================================
+// RESULT NORMALIZATION
+// ============================================================
+
+function normalizeResult(
+  result,
+  passed
+) {
+  const normalized = String(
+    result || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  if (
+    normalized === "pass" ||
+    normalized === "passed" ||
+    normalized === "competent" ||
+    passed === true
+  ) {
+    return "Pass";
+  }
+
+  if (
+    normalized === "fail" ||
+    normalized === "failed" ||
+    normalized === "not competent" ||
+    normalized === "not yet competent" ||
+    passed === false
+  ) {
+    return "Fail";
+  }
+
+  return "In Evaluation";
 }

@@ -25,20 +25,25 @@ export default function ResultsOverviewCards({
     totalFailed: 0,
     passRate: 0,
   },
+  completionRateData = [],
 }) {
   const passFailData = [
     { name: "Pass", value: stats.totalPassed },
     { name: "Fail", value: stats.totalFailed },
   ];
 
-  const completionRateData = [
-    { month: "Jan", rate: 60 },
-    { month: "Feb", rate: 65 },
-    { month: "Mar", rate: 70 },
-    { month: "Apr", rate: 72 },
-    { month: "May", rate: 78 },
-    { month: "Jun", rate: 82 },
-  ];
+  const completionChartData =
+    completionRateData?.length > 0
+      ? completionRateData
+      : [
+        { month: "Jan", rate: undefined },
+        { month: "Feb", rate: undefined },
+        { month: "Mar", rate: undefined },
+        { month: "Apr", rate: undefined },
+        { month: "May", rate: undefined },
+        { month: "Jun", rate: undefined },
+      ];
+
 
   const COLORS = ["#22c55e", "#ef4444"];
 
@@ -49,7 +54,7 @@ export default function ResultsOverviewCards({
     <div className="overview-section">
 
       {/* ================= KPI CARDS ================= */}
-      <div className="kpi-grid">
+      <div className="mt-8 kpi-grid">
 
         {/* TOTAL */}
         <div className="kpi-card">
@@ -99,50 +104,113 @@ export default function ResultsOverviewCards({
         <div className="chart-card">
           <h4>Pass vs Fail Distribution</h4>
 
-          {hasPassFailData ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie
-                  data={passFailData}
-                  dataKey="value"
-                  nameKey="name"
-                  outerRadius={70}
-                  label
-                >
-                  {passFailData.map((entry, index) => (
-                    <Cell key={index} fill={COLORS[index]} />
-                  ))}
-                </Pie>
+          <div className="pass-fail-chart">
+            {hasPassFailData ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={passFailData}
+                    dataKey="value"
+                    nameKey="name"
+                    outerRadius={70}
+                    label
+                  >
+                    {passFailData.map((entry, index) => (
+                      <Cell
+                        key={index}
+                        fill={COLORS[index]}
+                      />
+                    ))}
+                  </Pie>
 
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="empty-chart">
-              No assessment data available.
-            </div>
-          )}
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <>
+                <div className="empty-pie-chart">
+                  <div className="empty-pie-circle"></div>
+                </div>
+
+                <div className="empty-pie-legend">
+                  <span>
+                    <i className="legend-pass"></i>
+                    Pass
+                  </span>
+
+                  <span>
+                    <i className="legend-fail"></i>
+                    Fail
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="chart-card">
           <h4>Assessment Completion Rate over Time</h4>
 
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={completionRateData}>
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="rate"
-                stroke="#3b82f6"
-                strokeWidth={3}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+          <div className="completion-chart-wrapper">
 
+            {/* MANUAL Y-AXIS LABELS */}
+            <div className="completion-y-axis">
+              <span>100%</span>
+              <span>80%</span>
+              <span>60%</span>
+              <span>40%</span>
+              <span>20%</span>
+              <span>0%</span>
+            </div>
+
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart
+                data={completionChartData}
+                margin={{
+                  top: 10,
+                  right: 20,
+                  left: 55,
+                  bottom: 10,
+                }}
+              >
+                <XAxis
+                  dataKey="month"
+                  tick={{
+                    fontSize: 12,
+                    fill: "#64748b",
+                  }}
+                  axisLine={true}
+                  tickLine={true}
+                />
+
+                <YAxis
+                  yAxisId="left"
+                  domain={[0, 100]}
+                  ticks={[0, 20, 40, 60, 80, 100]}
+                  allowDecimals={false}
+                  width={10}
+                  axisLine={true}
+                  tick={false}
+                  tickLine={true}
+                />
+
+                <Tooltip />
+
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="rate"
+                  stroke="#3b82f6"
+                  strokeWidth={3}
+                  dot
+                  connectNulls={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+
+          </div>
+        </div>
       </div>
     </div>
   );

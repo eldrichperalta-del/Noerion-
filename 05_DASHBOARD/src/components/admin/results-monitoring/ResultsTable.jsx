@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
 export default function ResultsTable({
   results = [],
@@ -12,37 +12,61 @@ export default function ResultsTable({
 
   const rowsPerPage = 5;
 
-  // =========================
-  // RESET PAGE WHEN DATA CHANGES
-  // =========================
+  // ============================================================
+  // RESET PAGE WHEN RESULTS CHANGE
+  // ============================================================
+
   useEffect(() => {
     setCurrentPage(1);
   }, [results]);
 
-  // =========================
-  // PAGINATION (SAFE GUARD)
-  // =========================
+  // ============================================================
+  // PAGINATION
+  // ============================================================
+
   const totalPages = useMemo(() => {
-    return Math.max(Math.ceil((results?.length || 0) / rowsPerPage), 1);
+    return Math.max(
+      Math.ceil((results?.length || 0) / rowsPerPage),
+      1
+    );
   }, [results]);
 
   const paginatedResults = useMemo(() => {
     const safeResults = results || [];
-    const startIndex = (currentPage - 1) * rowsPerPage;
-    const endIndex = startIndex + rowsPerPage;
 
-    return safeResults.slice(startIndex, endIndex);
+    const startIndex =
+      (currentPage - 1) * rowsPerPage;
+
+    const endIndex =
+      startIndex + rowsPerPage;
+
+    return safeResults.slice(
+      startIndex,
+      endIndex
+    );
   }, [results, currentPage]);
 
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const endIndex = startIndex + rowsPerPage;
+  const startIndex =
+    (currentPage - 1) * rowsPerPage;
 
-  const showingStart = results.length === 0 ? 0 : startIndex + 1;
-  const showingEnd = Math.min(endIndex, results.length);
+  const endIndex =
+    startIndex + rowsPerPage;
 
-  // =========================
-  // POPUP HANDLERS
-  // =========================
+  const showingStart =
+    results.length === 0
+      ? 0
+      : startIndex + 1;
+
+  const showingEnd =
+    Math.min(
+      endIndex,
+      results.length
+    );
+
+  // ============================================================
+  // RESULT POPUP
+  // ============================================================
+
   const openPopup = (item) => {
     setSelectedResult(item);
     setOpenMenuId(null);
@@ -52,259 +76,598 @@ export default function ResultsTable({
     setSelectedResult(null);
   };
 
-  // =========================
-  // LOADING STATE
-  // =========================
+  // ============================================================
+  // RESULT LABEL
+  // ============================================================
+
+  const getResultLabel = (item) => {
+    const rawResult =
+      item?.finalResult ??
+      item?.overall_result ??
+      item?.result ??
+      "";
+
+    const normalized = String(rawResult)
+      .trim()
+      .toLowerCase();
+
+    if (
+      normalized === "pass" ||
+      normalized === "passed" ||
+      normalized === "competent"
+    ) {
+      return "Competent";
+    }
+
+    if (
+      normalized === "fail" ||
+      normalized === "failed" ||
+      normalized === "not competent" ||
+      normalized === "not yet competent"
+    ) {
+      return "Not Yet Competent";
+    }
+
+    if (
+      normalized === "in evaluation" ||
+      normalized === "in_evaluation" ||
+      normalized === "pending" ||
+      !normalized
+    ) {
+      return "In Evaluation";
+    }
+
+    return rawResult;
+  };
+
+  // ============================================================
+  // RESULT BADGE
+  // ============================================================
+
+  const getResultBadgeClass = (result) => {
+    switch (result) {
+      case "Competent":
+        return "border-green-200 bg-green-50 text-green-700";
+
+      case "Not Yet Competent":
+        return "border-red-200 bg-red-50 text-red-700";
+
+      default:
+        return "border-gray-200 bg-gray-50 text-gray-600";
+    }
+  };
+
+  // ============================================================
+  // DATE FORMATTER
+  // ============================================================
+
+  const formatDate = (value) => {
+    if (!value) {
+      return "N/A";
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return "N/A";
+    }
+
+    return date.toLocaleDateString(
+      "en-US",
+      {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }
+    );
+  };
+
+  // ============================================================
+  // LOADING
+  // ============================================================
+
   if (loading) {
     return (
-      <div className="rounded-2xl bg-white p-5 shadow">
-        Loading results...
-      </div>
+      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="px-6 py-12 text-center text-sm font-medium text-gray-500">
+          Loading results...
+        </div>
+      </section>
     );
   }
 
-  // =========================
-  // ERROR STATE
-  // =========================
+  // ============================================================
+  // ERROR
+  // ============================================================
+
   if (error) {
     return (
-      <div className="rounded-2xl bg-white p-5 shadow text-red-500">
-        {error}
-      </div>
+      <section className="overflow-hidden rounded-2xl border border-red-200 bg-white shadow-sm">
+        <div className="px-6 py-12 text-center text-sm font-medium text-red-600">
+          {error}
+        </div>
+      </section>
     );
   }
 
+  // ============================================================
+  // TABLE
+  // ============================================================
+
   return (
-    <div className="rounded-2xl bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)] relative">
+    <>
+      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.40)]">
 
-      {/* ================= TABLE ================= */}
-      <div className="overflow-x-auto rounded-xl border-2 border-gray-100 shadow-[0_4px_12px_rgba(0,0,0,0.20)]">
-        <table className="w-full">
+        {/* ======================================================
+            TABLE
+        ======================================================= */}
 
-          <thead className="bg-gray-200">
-            <tr>
-              <th className="px-4 py-4 text-left font-bold">#</th>
-              <th className="px-4 py-4 text-left font-bold">Trainee Name</th>
-              <th className="px-4 py-4 text-left font-bold">Trainee ID</th>
-              <th className="px-4 py-4 text-left font-bold">Course</th>
-              <th className="px-4 py-4 text-left font-bold">Final Result</th>
-              <th className="px-4 py-4 text-left font-bold">Date Completed</th>
-              <th className="px-4 py-4 text-center font-bold">Actions</th>
-            </tr>
-          </thead>
+        <div className="overflow-x-auto">
 
-          <tbody>
-            {paginatedResults.length === 0 ? (
+          <table className="w-full min-w-[700px]">
+
+            {/* ==================================================
+                HEADER
+            =================================================== */}
+
+            <thead className="border-b border-gray-200 bg-gray-50/80">
+
               <tr>
-                <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
-                  No results found.
-                </td>
+
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-gray-500">
+                  #
+                </th>
+
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-gray-500">
+                  Trainee Name
+                </th>
+
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-gray-500">
+                  Trainee ID
+                </th>
+
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-gray-500">
+                  Final Result
+                </th>
+
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-gray-500">
+                  Date Completed
+                </th>
+
+                <th className="px-5 py-4 text-center text-xs font-semibold uppercase text-gray-500">
+                  Actions
+                </th>
+
               </tr>
-            ) : (
-              paginatedResults.map((item, i) => {
-                const rowId =
-                  item?.resultId ||
-                  `${item?.traineeId || "no-id"}-${item?.dateCompleted || i}`;
 
-                return (
-                  <tr
-                    key={rowId}
-                    className="border-b hover:bg-gray-100 transition"
+            </thead>
+
+            {/* ==================================================
+                BODY
+            =================================================== */}
+
+            <tbody className="divide-y divide-gray-100">
+
+              {paginatedResults.length === 0 ? (
+
+                <tr>
+
+                  <td
+                    colSpan="5"
+                    className="px-5 py-12 text-center text-sm text-gray-500"
                   >
-                    <td className="px-4 py-3">
-                      {startIndex + i + 1}
-                    </td>
+                    No results found.
+                  </td>
 
-                    <td className="px-4 py-3">
-                      {item?.traineeName || "-"}
-                    </td>
+                </tr>
 
-                    <td className="px-4 py-3">
-                      {item?.traineeId || "-"}
-                    </td>
+              ) : (
 
-                    <td className="px-4 py-3">
-                      {item?.course || "-"}
-                    </td>
+                paginatedResults.map(
+                  (item, index) => {
 
-                    <td className="px-4 py-3">
-                      <span
-                        className={`px-3 py-1 rounded-full text-sm ${item?.finalResult === "Pass"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
-                          }`}
+                    const rowId =
+                      item?.resultId ??
+                      `${item?.traineeId || "no-id"}-${index}`;
+
+                    const resultLabel =
+                      getResultLabel(item);
+
+                    return (
+
+                      <tr
+                        key={rowId}
+                        className="transition-colors hover:bg-gray-50/60"
                       >
-                        {item?.finalResult === "Pass"
-                          ? "Competent"
-                          : "Not Competent"}
-                      </span>
-                    </td>
 
-                    <td className="px-4 py-3">
-                      {item?.dateCompleted || "-"}
-                    </td>
+                        {/* ======================================
+                            NUMBER
+                        ======================================= */}
 
-                    {/* ================= ACTIONS ================= */}
-                    <td className="px-4 py-3 text-center relative">
+                        <td className="px-5 py-4 text-sm text-gray-500">
+                          {startIndex + index + 1}
+                        </td>
 
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
+                        {/* ======================================
+                            TRAINEE NAME
+                        ======================================= */}
 
-                          const rowId =
-                            item?.resultId ||
-                            `${item?.traineeId}-${item?.dateCompleted}`;
+                        <td className="px-5 py-4">
 
-                          setOpenMenuId(
-                            openMenuId === rowId ? null : rowId
-                          );
-                        }}
-                        className="h-7 w-7 flex items-center justify-center rounded-full hover:bg-blue-100"
-                      >
-                        <span className="flex flex-col gap-1">
-                          <span className="h-1 w-1 bg-current rounded-full" />
-                          <span className="h-1 w-1 bg-current rounded-full" />
-                          <span className="h-1 w-1 bg-current rounded-full" />
-                        </span>
-                      </button>
+                          <p className="font-semibold text-gray-900">
+                            {item?.traineeName ||
+                              item?.trainee_name ||
+                              "-"}
+                          </p>
 
-                      {openMenuId === rowId && (
-                        <div className="absolute right-8 top-0 z-30 w-36 overflow-hidden rounded-lg bg-white shadow-lg shadow-black/20">
-                          <button
-                            onClick={() => openPopup(item)}
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
+                        </td>
+
+                        {/* ======================================
+                            TRAINEE ID
+                        ======================================= */}
+
+                        <td className="px-5 py-4">
+
+                          <span className="text-sm text-gray-600">
+                            {item?.traineeId ||
+                              item?.trainee_id ||
+                              "-"}
+                          </span>
+
+                        </td>
+
+                        {/* ======================================
+                            FINAL RESULT
+                        ======================================= */}
+
+                        <td className="px-5 py-4">
+
+                          <span
+                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getResultBadgeClass(
+                              resultLabel
+                            )}`}
                           >
-                            View Result
+                            {resultLabel}
+                          </span>
+
+                        </td>
+
+                        {/* ======================================
+                                  DATE COMPLETED
+                        ======================================= */}
+
+                        <td className="px-5 py-4 text-sm text-gray-600">
+                          {formatDate(
+                            item?.dateCompleted ||
+                            item?.updated_at ||
+                            item?.submitted_at ||
+                            item?.created_at
+                          )}
+                        </td>
+
+                        {/* ======================================
+                            ACTIONS
+                        ======================================= */}
+
+                        <td className="relative px-5 py-4 text-center">
+
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+
+                              setOpenMenuId(
+                                openMenuId === rowId
+                                  ? null
+                                  : rowId
+                              );
+                            }}
+                            aria-label={`Actions for ${item?.traineeName ||
+                              item?.traineeId ||
+                              "trainee"
+                              }`}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition hover:bg-blue-100 hover:text-[#002f86]"
+                          >
+
+                            <span className="flex flex-col gap-1">
+
+                              <span className="h-1 w-1 rounded-full bg-current" />
+
+                              <span className="h-1 w-1 rounded-full bg-current" />
+
+                              <span className="h-1 w-1 rounded-full bg-current" />
+
+                            </span>
+
                           </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
 
-      {/* ================= POPUP ================= */}
-      {selectedResult && (
-        <>
-          <div
-            onClick={closePopup}
-            className="fixed inset-0 bg-black/10 backdrop-blur-[0px] z-40"
-          />
+                          {/* ====================================
+                              ACTION MENU
+                          ===================================== */}
 
-          <div className="fixed z-50 w-[340px] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                          {openMenuId === rowId && (
 
-            <div className="overflow-hidden rounded-xl bg-white shadow">
+                            <div className="absolute right-10 top-1/2 z-30 w-36 -translate-y-1/2 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 text-left shadow-lg">
 
-              {/* HEADER */}
-              <div className="flex items-center justify-between  bg-white px-4 py-3">
-                <div className="w-6" />
-                <h2 className="flex-1 text-center text-sm font-bold tracking-wide">
-                  RESULT DETAILS
-                </h2>
-                <button onClick={closePopup} className="w-6 text-gray-500 hover:text-black">
-                  ✕
-                </button>
-              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openPopup(item)
+                                }
+                                className="w-full px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+                              >
+                                View Result
+                              </button>
 
-              {/* CONTENT */}
-              <div className="space-y-4 p-5 text-base">
+                            </div>
 
-                {/* WRITTEN SCORE */}
-                <div>
-                  <p className="font-semibold text-gray-800">Written Score:</p>
-                  <p className="text-gray-700">
-                    {selectedResult?.writtenScore != null
-                      ? `${selectedResult.writtenScore}%`
-                      : "N/A"}
-                  </p>
-                </div>
+                          )}
 
-                <hr className="border-gray-300" />
+                        </td>
 
-                {/* AI SUMMARY */}
-                <div>
-                  <p className="font-semibold text-gray-800">
-                    AI Evaluation Summary
-                  </p>
+                      </tr>
 
-                  {/* removed gray background */}
-                  <div className="mt-2 rounded-md border border-gray-200 p-3">
-                    <p className="text-sm text-gray-700 leading-relaxed">
-                      {selectedResult?.aiSummary ||
-                        "No evaluation summary available."}
-                    </p>
-                  </div>
-                </div>
+                    );
+                  }
+                )
 
-                <hr className="border-gray-300" />
+              )}
 
-                {/* FINAL DECISION */}
-                <div>
-                  <p className="font-semibold text-gray-800">Final Decision</p>
-                  <p
-                    className={`text-base font-bold ${selectedResult?.finalResult === "Pass"
-                        ? "text-green-600"
-                        : "text-red-600"
-                      }`}
-                  >
-                    {selectedResult?.finalResult === "Pass"
-                      ? "COMPETENT"
-                      : "NOT COMPETENT"}
-                  </p>
-                </div>
+            </tbody>
 
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* ================= PAGINATION (ASSESSMENT STYLE) ================= */}
-      <div className="flex items-center justify-between border-t border-gray-200 px-4 py-4 text-sm">
-
-        {/* LEFT TEXT */}
-        <p className="font-medium text-gray-700">
-          Showing {showingStart}-{showingEnd} of {results.length} results
-        </p>
-
-        {/* RIGHT CONTROLS */}
-        <div className="flex items-center gap-3">
-
-          {/* PREV */}
-          <button
-            type="button"
-            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            disabled={currentPage === 1}
-            className="flex items-center gap-1 text-gray-500 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <ChevronLeft size={16} />
-            Prev
-          </button>
-
-          {/* PAGE BOX */}
-          <span className="rounded-lg border border-gray-200 px-3 py-2 font-medium text-gray-700 shadow-sm">
-            {currentPage}
-          </span>
-
-          {/* NEXT */}
-          <button
-            type="button"
-            onClick={() =>
-              setCurrentPage((p) => Math.min(p + 1, totalPages))
-            }
-            disabled={currentPage >= totalPages}
-            className="flex items-center gap-1 text-gray-500 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Next
-            <ChevronRight size={16} />
-          </button>
+          </table>
 
         </div>
-      </div>
-    </div>
+
+        {/* ======================================================
+            PAGINATION
+        ======================================================= */}
+
+        <div className="flex flex-col gap-3 border-t border-gray-200 px-5 py-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+
+          <p className="font-medium text-gray-600">
+
+            Showing{" "}
+
+            {showingStart}
+            -
+            {showingEnd}
+
+            {" "}of{" "}
+
+            {results.length}
+
+          </p>
+
+          <div className="flex items-center gap-3">
+
+            <button
+              type="button"
+              onClick={() =>
+                setCurrentPage(
+                  (page) =>
+                    Math.max(
+                      page - 1,
+                      1
+                    )
+                )
+              }
+              disabled={currentPage === 1}
+              className="inline-flex items-center gap-1 rounded-lg px-3 py-2 font-medium text-gray-600 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+
+              <ChevronLeft size={16} />
+
+              Prev
+
+            </button>
+
+            <span className="rounded-lg border border-gray-200 px-3 py-2 font-medium text-gray-700">
+              {currentPage}
+            </span>
+
+            <button
+              type="button"
+              onClick={() =>
+                setCurrentPage(
+                  (page) =>
+                    Math.min(
+                      page + 1,
+                      totalPages
+                    )
+                )
+              }
+              disabled={
+                currentPage >= totalPages
+              }
+              className="inline-flex items-center gap-1 rounded-lg px-3 py-2 font-medium text-gray-600 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+
+              Next
+
+              <ChevronRight
+                size={16}
+              />
+
+            </button>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      {/* ========================================================
+          VIEW RESULT MODAL
+      ========================================================= */}
+
+      {selectedResult && (
+
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={closePopup}
+        >
+
+          <div
+            className="w-full max-w-md rounded-2xl bg-white shadow-2xl"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
+
+            {/* ================================================
+                MODAL HEADER
+            ================================================= */}
+
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+
+              <div>
+
+                <h2 className="text-lg font-bold text-gray-900">
+                  Assessment Result
+                </h2>
+
+                <p className="mt-0.5 text-sm text-gray-500">
+                  Final result details
+                </p>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={closePopup}
+                className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Close"
+              >
+
+                <X size={18} />
+
+              </button>
+
+            </div>
+
+            {/* ================================================
+                  MODAL CONTENT
+            ================================================= */}
+
+            <div className="space-y-6 px-6 py-6">
+
+              {/* ==================================================
+                  TRAINEE NAME
+              =================================================== */}
+
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  Trainee Name
+                </p>
+
+                <p className="mt-1 font-semibold text-gray-900">
+                  {selectedResult?.traineeName ||
+                    selectedResult?.trainee_name ||
+                    "-"}
+                </p>
+              </div>
+
+
+              {/* ==================================================
+                    TRAINEE ID
+              =================================================== */}
+
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  Trainee ID
+                </p>
+
+                <p className="mt-1 font-semibold text-gray-900">
+                  {selectedResult?.traineeId ||
+                    selectedResult?.trainee_id ||
+                    "-"}
+                </p>
+              </div>
+
+
+              {/* ==================================================
+                    WRITTEN SCORE
+              =================================================== */}
+
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  Written Score
+                </p>
+
+                <p className="mt-1 font-semibold text-gray-900">
+                  {selectedResult?.writtenScore !== null &&
+                    selectedResult?.writtenScore !== undefined
+                    ? selectedResult.writtenScore
+                    : "-"}
+                </p>
+              </div>
+
+
+              {/* ==================================================
+                  AI EVALUATION SUMMARY
+              =================================================== */}
+
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  AI Evaluation Summary
+                </p>
+
+                {/* Empty AI Summary Container */}
+                <div className="mt-2 min-h-[120px] rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  {/* AI Evaluation Summary will be displayed here later */}
+                </div>
+              </div>
+
+
+              {/* ==================================================
+                    FINAL RESULT
+              =================================================== */}
+
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  Final Result
+                </p>
+
+                <div className="mt-2">
+                  <span
+                    className={`inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-semibold ${getResultBadgeClass(
+                      getResultLabel(selectedResult)
+                    )}`}
+                  >
+                    {getResultLabel(selectedResult)}
+                  </span>
+                </div>
+              </div>
+
+
+              {/* ==================================================
+                    DATE COMPLETED
+              =================================================== */}
+
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  Date Completed
+                </p>
+
+                <p className="mt-1 font-medium text-gray-700">
+                  {formatDate(
+                    selectedResult?.dateCompleted ||
+                    selectedResult?.updated_at ||
+                    selectedResult?.submitted_at ||
+                    selectedResult?.created_at
+                  )}
+                </p>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
+    </>
   );
 }

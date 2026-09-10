@@ -22,6 +22,16 @@ import {
 
 import { supabase } from "../../../supabaseClient.js";
 
+// =========================================================
+// STORAGE CONFIGURATION
+// =========================================================
+
+const ASSESSOR_DOCUMENTS_BUCKET = "assessor-documents";
+
+// =========================================================
+// PROFILE FIELD DEFINITIONS
+// =========================================================
+
 const personalFields = [
   ["first_name", "First Name", User],
   ["last_name", "Last Name", User],
@@ -59,6 +69,97 @@ const assessorFields = [
   ],
 ];
 
+// =========================================================
+// HELPER: GET ASSESSOR RELATION
+// =========================================================
+
+function getAssessorRelation(profile) {
+  if (!profile?.assessor_profiles) {
+    return null;
+  }
+
+  return Array.isArray(profile.assessor_profiles)
+    ? profile.assessor_profiles[0]
+    : profile.assessor_profiles;
+}
+
+// =========================================================
+// HELPER: GET TRAINEE RELATION
+// =========================================================
+
+function getTraineeRelation(profile) {
+  if (!profile?.trainee_profiles) {
+    return null;
+  }
+
+  return Array.isArray(profile.trainee_profiles)
+    ? profile.trainee_profiles[0]
+    : profile.trainee_profiles;
+}
+
+// =========================================================
+// HELPER: CHECK IF VALUE IS FULL URL
+// =========================================================
+
+function isFullUrl(value) {
+  return (
+    typeof value === "string" &&
+    (
+      value.startsWith("http://") ||
+      value.startsWith("https://")
+    )
+  );
+}
+
+// =========================================================
+// HELPER: CREATE SIGNED STORAGE URL
+// =========================================================
+
+async function getStorageUrl(path) {
+  if (!path) {
+    return "";
+  }
+
+  // Already a complete URL.
+  if (isFullUrl(path)) {
+    return path;
+  }
+
+  const cleanPath = String(path)
+    .replace(/^\/+/, "")
+    .trim();
+
+  if (!cleanPath) {
+    return "";
+  }
+
+  const {
+    data,
+    error,
+  } = await supabase.storage
+    .from(ASSESSOR_DOCUMENTS_BUCKET)
+    .createSignedUrl(
+      cleanPath,
+      60 * 60
+    );
+
+  if (error) {
+    console.error(
+      "Error creating signed storage URL:",
+      error,
+      cleanPath
+    );
+
+    return "";
+  }
+
+  return data?.signedUrl || "";
+}
+
+// =========================================================
+// DETAILS COMPONENT
+// =========================================================
+
 function Details({
   fields,
   profile,
@@ -82,11 +183,7 @@ function Details({
     }
 
     const assessorRel =
-      Array.isArray(
-        profile?.assessor_profiles
-      )
-        ? profile.assessor_profiles[0]
-        : profile?.assessor_profiles;
+      getAssessorRelation(profile);
 
     if (
       assessorRel?.[key] !== undefined &&
@@ -97,11 +194,7 @@ function Details({
     }
 
     const traineeRel =
-      Array.isArray(
-        profile?.trainee_profiles
-      )
-        ? profile.trainee_profiles[0]
-        : profile?.trainee_profiles;
+      getTraineeRelation(profile);
 
     if (
       traineeRel?.[key] !== undefined &&
@@ -143,6 +236,10 @@ function Details({
   );
 }
 
+// =========================================================
+// MAIN COMPONENT
+// =========================================================
+
 export default function RegistrationProfileModal({
   profile,
   title = "Profile Details",
@@ -156,6 +253,10 @@ export default function RegistrationProfileModal({
   currentNumber = 0,
   totalProfiles = 0,
 }) {
+  // =======================================================
+  // STATE
+  // =======================================================
+
   const [showReject, setShowReject] =
     useState(false);
 
@@ -174,6 +275,13 @@ export default function RegistrationProfileModal({
   const [extraRoleData, setExtraRoleData] =
     useState(null);
 
+  const [profilePhotoUrl, setProfilePhotoUrl] =
+    useState("");
+
+  // =======================================================
+  // DETERMINE ROLE
+  // =======================================================
+
   const assessor =
     profile?.role?.toLowerCase() ===
       "assessor" ||
@@ -181,12 +289,26 @@ export default function RegistrationProfileModal({
       .toLowerCase()
       .includes("assessor");
 
+  // =======================================================
+  // RESET COMPONENT STATE
+  // =======================================================
+
   useEffect(() => {
     setExtraRoleData(null);
+    setDocumentFiles([]);
+    setProfilePhotoUrl("");
     setShowReject(false);
     setReason("");
     setPreviewPhoto(false);
+  }, [
+    profile?.id,
+  ]);
 
+  // =======================================================
+  // FETCH ROLE DETAILS
+  // =======================================================
+
+  useEffect(() => {
     if (!profile?.id) {
       return;
     }
@@ -198,15 +320,17 @@ export default function RegistrationProfileModal({
             ? "assessor_profiles"
             : "trainee_profiles";
 
-        const { data, error } =
-          await supabase
-            .from(table)
-            .select("*")
-            .eq(
-              "user_id",
-              profile.id
-            )
-            .maybeSingle();
+        const {
+          data,
+          error,
+        } = await supabase
+          .from(table)
+          .select("*")
+          .eq(
+            "user_id",
+            profile.id
+          )
+          .maybeSingle();
 
         if (error) {
           console.error(
@@ -234,129 +358,206 @@ export default function RegistrationProfileModal({
     assessor,
   ]);
 
-  useEffect(() => {
-    setDocumentFiles([]);
+  // =======================================================
+  // RESOLVE PROFILE PHOTO URL
+  // =======================================================
 
-    if (
-      !profile?.id ||
-      !assessor
-    ) {
-      setLoadingDocs(false);
-      return;
-    }
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveProfilePhoto = async () => {
+      const photoPath =
+        profile?.profile_photo_url;
+
+      if (!photoPath) {
+        if (!cancelled) {
+          setProfilePhotoUrl("");
+        }
+
+        return;
+      }
+
+      if (isFullUrl(photoPath)) {
+        if (!cancelled) {
+          setProfilePhotoUrl(
+            photoPath
+          );
+        }
+
+        return;
+      }
+
+      const signedUrl =
+        await getStorageUrl(
+          photoPath
+        );
+
+      if (!cancelled) {
+        setProfilePhotoUrl(
+          signedUrl
+        );
+      }
+    };
+
+    resolveProfilePhoto();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    profile?.profile_photo_url,
+  ]);
+
+  // =======================================================
+  // FETCH ASSESSOR DOCUMENTS
+  // =======================================================
+
+  useEffect(() => {
+    let cancelled = false;
 
     const fetchUserDocuments =
       async () => {
-        setLoadingDocs(true);
-
-        const BUCKET =
-          "verification-docs";
-
-        try {
-          const subfolders = [
-            "accreditation",
-            "gov_id",
-          ];
-
-          const allFiles = [];
-
-          for (
-            const subfolder of subfolders
-          ) {
-            const path =
-              `${profile.id}/${subfolder}`;
-
-            const {
-              data,
-              error,
-            } =
-              await supabase.storage
-                .from(BUCKET)
-                .list(path);
-
-            if (error) {
-              console.warn(
-                `Unable to list ${path}:`,
-                error
-              );
-
-              continue;
-            }
-
-            if (!data) {
-              continue;
-            }
-
-            data.forEach(
-              (file) => {
-                if (
-                  file.name ===
-                  ".emptyFolderPlaceholder"
-                ) {
-                  return;
-                }
-
-                const filePath =
-                  `${path}/${file.name}`;
-
-                const {
-                  data: urlData,
-                } =
-                  supabase.storage
-                    .from(BUCKET)
-                    .getPublicUrl(
-                      filePath
-                    );
-
-                allFiles.push({
-                  name:
-                    file.name,
-
-                  category:
-                    subfolder ===
-                    "gov_id"
-                      ? "Government ID"
-                      : "Accreditation Certificate",
-
-                  url:
-                    urlData?.publicUrl ||
-                    "",
-
-                  path:
-                    filePath,
-                });
-              }
-            );
+        if (!assessor) {
+          if (!cancelled) {
+            setDocumentFiles([]);
+            setLoadingDocs(false);
           }
 
-          setDocumentFiles(
-            allFiles
-          );
+          return;
+        }
+
+        setLoadingDocs(true);
+
+        try {
+          const assessorRelation =
+            getAssessorRelation(profile);
+
+          const accreditationPath =
+            profile?.accreditation_cert_url ||
+            assessorRelation?.accreditation_cert_url ||
+            extraRoleData?.accreditation_cert_url ||
+            null;
+
+          const governmentIdPath =
+            profile?.government_id_url ||
+            assessorRelation?.government_id_url ||
+            extraRoleData?.government_id_url ||
+            null;
+
+          const documentsToResolve = [
+            {
+              category:
+                "TESDA Assessor Accreditation Certificate",
+              path:
+                accreditationPath,
+            },
+            {
+              category:
+                "Government-issued ID",
+              path:
+                governmentIdPath,
+            },
+          ];
+
+          const resolvedDocuments =
+            [];
+
+          for (
+            const document of documentsToResolve
+          ) {
+            if (!document.path) {
+              continue;
+            }
+
+            const resolvedUrl =
+              await getStorageUrl(
+                document.path
+              );
+
+            if (!resolvedUrl) {
+              continue;
+            }
+
+            const fileName =
+              String(
+                document.path
+              )
+                .split("/")
+                .pop() ||
+              "View Document";
+
+            resolvedDocuments.push({
+              category:
+                document.category,
+
+              name:
+                fileName,
+
+              path:
+                document.path,
+
+              url:
+                resolvedUrl,
+            });
+          }
+
+          if (!cancelled) {
+            setDocumentFiles(
+              resolvedDocuments
+            );
+          }
         } catch (err) {
           console.error(
-            "Error fetching documents:",
+            "Error fetching assessor documents:",
             err
           );
+
+          if (!cancelled) {
+            setDocumentFiles([]);
+          }
         } finally {
-          setLoadingDocs(false);
+          if (!cancelled) {
+            setLoadingDocs(false);
+          }
         }
       };
 
     fetchUserDocuments();
+
+    return () => {
+      cancelled = true;
+    };
   }, [
-    profile?.id,
     assessor,
+    profile?.id,
+    profile?.accreditation_cert_url,
+    profile?.government_id_url,
+    profile?.assessor_profiles,
+    extraRoleData?.accreditation_cert_url,
+    extraRoleData?.government_id_url,
   ]);
+
+  // =======================================================
+  // GUARD
+  // =======================================================
 
   if (!profile) {
     return null;
   }
 
+  // =======================================================
+  // PROFILE VALUES
+  // =======================================================
+
   const initials =
-    `${profile.first_name?.[0] ||
+    `${
+      profile.first_name?.[0] ||
       profile.fullName?.[0] ||
-      "?"}${profile.last_name?.[0] ||
-      ""}`.toUpperCase();
+      "?"
+    }${
+      profile.last_name?.[0] ||
+      ""
+    }`.toUpperCase();
 
   const normalizedStatus =
     String(
@@ -390,21 +591,9 @@ export default function RegistrationProfileModal({
     isRejected ||
     isDeactivated;
 
-  const legacyDocuments =
-    assessor
-      ? [
-          [
-            "TESDA Assessor Accreditation Certificate",
-            profile.accreditation_cert_url ||
-              extraRoleData?.accreditation_cert_url,
-          ],
-          [
-            "Government-issued ID",
-            profile.government_id_url ||
-              extraRoleData?.government_id_url,
-          ],
-        ]
-      : [];
+  // =======================================================
+  // ACTION HANDLERS
+  // =======================================================
 
   const handleConfirmReject = () => {
     const trimmedReason =
@@ -434,20 +623,32 @@ export default function RegistrationProfileModal({
   };
 
   const handlePrevious = () => {
-    if (canGoPrevious && onPrevious) {
+    if (
+      canGoPrevious &&
+      onPrevious
+    ) {
       onPrevious();
     }
   };
 
   const handleNext = () => {
-    if (canGoNext && onNext) {
+    if (
+      canGoNext &&
+      onNext
+    ) {
       onNext();
     }
   };
 
+  // =======================================================
+  // RENDER
+  // =======================================================
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
       <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white shadow-xl">
+
+        {/* HEADER */}
         <header className="sticky top-0 z-10 flex items-center justify-between gap-4 bg-[#15294b] px-6 py-4 text-white">
           <div className="flex items-center gap-2">
             <User
@@ -471,14 +672,14 @@ export default function RegistrationProfileModal({
         </header>
 
         <div className="p-6">
+
+          {/* PROFILE HEADER */}
           <div className="mb-8 flex items-center gap-5 border-b border-[#e5e7eb] pb-6">
             <div className="group relative shrink-0">
               <div className="grid h-20 w-20 place-items-center overflow-hidden rounded-full border-4 border-white bg-[#f1f5f9] text-3xl font-bold text-[#15294b] shadow-inner">
-                {profile.profile_photo_url ? (
+                {profilePhotoUrl ? (
                   <img
-                    src={
-                      profile.profile_photo_url
-                    }
+                    src={profilePhotoUrl}
                     alt="Avatar"
                     className="h-full w-full object-cover"
                   />
@@ -487,7 +688,7 @@ export default function RegistrationProfileModal({
                 )}
               </div>
 
-              {profile.profile_photo_url && (
+              {profilePhotoUrl && (
                 <button
                   type="button"
                   onClick={() =>
@@ -503,7 +704,9 @@ export default function RegistrationProfileModal({
             <div>
               <h2 className="text-2xl font-bold text-[#111827]">
                 {profile.fullName ||
-                  `${profile.first_name || ""} ${profile.last_name || ""}`}
+                  `${profile.first_name || ""} ${
+                    profile.last_name || ""
+                  }`.trim()}
               </h2>
 
               <p className="text-sm text-[#6b7280]">
@@ -512,6 +715,7 @@ export default function RegistrationProfileModal({
             </div>
           </div>
 
+          {/* REJECTION REASON */}
           {profile.rejected_reason && (
             <div className="mb-8 rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-800">
               <span className="mb-1 block font-bold uppercase tracking-wider">
@@ -522,24 +726,20 @@ export default function RegistrationProfileModal({
             </div>
           )}
 
+          {/* PERSONAL INFORMATION */}
           <section>
             <h3 className="mb-6 text-xl font-bold text-[#111827]">
               Personal Information
             </h3>
 
             <Details
-              fields={
-                personalFields
-              }
-              profile={
-                profile
-              }
-              extraData={
-                extraRoleData
-              }
+              fields={personalFields}
+              profile={profile}
+              extraData={extraRoleData}
             />
           </section>
 
+          {/* PROFESSIONAL / TRAINING INFORMATION */}
           <section className="mt-10">
             <h3 className="mb-6 text-xl font-bold text-[#111827]">
               {assessor
@@ -553,15 +753,12 @@ export default function RegistrationProfileModal({
                   ? assessorFields
                   : traineeFields
               }
-              profile={
-                profile
-              }
-              extraData={
-                extraRoleData
-              }
+              profile={profile}
+              extraData={extraRoleData}
             />
           </section>
 
+          {/* SUPPORTING DOCUMENTS */}
           {assessor && (
             <section className="mt-10">
               <h3 className="mb-6 flex items-center gap-2 text-xl font-bold text-[#111827]">
@@ -580,152 +777,120 @@ export default function RegistrationProfileModal({
                     className="animate-spin text-[#15294b]"
                   />
 
-                  Fetching documents from storage...
-                </div>
-              ) : documentFiles.length >
-                0 ? (
-                <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
-                  {documentFiles.map(
-                    (doc) => (
-                      <div
-                        key={
-                          doc.path
-                        }
-                        className="flex flex-col gap-1"
-                      >
-                        <dt className="text-[11px] font-medium uppercase tracking-wider text-[#6b7280]">
-                          {
-                            doc.category
-                          }
-                        </dt>
-
-                        <a
-                          href={
-                            doc.url
-                          }
-                          target="_blank"
-                          rel="noreferrer"
-                          className="group flex items-center justify-between rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm font-semibold text-[#111827] transition hover:border-[#15294b] hover:bg-blue-50"
-                        >
-                          <div className="flex min-w-0 items-center gap-2">
-                            <FileText
-                              size={
-                                16
-                              }
-                              className="shrink-0 text-[#9ca3af] group-hover:text-[#15294b]"
-                            />
-
-                            <span className="truncate">
-                              {
-                                doc.name
-                              }
-                            </span>
-                          </div>
-
-                          <ExternalLink
-                            size={
-                              16
-                            }
-                            className="ml-2 shrink-0 text-[#9ca3af] group-hover:text-[#15294b]"
-                          />
-                        </a>
-                      </div>
-                    )
-                  )}
-                </div>
-              ) : legacyDocuments.some(
-                  ([, url]) =>
-                    Boolean(
-                      url
-                    )
-                ) ? (
-                <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
-                  {legacyDocuments.map(
-                    (
-                      [
-                        label,
-                        url,
-                      ]
-                    ) =>
-                      url ? (
-                        <div
-                          key={
-                            label
-                          }
-                          className="flex flex-col gap-1"
-                        >
-                          <dt className="text-[11px] font-medium uppercase tracking-wider text-[#6b7280]">
-                            {
-                              label
-                            }
-                          </dt>
-
-                          <a
-                            href={
-                              url
-                            }
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center justify-between rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm font-semibold text-[#111827] transition hover:border-[#15294b] hover:bg-blue-50"
-                          >
-                            <span className="truncate">
-                              View
-                              Document
-                            </span>
-
-                            <ExternalLink
-                              size={
-                                16
-                              }
-                            />
-                          </a>
-                        </div>
-                      ) : (
-                        <div
-                          key={
-                            label
-                          }
-                          className="flex flex-col gap-1"
-                        >
-                          <dt className="text-[11px] font-medium uppercase tracking-wider text-[#6b7280]">
-                            {
-                              label
-                            }
-                          </dt>
-
-                          <div className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm text-[#6b7280]">
-                            Not
-                            provided
-                          </div>
-                        </div>
-                      )
-                  )}
+                  Loading supporting documents...
                 </div>
               ) : (
-                <div className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-6 text-center text-sm text-[#6b7280]">
-                  No uploaded
-                  documents found for
-                  this assessor.
+                <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+
+                  {/* ACCREDITATION CERTIFICATE */}
+                  <div className="flex flex-col gap-1">
+                    <dt className="text-[11px] font-medium uppercase tracking-wider text-[#6b7280]">
+                      TESDA Assessor Accreditation Certificate
+                    </dt>
+
+                    {documentFiles.find(
+                      (document) =>
+                        document.category ===
+                        "TESDA Assessor Accreditation Certificate"
+                    ) ? (
+                      <a
+                        href={
+                          documentFiles.find(
+                            (document) =>
+                              document.category ===
+                              "TESDA Assessor Accreditation Certificate"
+                          ).url
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group flex items-center justify-between rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm font-semibold text-[#111827] transition hover:border-[#15294b] hover:bg-blue-50"
+                      >
+                        <div className="flex min-w-0 items-center gap-2">
+                          <FileText
+                            size={16}
+                            className="shrink-0 text-[#9ca3af] group-hover:text-[#15294b]"
+                          />
+
+                          <span className="truncate">
+                            View Document
+                          </span>
+                        </div>
+
+                        <ExternalLink
+                          size={16}
+                          className="ml-2 shrink-0 text-[#9ca3af] group-hover:text-[#15294b]"
+                        />
+                      </a>
+                    ) : (
+                      <div className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm text-[#6b7280]">
+                        Not provided
+                      </div>
+                    )}
+                  </div>
+
+                  {/* GOVERNMENT ID */}
+                  <div className="flex flex-col gap-1">
+                    <dt className="text-[11px] font-medium uppercase tracking-wider text-[#6b7280]">
+                      Government-issued ID
+                    </dt>
+
+                    {documentFiles.find(
+                      (document) =>
+                        document.category ===
+                        "Government-issued ID"
+                    ) ? (
+                      <a
+                        href={
+                          documentFiles.find(
+                            (document) =>
+                              document.category ===
+                              "Government-issued ID"
+                          ).url
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group flex items-center justify-between rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm font-semibold text-[#111827] transition hover:border-[#15294b] hover:bg-blue-50"
+                      >
+                        <div className="flex min-w-0 items-center gap-2">
+                          <FileText
+                            size={16}
+                            className="shrink-0 text-[#9ca3af] group-hover:text-[#15294b]"
+                          />
+
+                          <span className="truncate">
+                            View Document
+                          </span>
+                        </div>
+
+                        <ExternalLink
+                          size={16}
+                          className="ml-2 shrink-0 text-[#9ca3af] group-hover:text-[#15294b]"
+                        />
+                      </a>
+                    ) : (
+                      <div className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm text-[#6b7280]">
+                        Not provided
+                      </div>
+                    )}
+                  </div>
+
                 </div>
               )}
             </section>
           )}
 
+          {/* FOOTER */}
           <footer className="mt-12 flex items-center justify-between gap-4 border-t border-[#e5e7eb] pt-6">
+
+            {/* PAGINATION */}
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={
-                  handlePrevious
-                }
-                disabled={
-                  !canGoPrevious
-                }
+                onClick={handlePrevious}
+                disabled={!canGoPrevious}
                 className="flex items-center gap-1 text-sm font-medium text-gray-500 transition hover:text-[#15294b] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <ChevronLeft
-                  size={16}
-                />
+                <ChevronLeft size={16} />
 
                 Prev
               </button>
@@ -738,23 +903,19 @@ export default function RegistrationProfileModal({
 
               <button
                 type="button"
-                onClick={
-                  handleNext
-                }
-                disabled={
-                  !canGoNext
-                }
+                onClick={handleNext}
+                disabled={!canGoNext}
                 className="flex items-center gap-1 text-sm font-medium text-gray-500 transition hover:text-[#15294b] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Next
 
-                <ChevronRight
-                  size={16}
-                />
+                <ChevronRight size={16} />
               </button>
             </div>
 
+            {/* ACTIONS */}
             <div className="flex items-center gap-3">
+
               {isApproved && (
                 <span className="rounded-lg bg-green-100 px-5 py-2.5 text-sm font-semibold text-green-700">
                   Approved
@@ -778,9 +939,7 @@ export default function RegistrationProfileModal({
                   <button
                     type="button"
                     onClick={() =>
-                      setShowReject(
-                        true
-                      )
+                      setShowReject(true)
                     }
                     className="rounded-lg border border-red-200 bg-white px-5 py-2.5 text-sm font-semibold text-red-600 shadow-sm transition hover:border-red-300 hover:bg-red-50 hover:text-red-700"
                   >
@@ -792,66 +951,59 @@ export default function RegistrationProfileModal({
                 onApprove && (
                   <button
                     type="button"
-                    onClick={
-                      handleApprove
-                    }
+                    onClick={handleApprove}
                     className="rounded-lg bg-[#15294b] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f1f3b]"
                   >
                     Approve
                   </button>
                 )}
+
             </div>
           </footer>
+
         </div>
 
-        {previewPhoto && (
-          <div className="fixed inset-0 z-[70] grid place-items-center bg-black/80 p-4">
-            <div className="relative w-full max-w-lg rounded-2xl bg-slate-900 p-2 shadow-2xl">
-              <button
-                type="button"
-                onClick={() =>
-                  setPreviewPhoto(
-                    false
-                  )
-                }
-                className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full bg-black/60 text-white transition hover:bg-red-600"
-              >
-                <X size={18} />
-              </button>
+        {/* PROFILE PHOTO PREVIEW */}
+        {previewPhoto &&
+          profilePhotoUrl && (
+            <div className="fixed inset-0 z-[70] grid place-items-center bg-black/80 p-4">
+              <div className="relative w-full max-w-lg rounded-2xl bg-slate-900 p-2 shadow-2xl">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPreviewPhoto(false)
+                  }
+                  className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full bg-black/60 text-white transition hover:bg-red-600"
+                >
+                  <X size={18} />
+                </button>
 
-              <img
-                src={
-                  profile.profile_photo_url
-                }
-                alt="Profile Full View"
-                className="max-h-[80vh] w-full rounded-lg object-contain"
-              />
+                <img
+                  src={profilePhotoUrl}
+                  alt="Profile Full View"
+                  className="max-h-[80vh] w-full rounded-lg object-contain"
+                />
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
+        {/* REJECT MODAL */}
         {showReject && (
           <div className="fixed inset-0 z-[60] grid place-items-center bg-black/40 p-4">
             <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+
               <h3 className="text-lg font-bold text-gray-900">
-                Reason for
-                Rejection
+                Reason for Rejection
               </h3>
 
               <p className="mt-1 text-xs text-gray-500">
-                Provide a clear reason
-                so the applicant knows
-                what to update or
-                resubmit.
+                Provide a clear reason so the applicant knows
+                what to update or resubmit.
               </p>
 
               <textarea
-                value={
-                  reason
-                }
-                onChange={(
-                  event
-                ) =>
+                value={reason}
+                onChange={(event) =>
                   setReason(
                     event.target.value
                   )
@@ -861,13 +1013,11 @@ export default function RegistrationProfileModal({
               />
 
               <div className="mt-4 flex justify-end gap-3">
+
                 <button
                   type="button"
                   onClick={() => {
-                    setShowReject(
-                      false
-                    );
-
+                    setShowReject(false);
                     setReason("");
                   }}
                   className="rounded-lg border border-[#e5e7eb] px-4 py-2 text-sm font-medium text-[#111827] transition hover:bg-gray-100"
@@ -877,21 +1027,18 @@ export default function RegistrationProfileModal({
 
                 <button
                   type="button"
-                  onClick={
-                    handleConfirmReject
-                  }
-                  disabled={
-                    !reason.trim()
-                  }
+                  onClick={handleConfirmReject}
+                  disabled={!reason.trim()}
                   className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:opacity-50"
                 >
-                  Confirm
-                  Rejection
+                  Confirm Rejection
                 </button>
+
               </div>
             </div>
           </div>
         )}
+
       </div>
     </div>
   );

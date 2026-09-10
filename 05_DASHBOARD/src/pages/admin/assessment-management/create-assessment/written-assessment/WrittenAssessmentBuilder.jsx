@@ -1,29 +1,128 @@
-import { useState } from "react";
-import { Plus } from "lucide-react";
-import AssessmentInfo from "../../../../../components/admin/create-assessment/written-assessment/AssessmentInfo";
-import QuestionList from "../../../../../components/admin/create-assessment/written-assessment/QuestionList";
-import AddQuestionModal from "../../../../../components/admin/create-assessment/written-assessment/AddQuestionModal";
+import { useMemo, useState } from "react";
+import QuestionsContainer from "../../../../../components/admin/create-assessment/QuestionsContainer";
 
-export default function WrittenAssessmentBuilder({ assessmentData, setAssessmentData }) {
-  const [openModal, setOpenModal] = useState(false);
+export default function WrittenAssessmentBuilder({
+  assessmentData,
+  setAssessmentData,
+}) {
+  const [saving, setSaving] = useState(false);
+
   const questions = assessmentData.questions || [];
 
-  const addQuestion = (question) => {
-    setAssessmentData({ ...assessmentData, questions: [...questions, { id: Date.now(), ...question }] });
-    setOpenModal(false);
+  /* ============================================================
+     GROUP QUESTIONS
+  ============================================================ */
+
+  const groupedQuestions = useMemo(() => {
+    return questions.reduce((groups, question) => {
+      const section =
+        question.test_section ||
+        question.question_type ||
+        "Multiple Choice";
+
+      if (!groups[section]) {
+        groups[section] = [];
+      }
+
+      groups[section].push(question);
+
+      return groups;
+    }, {});
+  }, [questions]);
+
+  /* ============================================================
+     OPEN SECTIONS
+  ============================================================ */
+
+  const [openSections, setOpenSections] = useState({});
+
+  const toggleSection = (section) => {
+    setOpenSections((current) => ({
+      ...current,
+      [section]: !current[section],
+    }));
   };
 
-  const deleteQuestion = (id) => setAssessmentData({ ...assessmentData, questions: questions.filter((question) => question.id !== id) });
+  /* ============================================================
+     SAVE QUESTION
+     
+     IMPORTANT:
+     This does NOT save to Supabase yet.
+
+     It only stores the question inside assessmentData.
+     CreateAssessment.jsx will save everything to the database
+     when "Save Assessment" is clicked.
+  ============================================================ */
+
+  const handleSaveQuestion = async (question) => {
+    setSaving(true);
+
+    try {
+      setAssessmentData((current) => {
+        const existingQuestions =
+          Array.isArray(current.questions)
+            ? current.questions
+            : [];
+
+        const existingIndex =
+          existingQuestions.findIndex(
+            (item) =>
+              item.id === question.question_id
+          );
+
+        /* ====================================================
+           EDIT EXISTING QUESTION
+        ==================================================== */
+
+        if (existingIndex !== -1) {
+          const updatedQuestions = [
+            ...existingQuestions,
+          ];
+
+          updatedQuestions[existingIndex] = {
+            ...updatedQuestions[existingIndex],
+            ...question,
+            id: question.question_id,
+          };
+
+          return {
+            ...current,
+            questions: updatedQuestions,
+          };
+        }
+
+        /* ====================================================
+           ADD NEW QUESTION
+        ==================================================== */
+
+        return {
+          ...current,
+          questions: [
+            ...existingQuestions,
+            {
+              ...question,
+              id:
+                question.question_id ||
+                `local-${Date.now()}`,
+            },
+          ],
+        };
+      });
+
+      return true;
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <AssessmentInfo assessmentData={assessmentData} setAssessmentData={setAssessmentData} />
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Questions</h2>
-        <button onClick={() => setOpenModal(true)} className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-white hover:bg-blue-700"><Plus size={18} />Add Question</button>
-      </div>
-      <QuestionList questions={questions} onDelete={deleteQuestion} />
-      {openModal && <AddQuestionModal onClose={() => setOpenModal(false)} onSave={addQuestion} />}
-    </div>
+    <QuestionsContainer
+      questions={questions}
+      groupedQuestions={groupedQuestions}
+      openSections={openSections}
+      toggleSection={toggleSection}
+      onSaveQuestion={handleSaveQuestion}
+      saving={saving}
+    />
   );
 }

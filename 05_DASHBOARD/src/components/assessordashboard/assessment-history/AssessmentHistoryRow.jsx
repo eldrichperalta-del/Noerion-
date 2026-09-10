@@ -15,11 +15,6 @@ export default function AssessmentHistoryRow({ record }) {
                     {record.traineeName}
                 </div>
 
-                <div className="mt-1 text-xs text-gray-500">
-                    {record.aiAvailable
-                        ? "AI Analysis Available"
-                        : "AI Analysis Unavailable"}
-                </div>
             </td>
 
             {/* Trainee ID */}
