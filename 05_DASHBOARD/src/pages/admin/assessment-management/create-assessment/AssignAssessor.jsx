@@ -30,7 +30,7 @@ export default function AssignAssessor({
   );
 
   // =========================================================
-  // FETCH ASSESSORS
+  // FETCH ASSESSORS & DETERMINE ACCURATE AVAILABILITY
   // =========================================================
   useEffect(() => {
     let isMounted = true;
@@ -40,7 +40,7 @@ export default function AssignAssessor({
       setErrorMsg(null);
 
       try {
-        // Fetch approved assessors
+        // 1. Fetch approved assessors
         const { data: activeAssessors, error: profilesError } =
           await supabase
             .from("profiles")
@@ -66,20 +66,77 @@ export default function AssignAssessor({
 
         if (profilesError) throw profilesError;
 
-        // Fetch assessor IDs currently assigned
+        // 2. Fetch assignments
         const { data: activeAssignments, error: assignError } =
           await supabase
             .from("assignments")
-            .select("assessor_id");
+            .select("id, assessor_id, status");
 
         if (assignError) throw assignError;
 
-        const assignedAssessorIds = new Set(
-          (activeAssignments || [])
-            .map((assignment) => assignment.assessor_id)
-            .filter(Boolean)
-            .map((id) => String(id))
-        );
+        // 3. Fetch submissions (tracks active evaluation state)
+        const { data: submissionsData, error: subError } =
+          await supabase
+            .from("assessment_submissions")
+            .select("assignment_id, assessor_id, status, overall_result");
+
+        if (subError) {
+          console.warn("Could not fetch submissions:", subError.message);
+        }
+
+        // Map assignment_id to submission status
+        const assignmentSubmissionMap = new Map();
+        const pendingAssessorIdsFromSubmissions = new Set();
+
+        (submissionsData || []).forEach((sub) => {
+          const subStatus = (sub.status || "").toLowerCase().trim();
+          const subResult = (sub.overall_result || "").toLowerCase().trim();
+
+          if (sub.assignment_id) {
+            assignmentSubmissionMap.set(String(sub.assignment_id), {
+              status: subStatus,
+              result: subResult,
+            });
+          }
+
+          // If a submission exists and isn't evaluated yet, mark the assessor as pending
+          const isEvaluated =
+            subStatus === "evaluated" ||
+            subResult === "competent" ||
+            subResult === "not yet competent";
+
+          if (sub.assessor_id && !isEvaluated) {
+            pendingAssessorIdsFromSubmissions.add(String(sub.assessor_id));
+          }
+        });
+
+        // Set of assessors who are actively busy
+        const busyAssessorIds = new Set(pendingAssessorIdsFromSubmissions);
+
+        (activeAssignments || []).forEach((assignment) => {
+          const assignmentIdStr = String(assignment.id);
+          const assessorIdStr = String(assignment.assessor_id);
+          const assignStatus = (assignment.status || "").toLowerCase().trim();
+
+          if (!assessorIdStr) return;
+
+          const submissionInfo = assignmentSubmissionMap.get(assignmentIdStr);
+
+          let isEvaluated = false;
+          if (submissionInfo) {
+            isEvaluated =
+              submissionInfo.status === "evaluated" ||
+              submissionInfo.result === "competent" ||
+              submissionInfo.result === "not yet competent";
+          }
+
+          const isCompleted = assignStatus === "completed";
+
+          // If not evaluated and not completed, the assessor is Unavailable
+          if (!isEvaluated && !isCompleted) {
+            busyAssessorIds.add(assessorIdStr);
+          }
+        });
 
         if (isMounted && activeAssessors) {
           const formatted = activeAssessors.map((item) => {
@@ -93,10 +150,8 @@ export default function AssignAssessor({
 
             const assessorIdStr = String(item.id);
 
-            // Determine availability
-            const availabilityStatus = assignedAssessorIds.has(
-              assessorIdStr
-            )
+            // Determine status
+            const availabilityStatus = busyAssessorIds.has(assessorIdStr)
               ? "Unavailable"
               : "Available";
 
@@ -612,4 +667,3 @@ export default function AssignAssessor({
     </div>
   );
 }
-

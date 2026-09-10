@@ -1,235 +1,193 @@
 import jsPDF from "jspdf";
 import tesdaLogo from "../assets/tesda1.png";
 
-export default function generateAssessmentPDF(data) {
+export default function generateAssessmentPDF(data = {}) {
   const doc = new jsPDF("p", "mm", "a4");
 
-  // ==================================================
   // COLORS
-  // ==================================================
-
   const BLACK = [0, 0, 0];
-  const DARK = [40, 40, 40];
   const LIGHT = [180, 180, 180];
-  const BORDER = [220, 220, 220];
 
   let y = 18;
+  const pageHeight = 297;
+  const marginBottom = 25;
 
-  // ==================================================
+  // PAGE OVERFLOW HANDLER
+  function checkPageBreak(neededHeight = 10) {
+    if (y + neededHeight > pageHeight - marginBottom) {
+      doc.addPage();
+      y = 20;
+    }
+  }
+
   // HELPERS
-  // ==================================================
-
   function section(title) {
+    checkPageBreak(15);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
+    doc.setFontSize(12);
     doc.setTextColor(...BLACK);
 
     doc.text(title.toUpperCase(), 20, y);
 
-    y += 3;
+    y += 2;
 
     doc.setDrawColor(...LIGHT);
     doc.setLineWidth(0.5);
     doc.line(20, y, 190, y);
 
-    y += 8;
+    y += 6;
   }
 
   function labelValue(label, value) {
+    checkPageBreak(7);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
+    doc.setFontSize(9.5);
     doc.setTextColor(...BLACK);
 
     doc.text(label, 22, y);
 
     doc.setFont("helvetica", "normal");
+    doc.text(String(value ?? "N/A"), 78, y);
 
-    doc.text(String(value), 78, y);
-
-    y += 8;
+    y += 6;
   }
 
   function metric(label, value) {
+    checkPageBreak(7);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
+    doc.setFontSize(9.5);
 
     doc.text(label, 22, y);
 
     doc.setFont("helvetica", "normal");
+    doc.text(`${value ?? 0}%`, 170, y, { align: "right" });
 
-    doc.text(`${value}%`, 170, y, {
-      align: "right",
-    });
-
-    y += 8;
+    y += 6;
   }
 
-  // ==================================================
   // HEADER
-  // ==================================================
-
+  const qualification = data?.qualification || "N/A";
+  const reportDate = data?.date || "N/A";
   const title = "ASSESSMENT REPORT";
-  const subtitle = `Qualification: ${data.qualification} | Date: ${data.date}`;
+  const subtitle = `Qualification: ${qualification} | Date: ${reportDate}`;
 
-  // Title
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
+  doc.setFontSize(18);
   doc.setTextColor(...BLACK);
 
-  doc.text(title, 105, 18, {
-    align: "center",
-  });
+  doc.text(title, 105, 18, { align: "center" });
 
-  // TESDA Logo (right side of title)
-  doc.addImage(
-    tesdaLogo,
-    "PNG",
-    173, // Adjust left/right as needed
-    12,   // Adjust up/down as needed
-    18,
-    18
-  );
+  try {
+    doc.addImage(tesdaLogo, "PNG", 173, 10, 16, 16);
+  } catch (e) {
+    console.warn("Logo failed to load:", e);
+  }
 
-  // Subtitle
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
+  doc.setFontSize(10);
 
-  doc.text(subtitle, 105, 28, {
-    align: "center",
-  });
+  doc.text(subtitle, 105, 26, { align: "center" });
 
-  // Start content
-  y = 42;
+  y = 36;
 
-  // ==================================================
   // ASSESSMENT SUMMARY
-  // ==================================================
-
   section("Assessment Summary");
 
-  labelValue("Assessment Title", data.title);
-
-  labelValue(
-    "Overall Classification",
-    data.result
-  );
-
-  labelValue(
-    "Final Score",
-    `${data.score}%`
-  );
-
-  labelValue(
-    "Written Examination",
-    `${data.score}%`
-  );
-
-  y += 6;
-
-  // ==================================================
-  // COGNITIVE METRICS
-  // ==================================================
-
-  section("Cognitive Metrics");
-
-  metric(
-    "Attention",
-    data.eeg.attention
-  );
-
-  metric(
-    "Focus",
-    data.eeg.focus
-  );
-
-  metric(
-    "Engagement",
-    data.eeg.engagement
-  );
-
-  y += 6;
-
-  // ==================================================
-  // INSIGHTS & FEEDBACK
-  // ==================================================
-
-  section("Insights & Feedback");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...BLACK);
-  doc.text("AI Cognitive Insights:", 22, y);
-
-  y += 8;
-
-  doc.setFont("helvetica", "normal");
-
-  data.aiInsights.forEach((item) => {
-    const lines = doc.splitTextToSize(`• ${item}`, 160);
-
-    doc.text(lines, 26, y);
-
-    y += lines.length * 6;
-  });
+  labelValue("Assessment Title", data?.title || "N/A");
+  labelValue("Overall Classification", data?.result || "N/A");
+  labelValue("Final Score", `${data?.score ?? 0}%`);
+  labelValue("Written Examination", `${data?.score ?? 0}%`);
 
   y += 4;
 
+  // COGNITIVE METRICS
+  section("Cognitive Metrics");
+
+  metric("Attention", data?.eeg?.attention ?? 0);
+  metric("Focus", data?.eeg?.focus ?? 0);
+  metric("Engagement", data?.eeg?.engagement ?? 0);
+
+  y += 4;
+
+  // INSIGHTS & FEEDBACK
+  section("Feedback");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(...BLACK);
+  doc.text("AI Feedback:", 22, y);
+
+  y += 6;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5); //Font size for AI feedback bullet points
+
+  const insightsList = Array.isArray(data?.aiInsights)
+    ? data.aiInsights
+    : ["No insights recorded."];
+
+  insightsList.forEach((item) => {
+    const lines = doc.splitTextToSize(`• ${item}`, 160);
+    checkPageBreak(lines.length * 5 + 2);
+    doc.text(lines, 26, y);
+    y += lines.length * 5 + 2;
+  });
+
+  y += 3;
+
+  checkPageBreak(12);
   doc.setFont("helvetica", "bold");
   doc.text("Assessor Feedback:", 22, y);
 
-  y += 8;
+  y += 6;
 
   doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5); //Font size for assessor feedback bullet points
 
-  const feedback = doc.splitTextToSize(
-    `"${data.assessorFeedback}"`,
-    160
-  );
+  const feedbackText = data?.assessorFeedback
+    ? `"${data.assessorFeedback}"`
+    : '"No feedback recorded."';
 
+  const feedback = doc.splitTextToSize(feedbackText, 160);
+  checkPageBreak(feedback.length * 5 + 4);
   doc.text(feedback, 26, y);
 
-  y += feedback.length * 6 + 8;
+  y += feedback.length * 5 + 4;
 
-  // ==================================================
   // RECOMMENDATIONS
-  // ==================================================
-
   section("Recommendations");
 
   doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5); //Font size for recommendations bullet points
 
-  data.recommendations.forEach((item) => {
+  const recommendationsList = Array.isArray(data?.recommendations)
+    ? data.recommendations
+    : ["No specific recommendations."];
+
+  recommendationsList.forEach((item) => {
     const lines = doc.splitTextToSize(`• ${item}`, 160);
-
+    checkPageBreak(lines.length * 5 + 2);
     doc.text(lines, 26, y);
-
-    y += lines.length * 6;
+    y += lines.length * 5 + 2;
   });
 
-  // ==================================================
-  // FOOTER
-  // ==================================================
+  // FOOTER (ON ALL PAGES)
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setDrawColor(...LIGHT);
+    doc.line(20, 280, 190, 280);
 
-  y = 280;
+    doc.setFontSize(8);
+    doc.setTextColor(100);
 
-  doc.setDrawColor(...LIGHT);
-  doc.line(20, 272, 190, 272);
-
-  doc.setFontSize(9);
-  doc.setTextColor(80);
-
-  doc.text(
-    "Generated by NOERION TESDA Cognitive Assessment System",
-    105,
-    279,
-    {
-      align: "center",
-    }
-  );
-
-  // ==================================================
-  // SAVE
-  // ==================================================
+    doc.text(
+      "Generated by NOERION TESDA Cognitive Assessment System",
+      105,
+      286,
+      { align: "center" }
+    );
+  }
 
   doc.save("Assessment_Report.pdf");
 }

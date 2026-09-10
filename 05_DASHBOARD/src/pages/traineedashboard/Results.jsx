@@ -43,6 +43,8 @@ export default function Results() {
           .select(`
             id,
             trainee_id,
+            assessment_id,
+            assignment_id,
             total_score,
             passed,
             status,
@@ -94,6 +96,9 @@ export default function Results() {
 
           return {
             id: sub.id,
+            submission_id: sub.id,
+            assignment_id: sub.assignment_id || sub.assignment?.id,
+            assessment_id: sub.assessment_id,
             trainee_id: sub.trainee_id || user.id,
 
             title:

@@ -59,7 +59,7 @@ export default function AIRecommendations({ assessment }) {
       <div className="flex items-center gap-2 mb-5">
         <Sparkles size={22} className="text-violet-600" />
         <h2 className="text-xl font-bold text-gray-800">
-          AI Feedback & Recommendations
+          AI Recommendations
         </h2>
       </div>
 

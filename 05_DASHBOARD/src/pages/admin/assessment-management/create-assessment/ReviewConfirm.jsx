@@ -96,22 +96,29 @@ function ReviewConfirm({
       const assessmentDateVal = schedule.date || schedule.assessment_date;
       const startTimeVal = schedule.startTime || schedule.start_time;
       const endTimeVal = schedule.endTime || schedule.end_time;
+      const assessmentIdVal = selectedAssessment?.id || null;
 
       const traineeIds = trainees.map((t) => t.id || t.user_id).filter(Boolean);
 
-      // PRE-CHECK: Verify if any selected trainee is currently in an active/scheduled session
-      if (traineeIds.length > 0) {
-        const { data: existingAssignments, error: checkError } = await supabase
+      // PRE-CHECK: Block trainees who have ongoing/active/submitted assignments for this assessment
+      if (traineeIds.length > 0 && assessmentIdVal) {
+        const { data: activeAssignments, error: checkError } = await supabase
           .from("assignments")
-          .select("trainee_id")
-          .in("trainee_id", traineeIds)
-          .in("status", ["Scheduled", "Pending", "Assigned"]); // 👈 Only block active/scheduled sessions
+          .select("trainee_id, status")
+          .eq("assessment_id", assessmentIdVal)
+          .in("trainee_id", traineeIds);
 
         if (checkError) throw checkError;
 
-        if (existingAssignments && existingAssignments.length > 0) {
+        // Check if any existing record isn't completed or evaluated
+        const ongoingAssignment = activeAssignments?.find((item) => {
+          const st = (item.status || "").toLowerCase().trim();
+          return st !== "completed" && st !== "evaluated";
+        });
+
+        if (ongoingAssignment) {
           throw new Error(
-            "One or more selected trainees are currently assigned to an ongoing session. Please go back and select available trainees."
+            "One or more selected trainees already have an active or submitted assessment session that has not been evaluated yet."
           );
         }
       }
@@ -121,7 +128,7 @@ function ReviewConfirm({
         .from("assessment_batches")
         .insert([
           {
-            assessment_id: selectedAssessment?.id || null,
+            assessment_id: assessmentIdVal,
             assessor_id: assessor?.id || null,
             assessment_name: selectedAssessment?.title || "Scheduled Assessment",
             qualification: qualification,
@@ -140,33 +147,55 @@ function ReviewConfirm({
       if (batchError) throw batchError;
       createdBatchId = batchData.id;
 
-      // 2. Insert Assignment Records
+      // 2. Fetch existing attempts to set attempt_number for retakes
+      const { data: existingAttempts } = await supabase
+        .from("assignments")
+        .select("trainee_id, attempt_number")
+        .eq("assessment_id", assessmentIdVal)
+        .in("trainee_id", traineeIds);
+
+      // Map to track attempt counts per trainee
+      const attemptMap = new Map();
+      (existingAttempts || []).forEach((row) => {
+        const currentMax = attemptMap.get(row.trainee_id) || 0;
+        if ((row.attempt_number || 1) > currentMax) {
+          attemptMap.set(row.trainee_id, row.attempt_number);
+        }
+      });
+
+      // 3. Insert Assignment Records with incremented attempt_number
       if (trainees.length > 0 && batchData) {
-        const assignmentsPayload = trainees.map((t) => ({
-          batch_id: batchData.id,
-          batch_name: batchData.assessment_name,
-          assessment_id: selectedAssessment?.id || null,
-          assessment_name: selectedAssessment?.title || "Scheduled Assessment",
-          assessor_id: assessor?.id || null,
-          trainee_id: t.id || t.user_id,
-          admin_id: user?.id || null,
-          qualification: qualification,
-          assessment_type: selectedAssessment?.assessment_type || "Written",
-          assessment_date: assessmentDateVal ? new Date(assessmentDateVal).toISOString() : null,
-          start_time: startTimeVal,
-          end_time: endTimeVal,
-          duration: duration,
-          instructions: schedule?.instructions || schedule?.venue || "",
-          status: "Scheduled", // 👈 Updated from "Pending" to "Scheduled"
-          assigned_at: new Date().toISOString(),
-        }));
+        const assignmentsPayload = trainees.map((t) => {
+          const tId = t.id || t.user_id;
+          const prevAttempt = attemptMap.get(tId) || 0;
+
+          return {
+            batch_id: batchData.id,
+            batch_name: batchData.assessment_name,
+            assessment_id: assessmentIdVal,
+            assessment_name: selectedAssessment?.title || "Scheduled Assessment",
+            assessor_id: assessor?.id || null,
+            trainee_id: tId,
+            admin_id: user?.id || null,
+            qualification: qualification,
+            assessment_type: selectedAssessment?.assessment_type || "Written",
+            assessment_date: assessmentDateVal ? new Date(assessmentDateVal).toISOString() : null,
+            start_time: startTimeVal,
+            end_time: endTimeVal,
+            duration: duration,
+            instructions: schedule?.instructions || schedule?.venue || "",
+            status: "Scheduled",
+            attempt_number: prevAttempt + 1, // 👈 Increments attempt for retakes
+            assigned_at: new Date().toISOString(),
+          };
+        });
 
         const { error: assignError } = await supabase
           .from("assignments")
           .insert(assignmentsPayload);
 
         if (assignError) {
-          // Hard rollback batch if assignments fails
+          // Rollback batch if assignments insert fails
           await supabase.from("assessment_batches").delete().eq("id", createdBatchId);
           throw assignError;
         }

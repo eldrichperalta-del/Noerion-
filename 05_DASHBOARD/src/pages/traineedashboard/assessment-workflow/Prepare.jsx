@@ -19,6 +19,56 @@ import {
 } from "lucide-react";
 
 // --- HELPER: UUID Validation & Cleaning ---
+const toAssignmentIdOrNull = (val) => {
+    if (val === null || val === undefined || val === "") return null;
+    const str = String(val).trim();
+    return /^\d+$/.test(str) ? Number(str) : null;
+};
+
+const parseDateOnly = (dateStr) => {
+    if (!dateStr) return null;
+    const clean = String(dateStr).split("T")[0].split(" ")[0];
+    const parts = clean.split("-").map(Number);
+    if (parts.length < 3 || parts.some(Number.isNaN)) return null;
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+};
+
+const parseTimeOnDate = (timeStr, baseDate) => {
+    if (!timeStr) return null;
+    const match = String(timeStr).match(/(\d+):(\d+)(?::\d+)?\s*(AM|PM)?/i);
+    if (!match) return null;
+    let [, h, m, period] = match;
+    h = Number(h);
+    m = Number(m);
+    if (period) {
+        if (period.toUpperCase() === "PM" && h !== 12) h += 12;
+        if (period.toUpperCase() === "AM" && h === 12) h = 0;
+    }
+    const result = new Date(baseDate);
+    result.setHours(h, m, 0, 0);
+    return result;
+};
+
+const getScheduleState = (assignmentData) => {
+    if (!assignmentData?.assessment_date) return "open";
+    const scheduleDate = parseDateOnly(assignmentData.assessment_date);
+    if (!scheduleDate) return "open";
+
+    const now = new Date();
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+    scheduleDate.setHours(0, 0, 0, 0);
+
+    if (scheduleDate > today) return "before";
+    if (scheduleDate < today) return "after";
+
+    const start = parseTimeOnDate(assignmentData.start_time, now);
+    const end = parseTimeOnDate(assignmentData.end_time, now);
+
+    if (start && now < start) return "before";
+    if (end && now > end) return "after";
+    return "open";
+};
 const isValidUuid = (val) => {
     if (!val || typeof val !== "string") return false;
     if (val === "undefined" || val === "null") return false;
@@ -76,10 +126,12 @@ export default function Prepare() {
     );
     const [loadingData, setLoadingData] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [scheduleState, setScheduleState] = useState("checking");
+    const [scheduleMessage, setScheduleMessage] = useState("");
 
     // Save valid IDs into localStorage so state survives page refreshes
     useEffect(() => {
-        if (isValidUuid(assignmentId)) localStorage.setItem("active_assignment_id", assignmentId);
+        if (toAssignmentIdOrNull(assignmentId) !== null) localStorage.setItem("active_assignment_id", String(toAssignmentIdOrNull(assignmentId)));
         if (isValidUuid(assessmentId)) localStorage.setItem("active_assignment_id_ref", assessmentId);
         if (isValidUuid(traineeId)) localStorage.setItem("trainee_id", traineeId);
     }, [assignmentId, assessmentId, traineeId]);
@@ -91,6 +143,32 @@ export default function Prepare() {
         async function fetchAssessmentAndBaselineData() {
             setLoadingData(true);
             try {
+                // Resolve assignment schedule so Start respects assessment_date/start_time/end_time.
+                if (toAssignmentIdOrNull(assignmentId) !== null) {
+                    const { data: assignmentData, error: assignmentError } = await supabase
+                        .from("assignments")
+                        .select("id, assessment_id, assessment_date, start_time, end_time, status")
+                        .eq("id", toAssignmentIdOrNull(assignmentId))
+                        .maybeSingle();
+
+                    if (assignmentError) {
+                        console.error("Error fetching assignment schedule in Prepare.jsx:", assignmentError);
+                        setScheduleState("checking");
+                    } else {
+                        const currentScheduleState = getScheduleState(assignmentData);
+                        setScheduleState(currentScheduleState);
+                        setScheduleMessage(
+                            currentScheduleState === "before"
+                                ? `Assessment is not available yet. Start time: ${assignmentData?.start_time || "scheduled time"}.`
+                                : currentScheduleState === "after"
+                                    ? `Assessment window has ended. End time: ${assignmentData?.end_time || "scheduled time"}.`
+                                    : ""
+                        );
+                    }
+                } else {
+                    setScheduleState("open");
+                    setScheduleMessage("");
+                }
                 // Fetch active baseline for trainee if baseline ID isn't set yet
                 if (!fetchedBaselineId && isValidUuid(traineeId)) {
                     const { data: baselineData, error: baselineError } = await supabase
@@ -170,7 +248,11 @@ export default function Prepare() {
         connectWebSocket();
 
         return () => {
-            if (ws) ws.close();
+            if (wsRef.current) {
+                // Remove onclose reconnect listener to prevent auto-reconnecting on unmount
+                wsRef.current.onclose = null;
+                wsRef.current.close();
+            }
         };
     }, []);
 
@@ -204,8 +286,38 @@ export default function Prepare() {
     // NAVIGATION HANDLER TO WRITTEN ASSESSMENT
     // ==========================================================
     const handleWrittenAssessment = async () => {
+        if (toAssignmentIdOrNull(assignmentId) !== null) {
+            const { data: latestAssignment, error: latestAssignmentError } = await supabase
+                .from("assignments")
+                .select("id, assessment_date, start_time, end_time, status")
+                .eq("id", toAssignmentIdOrNull(assignmentId))
+                .maybeSingle();
+
+            if (latestAssignmentError) {
+                console.error("Unable to verify assessment schedule:", latestAssignmentError);
+                return;
+            }
+
+            const latestScheduleState = getScheduleState(latestAssignment);
+            if (latestScheduleState !== "open") {
+                setScheduleState(latestScheduleState);
+                setScheduleMessage(
+                    latestScheduleState === "before"
+                        ? `Assessment is not available yet. Start time: ${latestAssignment?.start_time || "scheduled time"}.`
+                        : `Assessment window has ended. End time: ${latestAssignment?.end_time || "scheduled time"}.`
+                );
+                return;
+            }
+        }
         setSubmitting(true);
         try {
+            // Close active Prepare WebSocket connection explicitly to free backend socket
+            if (wsRef.current) {
+                wsRef.current.onclose = null; // Prevent reconnect handler
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+
             // Ensure baseline ID is resolved or attempt a quick inline query
             let activeBaselineId = fetchedBaselineId || cleanVal(localStorage.getItem("active_baseline_id"));
 
@@ -227,12 +339,16 @@ export default function Prepare() {
             // Clear previous session completion and timer flags
             clearAssessmentStorage(assignmentId, assessmentId);
 
+            // Capture the exact moment the trainee starts the written assessment.
+            const startedAt = new Date().toISOString();
+            localStorage.setItem(`assessment_started_at_${assessmentId}`, startedAt);
+
             // Navigate to Written Assessment with all critical UUIDs preserved.
-            // WrittenAssessment.jsx handles sending the start signal upon mounting.
             navigate("/trainee/assessment/written-assessment", {
                 state: {
                     assignmentId: assignmentId,
                     assessmentId: assessmentId,
+                    startedAt: startedAt,
                     baselineId: activeBaselineId,
                     traineeId: traineeId,
                     assessment: {
@@ -460,15 +576,15 @@ export default function Prepare() {
 
                             <button
                                 onClick={handleWrittenAssessment}
-                                disabled={!eegReady || loadingData || submitting}
+                                disabled={!eegReady || loadingData || submitting || scheduleState !== "open"}
                                 className={`flex w-full items-center justify-center gap-3 rounded-2xl py-3 text-xl font-semibold transition-all ${
-                                    eegReady && !loadingData && !submitting
+                                    eegReady && !loadingData && !submitting && scheduleState === "open"
                                         ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
                                         : "bg-gray-300 text-gray-500 cursor-not-allowed"
                                 }`}
                             >
 
-                                {loadingData || submitting ? "Preparing Assessment..." : "Start Written Assessment"}
+                                {loadingData || submitting ? "Preparing Assessment..." : scheduleState === "before" ? "Assessment Not Yet Available" : scheduleState === "after" ? "Assessment Window Closed" : "Start Written Assessment"}
 
                                 {!loadingData && !submitting && <ArrowRight size={26} />}
 
@@ -480,7 +596,7 @@ export default function Prepare() {
                                     : "border-amber-200 bg-amber-50 text-amber-800"
                             }`}>
 
-                                {eegReady ? "Device contact optimal. Ready to begin!" : "Adjust device for better contact"}
+                                {scheduleState !== "open" ? scheduleMessage : eegReady ? "Device contact optimal. Ready to begin!" : "Adjust device for better contact"}
 
                             </div>
 

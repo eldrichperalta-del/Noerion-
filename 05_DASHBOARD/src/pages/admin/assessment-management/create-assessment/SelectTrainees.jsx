@@ -72,28 +72,37 @@ export default function SelectTrainees({
           throw profilesError;
         }
 
-        // 2. Fetch currently assigned trainees
+        // 2. Fetch assignments for session checks
         const {
           data: activeAssignments,
           error: assignError,
         } = await supabase
           .from("assignments")
-          .select("trainee_id");
+          .select("id, trainee_id, assessment_id, status, assessment_date, start_time, attempt_number");
 
         if (assignError) {
           throw assignError;
         }
 
-        // Build Set for fast lookup
-        const assignedTraineeIds = new Set(
-          (activeAssignments || [])
-            .map((assignment) => assignment.trainee_id)
-            .filter(Boolean)
-            .map((id) => String(id))
-        );
+        // 3. Fetch assessment submissions for evaluation checks
+        const {
+          data: submissionsData,
+          error: subError,
+        } = await supabase
+          .from("assessment_submissions")
+          .select("assignment_id, trainee_id, overall_result, status, created_at")
+          .order("created_at", { ascending: true });
+
+        if (subError) {
+          console.warn("Could not fetch submissions history:", subError.message);
+        }
+
+        const now = new Date();
 
         if (isMounted && approvedTrainees) {
           const formatted = approvedTrainees.map((item) => {
+            const traineeIdStr = String(item.id);
+
             const rawTraineeProf = Array.isArray(
               item.trainee_profiles
             )
@@ -112,12 +121,78 @@ export default function SelectTrainees({
               rawTraineeProf?.qualification_course ||
               "NC II";
 
-            const traineeIdStr = String(item.id);
+            // Match assignments and submissions by trainee_id
+            const traineeAssignments = (activeAssignments || []).filter(
+              (a) => String(a.trainee_id) === traineeIdStr
+            );
+            const traineeSubmissions = (submissionsData || []).filter(
+              (s) => String(s.trainee_id) === traineeIdStr
+            );
 
-            const sessionStatus =
-              assignedTraineeIds.has(traineeIdStr)
-                ? "In Another Session"
-                : "Active";
+            // Total attempts
+            const totalAttemptsCount = Math.max(
+              traineeAssignments.length,
+              traineeSubmissions.length
+            );
+
+            // Get latest assignment (e.g., id: 16 for Eldrich Tester, id: 4 for Testing Ground)
+            const latestAssignment = traineeAssignments.slice(-1)[0];
+
+            // Match submission STRICTLY by matching assignment_id (e.g., assignment_id === 16)
+            const currentSubmission = traineeSubmissions.find(
+              (s) => String(s.assignment_id) === String(latestAssignment?.id)
+            );
+
+            let displayStatus = "Active";
+            let isClickable = true;
+
+            const assignStatus = (latestAssignment?.status || "").toLowerCase().trim();
+            const subStatus = (currentSubmission?.status || "").toLowerCase().trim();
+            const overallResult = (currentSubmission?.overall_result || "").toLowerCase().trim();
+
+            if (latestAssignment) {
+              // CASE 1: Assignment is Completed or Submission is Submitted -> Waiting for Assessor
+              if (
+                assignStatus === "completed" ||
+                subStatus === "submitted" ||
+                overallResult.includes("eval")
+              ) {
+                // Unless the assessor has fully finished evaluating it
+                if (subStatus === "evaluated" && overallResult !== "in evaluation") {
+                  displayStatus = "Active";
+                  isClickable = true;
+                } else {
+                  displayStatus = "In Evaluation";
+                  isClickable = false;
+                }
+              }
+              // CASE 2: Assignment is Pending / Scheduled / In Progress and NOT submitted yet
+              else if (
+                ["pending", "scheduled", "assigned", "in progress"].includes(assignStatus)
+              ) {
+                let scheduledDateTime = null;
+                if (latestAssignment.assessment_date && latestAssignment.start_time) {
+                  const dateOnly = String(latestAssignment.assessment_date).split("T")[0];
+                  scheduledDateTime = new Date(`${dateOnly} ${latestAssignment.start_time}`);
+                }
+
+                if (assignStatus === "scheduled" && scheduledDateTime && now < scheduledDateTime) {
+                  displayStatus = "Scheduled";
+                } else {
+                  displayStatus = "In Another Session";
+                }
+
+                isClickable = false;
+              }
+              // CASE 3: Closed or Evaluated assignment
+              else {
+                displayStatus = "Active";
+                isClickable = true;
+              }
+            } else {
+              displayStatus = "Active";
+              isClickable = true;
+            }
 
             return {
               id: traineeIdStr,
@@ -129,7 +204,9 @@ export default function SelectTrainees({
                 item.email ||
                 "No Email",
               qualification,
-              assessmentStatus: sessionStatus,
+              assessmentStatus: displayStatus,
+              isClickable,
+              attemptCount: totalAttemptsCount,
               raw: item,
             };
           });
@@ -160,7 +237,7 @@ export default function SelectTrainees({
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [assessmentData]);
 
   // ============================================================
   // FILTER TRAINEES
@@ -199,13 +276,11 @@ export default function SelectTrainees({
 
   // ============================================================
   // SELECTABLE TRAINEES
-  // Only Active trainees can be selected.
   // ============================================================
 
   const selectableTrainees = useMemo(() => {
     return filteredTrainees.filter(
-      (trainee) =>
-        trainee.assessmentStatus === "Active"
+      (trainee) => trainee.isClickable
     );
   }, [filteredTrainees]);
 
@@ -255,23 +330,6 @@ export default function SelectTrainees({
     currentPage,
     totalPages,
   ]);
-
-  // ============================================================
-  // SHOWING X-Y OF Z
-  // ============================================================
-
-  const showingStart =
-    filteredTrainees.length === 0
-      ? 0
-      : (currentPage - 1) *
-      ITEMS_PER_PAGE +
-      1;
-
-  const showingEnd =
-    Math.min(
-      currentPage * ITEMS_PER_PAGE,
-      filteredTrainees.length
-    );
 
   // ============================================================
   // SELECT ALL
@@ -329,11 +387,10 @@ export default function SelectTrainees({
           String(id)
       );
 
-    // Do not allow unavailable trainees
+    // Block unselectable trainees
     if (
-      targetTrainee &&
-      targetTrainee.assessmentStatus !==
-      "Active"
+      !targetTrainee ||
+      !targetTrainee.isClickable
     ) {
       return;
     }
@@ -382,18 +439,12 @@ export default function SelectTrainees({
   return (
     <div className="-mt-4 rounded-2xl bg-white px-5 py-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
 
-      {/* ==========================================================
-          TITLE
-      ========================================================== */}
-
+      {/* TITLE */}
       <h2 className="mb-4 text-xl font-semibold text-gray-900">
         Step 2: Select Trainees
       </h2>
 
-      {/* ==========================================================
-          SEARCH + FILTER
-      ========================================================== */}
-
+      {/* SEARCH + FILTER */}
       <div className="mb-4 flex flex-col gap-3 md:flex-row">
 
         {/* Search */}
@@ -441,20 +492,14 @@ export default function SelectTrainees({
 
       </div>
 
-      {/* ==========================================================
-          ERROR
-      ========================================================== */}
-
+      {/* ERROR */}
       {errorMsg && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
           {errorMsg}
         </div>
       )}
 
-      {/* ==========================================================
-          TABLE
-      ========================================================== */}
-
+      {/* TABLE */}
       <div className="overflow-hidden rounded-xl border-2 border-gray-100">
 
         {loading ? (
@@ -502,6 +547,10 @@ export default function SelectTrainees({
                   Status
                 </th>
 
+                <th className="px-4 py-4 text-center">
+                  Attempt
+                </th>
+
               </tr>
 
             </thead>
@@ -519,9 +568,7 @@ export default function SelectTrainees({
                       )
                     );
 
-                  const isActive =
-                    trainee.assessmentStatus ===
-                    "Active";
+                  const isSelectable = trainee.isClickable;
 
                   return (
                     <tr
@@ -531,7 +578,7 @@ export default function SelectTrainees({
                           trainee.id
                         )
                       }
-                      className={`border-b border-gray-200 transition-colors ${isActive
+                      className={`border-b border-gray-200 transition-colors ${isSelectable
                         ? "cursor-pointer hover:bg-gray-100"
                         : "cursor-not-allowed bg-gray-50 opacity-70"
                         }`}
@@ -546,7 +593,7 @@ export default function SelectTrainees({
                             isChecked
                           }
                           disabled={
-                            !isActive
+                            !isSelectable
                           }
                           onClick={(event) =>
                             event.stopPropagation()
@@ -580,9 +627,14 @@ export default function SelectTrainees({
                       <td className="px-4 py-3">
 
                         <span
-                          className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${isActive
-                            ? "bg-green-100 text-green-700"
-                            : "bg-amber-100 text-amber-700"
+                          className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
+                            trainee.assessmentStatus === "Active"
+                              ? "bg-green-100 text-green-700"
+                              : trainee.assessmentStatus === "In Evaluation"
+                              ? "bg-blue-100 text-blue-700"
+                              : trainee.assessmentStatus === "In Another Session"
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-yellow-100 text-yellow-800"
                             }`}
                         >
                           {
@@ -590,6 +642,11 @@ export default function SelectTrainees({
                           }
                         </span>
 
+                      </td>
+
+                      {/* ATTEMPT */}
+                      <td className="px-4 py-3 text-center font-semibold text-gray-700">
+                        {trainee.attemptCount > 0 ? `${trainee.attemptCount} Attempt` : "-"}
                       </td>
 
                     </tr>
@@ -603,7 +660,7 @@ export default function SelectTrainees({
                 !loading && (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className="py-8 text-center text-gray-500"
                     >
                       No approved trainees found in database.

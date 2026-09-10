@@ -39,24 +39,57 @@ export default function CognitiveMetrics({
           return;
         }
 
-        const { data: segments, error: segmentsError } =
-          await supabase
-            .from("eeg_active_segments")
-            .select(
-              "attention_pct, engagement_pct, cognitive_load_pct"
-            )
-            .eq("trainee_id", targetTraineeId)
-            .order("created_at", {
-              ascending: false,
-            })
-            .limit(20);
+        const targetSubmissionId =
+          assessment?.submission_id || assessment?.id;
+
+        const targetAssignmentId =
+          assessment?.assignment_id || assessment?.assignment?.id;
+
+        // ================================================================
+        // STEP 1: FIND READING ID FROM TRAINEE_EEG_READINGS
+        // ================================================================
+        let eegReadingQuery = supabase
+          .from("trainee_eeg_readings")
+          .select("id, trainee_id")
+          .eq("trainee_id", targetTraineeId);
+
+        if (targetSubmissionId) {
+          eegReadingQuery = eegReadingQuery.eq("submission_id", targetSubmissionId);
+        } else if (targetAssignmentId) {
+          eegReadingQuery = eegReadingQuery.eq("assignment_id", targetAssignmentId);
+        }
+
+        const { data: readings, error: readingError } = await eegReadingQuery
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (readingError) {
+          console.error("Error fetching trainee_eeg_readings:", readingError.message);
+        }
+
+        const matchedReading = readings && readings.length > 0 ? readings[0] : null;
+
+        // ================================================================
+        // STEP 2: FETCH EEG ACTIVE SEGMENTS
+        // ================================================================
+        let segmentsQuery = supabase
+          .from("eeg_active_segments")
+          .select("attention_pct, engagement_pct, cognitive_load_pct");
+
+        if (matchedReading?.id) {
+          segmentsQuery = segmentsQuery.eq("reading_id", matchedReading.id);
+        } else if (targetSubmissionId) {
+          segmentsQuery = segmentsQuery.eq("reading_id", targetSubmissionId);
+        } else {
+          segmentsQuery = segmentsQuery.eq("trainee_id", targetTraineeId);
+        }
+
+        const { data: segments, error: segmentsError } = await segmentsQuery
+          .order("created_at", { ascending: false })
+          .limit(20);
 
         if (segmentsError) {
-          console.error(
-            "Error fetching eeg_active_segments:",
-            segmentsError.message
-          );
-
+          console.error("Error fetching eeg_active_segments:", segmentsError.message);
           setLoading(false);
           return;
         }
@@ -68,102 +101,65 @@ export default function CognitiveMetrics({
             const val = Number(rawAvg) || 0;
 
             if (val <= 1) {
-              return Math.min(
-                Math.round(val * 100),
-                100
-              );
+              return Math.min(Math.round(val * 100), 100);
             }
 
             if (val <= 10) {
-              return Math.min(
-                Math.round(val * 15),
-                100
-              );
+              return Math.min(Math.round(val * 15), 100);
             }
 
-            return Math.min(
-              Math.round(val),
-              100
-            );
+            return Math.min(Math.round(val), 100);
           };
 
           const rawAttentionAvg =
             segments.reduce(
-              (acc, row) =>
-                acc +
-                (Number(row.attention_pct) || 0),
+              (acc, row) => acc + (Number(row.attention_pct) || 0),
               0
             ) / count;
 
           const rawFocusAvg =
             segments.reduce(
-              (acc, row) =>
-                acc +
-                (Number(row.cognitive_load_pct) || 0),
+              (acc, row) => acc + (Number(row.cognitive_load_pct) || 0),
               0
             ) / count;
 
           const rawEngagementAvg =
             segments.reduce(
-              (acc, row) =>
-                acc +
-                (Number(row.engagement_pct) || 0),
+              (acc, row) => acc + (Number(row.engagement_pct) || 0),
               0
             ) / count;
 
           const updatedMetrics = [
             {
               label: "Average Attention",
-              value: toPercentage(
-                rawAttentionAvg
-              ),
+              value: toPercentage(rawAttentionAvg),
             },
             {
               label: "Average Focus",
-              value: toPercentage(
-                rawFocusAvg
-              ),
+              value: toPercentage(rawFocusAvg),
             },
             {
               label: "Cognitive Engagement",
-              value: toPercentage(
-                rawEngagementAvg
-              ),
+              value: toPercentage(rawEngagementAvg),
             },
           ];
 
           setMetrics(updatedMetrics);
 
           animationTimer = setTimeout(() => {
-            setAnimatedValues(
-              updatedMetrics.map(
-                (metric) => metric.value
-              )
-            );
+            setAnimatedValues(updatedMetrics.map((metric) => metric.value));
           }, 150);
         } else {
           setMetrics([
-            {
-              label: "Average Attention",
-              value: 0,
-            },
-            {
-              label: "Average Focus",
-              value: 0,
-            },
-            {
-              label: "Cognitive Engagement",
-              value: 0,
-            },
+            { label: "Average Attention", value: 0 },
+            { label: "Average Focus", value: 0 },
+            { label: "Cognitive Engagement", value: 0 },
           ]);
 
           setAnimatedValues([0, 0, 0]);
         }
       } catch (err) {
-        console.error(
-          "Error loading cognitive metrics:",
-          err
-        );
+        console.error("Error loading cognitive metrics:", err);
       } finally {
         setLoading(false);
       }
@@ -184,22 +180,15 @@ export default function CognitiveMetrics({
    * ================================================================
    */
 
-  const plotPoints = metrics.map(
-    (metric, index) => ({
-      label: metric.label,
-      value: animatedValues[index] || 0,
-    })
-  );
+  const plotPoints = metrics.map((metric, index) => ({
+    label: metric.label,
+    value: animatedValues[index] || 0,
+  }));
 
   const svgPoints = plotPoints
     .map((point, index) => {
-      const x =
-        ((index + 0.5) /
-          plotPoints.length) *
-        100;
-
+      const x = ((index + 0.5) / plotPoints.length) * 100;
       const y = 100 - point.value;
-
       return `${x},${y}`;
     })
     .join(" ");
@@ -207,8 +196,6 @@ export default function CognitiveMetrics({
   /*
    * ================================================================
    * CARD HEIGHT
-   *
-   * containerHeight comes directly from AI Cognitive Insights.
    * ================================================================
    */
 
@@ -235,17 +222,10 @@ export default function CognitiveMetrics({
         overflow-hidden
       "
     >
-      {/* ================================================================
-          HEADER
-      ================================================================= */}
-
+      {/* HEADER */}
       <div className="flex items-center justify-between mb-5 shrink-0">
         <div className="flex items-center gap-2">
-          <Brain
-            size={22}
-            className="text-blue-700 shrink-0"
-          />
-
+          <Brain size={22} className="text-blue-700 shrink-0" />
           <h2 className="text-2xl font-bold text-gray-800">
             Cognitive Metrics
           </h2>
@@ -258,29 +238,12 @@ export default function CognitiveMetrics({
         )}
       </div>
 
-      {/* ================================================================
-          MAIN CONTENT
-          
-          This area grows/shrinks depending on the AI container height.
-      ================================================================= */}
-
+      {/* MAIN CONTENT */}
       <div className="flex-1 min-h-0 flex flex-col">
-
-        {/* ================================================================
-            PLOT AREA
-
-            flex-1 means the plot receives all available vertical space.
-            It is no longer locked to h-[220px].
-        ================================================================= */}
-
+        {/* PLOT AREA */}
         <div className="flex-1 min-h-0 relative">
-
-          {/* ============================================================
-              ACTUAL GRAPH AREA
-          ============================================================ */}
-
+          {/* GRAPH AREA */}
           <div className="absolute inset-0 ml-10 mr-4 mb-8">
-
             {/* Y-axis numbers */}
             <div className="absolute -left-10 top-0 h-full flex flex-col justify-between text-xs text-gray-500">
               <span>100</span>
@@ -305,10 +268,7 @@ export default function CognitiveMetrics({
             {/* X axis */}
             <div className="absolute left-0 bottom-0 w-full border-b border-gray-400" />
 
-            {/* ========================================================
-                CONNECTING LINE
-            ======================================================== */}
-
+            {/* CONNECTING LINE */}
             <svg
               className="
                 absolute
@@ -329,86 +289,57 @@ export default function CognitiveMetrics({
                 strokeWidth="1.5"
                 vectorEffect="non-scaling-stroke"
                 style={{
-                  transition:
-                    "all 1.8s ease-out",
+                  transition: "all 1.8s ease-out",
                 }}
               />
             </svg>
 
-            {/* ========================================================
-                PLOT POINTS
-            ======================================================== */}
-
+            {/* PLOT POINTS */}
             <div className="absolute inset-0">
-              {plotPoints.map(
-                (point, index) => {
-                  const xPosition =
-                    ((index + 0.5) /
-                      plotPoints.length) *
-                    100;
+              {plotPoints.map((point, index) => {
+                const xPosition =
+                  ((index + 0.5) / plotPoints.length) * 100;
+                const yPosition = 100 - point.value;
 
-                  const yPosition =
-                    100 - point.value;
-
-                  return (
-                    <div
-                      key={point.label}
-                      className="absolute"
-                      style={{
-                        left: `${xPosition}%`,
-                        top: `${yPosition}%`,
-                        transform:
-                          "translate(-50%, -50%)",
-                        transition:
-                          "left 0.8s ease-out, top 1.8s ease-out",
-                      }}
-                    >
-                      <div className="relative flex items-center justify-center">
-
-                        {/* Glow */}
-                        <div className="absolute w-8 h-8 rounded-full bg-blue-100 opacity-70" />
-
-                        {/* Point */}
-                        <div className="relative w-4 h-4 rounded-full bg-blue-700 border-2 border-white shadow-md" />
-
-                        {/* Value */}
-                        <div className="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                          <span className="text-sm font-bold text-blue-700">
-                            {point.value}%
-                          </span>
-                        </div>
-
+                return (
+                  <div
+                    key={point.label}
+                    className="absolute"
+                    style={{
+                      left: `${xPosition}%`,
+                      top: `${yPosition}%`,
+                      transform: "translate(-50%, -50%)",
+                      transition:
+                        "left 0.8s ease-out, top 1.8s ease-out",
+                    }}
+                  >
+                    <div className="relative flex items-center justify-center">
+                      <div className="absolute w-8 h-8 rounded-full bg-blue-100 opacity-70" />
+                      <div className="relative w-4 h-4 rounded-full bg-blue-700 border-2 border-white shadow-md" />
+                      <div className="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                        <span className="text-sm font-bold text-blue-700">
+                          {point.value}%
+                        </span>
                       </div>
                     </div>
-                  );
-                }
-              )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* ============================================================
-              X-AXIS LABELS
-          ============================================================ */}
-
+          {/* X-AXIS LABELS */}
           <div className="absolute left-10 right-4 bottom-0 grid grid-cols-3">
-            {metrics.map(
-              (metric) => (
-                <div
-                  key={metric.label}
-                  className="text-center px-1"
-                >
-                  <span className="text-xs font-medium text-gray-600">
-                    {metric.label}
-                  </span>
-                </div>
-              )
-            )}
+            {metrics.map((metric) => (
+              <div key={metric.label} className="text-center px-1">
+                <span className="text-xs font-medium text-gray-600">
+                  {metric.label}
+                </span>
+              </div>
+            ))}
           </div>
 
-          {/* ============================================================
-              Y-AXIS TITLE
-          ============================================================ */}
-
+          {/* Y-AXIS TITLE */}
           <div className="absolute left-0 top-1/2 -translate-y-1/1 -rotate-90 origin-center">
             <span className="text-xs font-semibold text-gray-500 whitespace-nowrap">
               Performance (%)
@@ -416,33 +347,16 @@ export default function CognitiveMetrics({
           </div>
         </div>
 
-        {/* ================================================================
-            X-AXIS TITLE
-        ================================================================= */}
-
-        {/* ================================================================
-            METRIC SUMMARY
-
-            This stays at the bottom of the card regardless of height.
-        ================================================================= */}
-
+        {/* METRIC SUMMARY */}
         <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-gray-200 shrink-0">
-          {metrics.map(
-            (metric, index) => (
-              <div
-                key={metric.label}
-                className="text-center"
-              >
-                <p className="text-xs text-gray-500 mb-1">
-                  {metric.label}
-                </p>
-
-                <p className="text-lg font-bold text-gray-800">
-                  {animatedValues[index]}%
-                </p>
-              </div>
-            )
-          )}
+          {metrics.map((metric, index) => (
+            <div key={metric.label} className="text-center">
+              <p className="text-xs text-gray-500 mb-1">{metric.label}</p>
+              <p className="text-lg font-bold text-gray-800">
+                {animatedValues[index]}%
+              </p>
+            </div>
+          ))}
         </div>
       </div>
     </div>
