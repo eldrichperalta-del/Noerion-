@@ -8,7 +8,6 @@ export default function CertificateSearch() {
   const navigate = useNavigate();
   const [certificateNumber, setCertificateNumber] = useState("");
 
-
   useEffect(() => {
     const scanner = new Html5QrcodeScanner(
       "qr-reader",
@@ -26,11 +25,34 @@ export default function CertificateSearch() {
 
         scanner.clear().catch(() => { });
 
+        const scannedValue = decodedText.trim();
+
+        if (!scannedValue) {
+          navigate("/verify-certificate");
+          return;
+        }
+
         try {
-          const url = new URL(decodedText);
-          navigate(url.pathname + url.search);
+          const url = new URL(scannedValue);
+
+          const currentOrigin = globalThis.location.origin;
+
+          const isSameOrigin = url.origin === currentOrigin;
+
+          const isVerificationPath =
+            url.pathname.startsWith("/verify/") ||
+            url.pathname.startsWith("/verify-certificate/");
+
+          if (isSameOrigin && isVerificationPath) {
+            navigate(url.pathname + url.search);
+            return;
+          }
+
+          // Fake/external/unrecognized QR
+          navigate("/verify-certificate");
         } catch {
-          navigate(`/verify/${encodeURIComponent(decodedText.trim())}`);
+          // QR is not a URL → treat it as an invalid QR
+          navigate("/verify-certificate");
         }
       },
       () => {
@@ -57,23 +79,31 @@ export default function CertificateSearch() {
 
     return () => {
       clearInterval(waitForPermissionButton);
-
       scanner.clear().catch(() => { });
     };
   }, [navigate]);
 
-
-
   const verifyCertificate = (value = certificateNumber) => {
     const id = value.trim();
-    if (id) navigate(`/verify/${encodeURIComponent(id)}`);
+
+    if (id) {
+      navigate(
+        `/verify-certificate/${encodeURIComponent(id)}`
+      );
+    }
   };
 
   return (
     <main className="verification-page search-page">
       <div className="verification-grid" aria-hidden="true" />
-      <div className="verification-circuit circuit-left" aria-hidden="true" />
-      <div className="verification-circuit circuit-right" aria-hidden="true" />
+      <div
+        className="verification-circuit circuit-left"
+        aria-hidden="true"
+      />
+      <div
+        className="verification-circuit circuit-right"
+        aria-hidden="true"
+      />
 
       <section className="verification-content">
         <header className="verification-heading">
@@ -91,12 +121,14 @@ export default function CertificateSearch() {
               <div id="qr-reader" />
             </div>
 
-            <div className="custom-scanner-overlay" aria-hidden="true">
+            <div
+              className="custom-scanner-overlay"
+              aria-hidden="true"
+            >
               <span className="scanner-corner scanner-corner-tl" />
               <span className="scanner-corner scanner-corner-tr" />
               <span className="scanner-corner scanner-corner-bl" />
               <span className="scanner-corner scanner-corner-br" />
-
               <span className="scanner-line" />
             </div>
           </div>
@@ -105,7 +137,10 @@ export default function CertificateSearch() {
             <span>OR</span>
           </div>
 
-          <label className="certificate-label" htmlFor="certificate-number">
+          <label
+            className="certificate-label"
+            htmlFor="certificate-number"
+          >
             Certificate Number
           </label>
 
@@ -113,8 +148,12 @@ export default function CertificateSearch() {
             id="certificate-number"
             className="certificate-input"
             value={certificateNumber}
-            onChange={(e) => setCertificateNumber(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && verifyCertificate()}
+            onChange={(e) =>
+              setCertificateNumber(e.target.value)
+            }
+            onKeyDown={(e) =>
+              e.key === "Enter" && verifyCertificate()
+            }
             placeholder="Enter certificate number"
           />
 
@@ -132,8 +171,8 @@ export default function CertificateSearch() {
       </section>
 
       <p className="verification-footer">
-        All verified data is securely handled in compliance with global data
-        protection standards.
+        All verified data is securely handled in compliance with
+        global data protection standards.
       </p>
     </main>
   );

@@ -59,7 +59,7 @@ export default function CertificateVerification() {
         if (!certificateId) {
           if (!cancelled) {
             setErrorMessage(
-              "Certificate number is required."
+              "Unable to verify this certificate through the NOERION system."
             );
             setLoading(false);
           }
@@ -466,7 +466,7 @@ export default function CertificateVerification() {
               <div>
                 ✓ QR Code Integrity:{" "}
                 <strong>
-                  {checks.certificateIdValid
+                  {checks.qrHashValid
                     ? "VALID"
                     : "INVALID"}
                 </strong>
@@ -475,7 +475,7 @@ export default function CertificateVerification() {
               <div>
                 ✓ Digital Signature:{" "}
                 <strong>
-                  {checks.signatureValid
+                  {checks.qrHashValid
                     ? "VALID"
                     : "INVALID"}
                 </strong>

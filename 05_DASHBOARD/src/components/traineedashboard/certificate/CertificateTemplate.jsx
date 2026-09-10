@@ -16,9 +16,9 @@ export default function CertificateTemplate({
   ).replace(/^#/, "");
 
   const verificationUrl = normalizedCertificateId
-    ? `${globalThis.location.origin}/verify/${encodeURIComponent(
-        normalizedCertificateId
-      )}`
+    ? `${globalThis.location.origin}/verify-certificate/${encodeURIComponent(
+      normalizedCertificateId
+    )}`
     : "";
 
   return (
@@ -184,7 +184,7 @@ export default function CertificateTemplate({
               </p>
             </div>
 
-                        {/* FOOTER */}
+            {/* FOOTER */}
             <div
               className="
                 certificate-footer-grid

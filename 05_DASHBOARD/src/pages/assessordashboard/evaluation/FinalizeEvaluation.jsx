@@ -1161,7 +1161,9 @@ export default function FinalizeEvaluation() {
 
         if (
           dbStatus?.toLowerCase() ===
-          "submitted"
+            "evaluated" ||
+          dbStatus?.toLowerCase() ===
+            "finalized"
         ) {
 
           statusResult =
@@ -1452,6 +1454,9 @@ export default function FinalizeEvaluation() {
 
         /* ======================================================
            VALIDATE OVERRIDE
+           
+           Justification is required ONLY when overriding.
+           Remarks are OPTIONAL.
            ====================================================== */
 
         if (
@@ -1461,17 +1466,6 @@ export default function FinalizeEvaluation() {
 
           throw new Error(
             "Please provide a justification for overriding the result."
-          );
-
-        }
-
-
-        if (
-          !remarks.trim()
-        ) {
-
-          throw new Error(
-            "Please provide assessment remarks before finalizing."
           );
 
         }
@@ -1515,17 +1509,19 @@ export default function FinalizeEvaluation() {
 
         /* ======================================================
            SAVE FINAL EVALUATION
-
+           
            IMPORTANT:
-           total_score is NOT changed here.
-
-           It preserves the original system-calculated score.
+           - status becomes "evaluated"
+           - overall_result becomes the actual final result
+           - total_score remains the original system score
+             unless an override is being used
+           - remarks are optional
            ====================================================== */
 
         const updatePayload = {
 
           status:
-            "submitted",
+            "evaluated",
 
           submitted_at:
             now,
@@ -1535,6 +1531,13 @@ export default function FinalizeEvaluation() {
 
           overall_result:
             displayResult,
+
+          total_score:
+            hasOverride
+              ? activeScore
+              : Number(
+                metrics.totalScore
+              ),
 
           override_score:
             hasOverride
@@ -1550,7 +1553,7 @@ export default function FinalizeEvaluation() {
             hasOverride,
 
           remarks:
-            remarks.trim(),
+            remarks?.trim() || null,
 
           justification:
             hasOverride
@@ -1563,7 +1566,21 @@ export default function FinalizeEvaluation() {
         };
 
 
+        console.log(
+          "Finalizing assessment submission:",
+          {
+            submissionId,
+            updatePayload,
+          }
+        );
+
+
+        /* ======================================================
+           UPDATE DATABASE
+           ====================================================== */
+
         const {
+          data: updatedSubmission,
           error: updateError,
         } = await supabase
 
@@ -1578,21 +1595,46 @@ export default function FinalizeEvaluation() {
           .eq(
             "id",
             submissionId
-          );
+          )
+
+          .select()
+          .single();
 
 
         if (
           updateError
         ) {
 
+          console.error(
+            "Database update error:",
+            updateError
+          );
+
           throw updateError;
 
         }
 
 
+        if (
+          !updatedSubmission
+        ) {
+
+          throw new Error(
+            "The evaluation could not be updated. No database record was returned."
+          );
+
+        }
+
+
+        console.log(
+          "Assessment submission successfully updated:",
+          updatedSubmission
+        );
+
+
         /* ======================================================
            CREATE CERTIFICATE
-
+           
            The Edge Function should handle duplicates.
            ====================================================== */
 
