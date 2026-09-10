@@ -62,7 +62,7 @@ export default function ActionsCard({ assessment }) {
 
       const traineeId = assessment?.trainee_id;
 
-      // 1. FETCH AI ASSESSMENT INSIGHTS
+      // 1. FETCH AI ASSESSMENT INSIGHTS (Prioritizing 'feedback' column)
       let aiData = null;
       if (submissionId) {
         const { data } = await supabase
@@ -85,8 +85,9 @@ export default function ActionsCard({ assessment }) {
         }
       };
 
+      // Pulls directly from 'feedback' first
       const aiInsights = parseJsonArray(
-        aiData?.ai_cognitive_insights || aiData?.feedback
+        aiData?.feedback || aiData?.ai_cognitive_insights
       );
       const recommendations = parseJsonArray(aiData?.recommendations);
 
@@ -113,7 +114,7 @@ export default function ActionsCard({ assessment }) {
       let eegValues = { attention: 0, focus: 0, engagement: 0 };
 
       if (traineeId) {
-        // Step 3a: Get reading_id
+        // Step 3a: Get active reading_id
         let readingQuery = supabase
           .from("trainee_eeg_readings")
           .select("id")
@@ -127,7 +128,8 @@ export default function ActionsCard({ assessment }) {
           .order("created_at", { ascending: false })
           .limit(1);
 
-        const matchedReadingId = readings && readings.length > 0 ? readings[0].id : null;
+        const matchedReadingId =
+          readings && readings.length > 0 ? readings[0].id : null;
 
         // Step 3b: Query active segments using reading_id or trainee_id
         let segmentsQuery = supabase
