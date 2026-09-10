@@ -352,15 +352,15 @@ export default function Results() {
                     <td className="px-6 py-4 text-gray-600">
                       {assessment.rawDate
                         ? new Date(
-                          assessment.rawDate
-                        ).toLocaleDateString(
-                          "en-US",
-                          {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          }
-                        )
+                            assessment.rawDate
+                          ).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            }
+                          )
                         : "N/A"}
                     </td>
 
@@ -376,19 +376,17 @@ export default function Results() {
                     </td>
 
                     {/* Actions */}
-                    <td className="px-6 py-4 text-right">
-                      <td className="px-5 py-4 text-center whitespace-nowrap">
-                        <button
-                          onClick={() =>
-                            navigate("/trainee/assessment-summary", {
-                              state: { assessment },
-                            })
-                          }
-                          className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-blue-700 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-800"
-                        >
-                          View Results
-                        </button>
-                      </td>
+                    <td className="px-6 py-4 text-right whitespace-nowrap">
+                      <button
+                        onClick={() =>
+                          navigate("/trainee/assessment-summary", {
+                            state: { assessment },
+                          })
+                        }
+                        className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-blue-700 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-800"
+                      >
+                        View Results
+                      </button>
                     </td>
                   </tr>
                 ))
