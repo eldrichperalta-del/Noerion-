@@ -1,5 +1,9 @@
 import React, { useState } from "react";
 import { supabase } from "../../../../supabaseClient";
+import {
+  notifyTraineeSchedule,
+  notifyAssessorSchedule,
+} from "../../../../services/notificationService";
 
 function ReviewConfirm({
   assessmentData,
@@ -164,6 +168,8 @@ function ReviewConfirm({
       });
 
       // 3. Insert Assignment Records with incremented attempt_number
+      let createdAssignments = [];
+
       if (trainees.length > 0 && batchData) {
         const assignmentsPayload = trainees.map((t) => {
           const tId = t.id || t.user_id;
@@ -173,33 +179,93 @@ function ReviewConfirm({
             batch_id: batchData.id,
             batch_name: batchData.assessment_name,
             assessment_id: assessmentIdVal,
-            assessment_name: selectedAssessment?.title || "Scheduled Assessment",
+            assessment_name:
+              selectedAssessment?.title || "Scheduled Assessment",
             assessor_id: assessor?.id || null,
             trainee_id: tId,
             admin_id: user?.id || null,
             qualification: qualification,
-            assessment_type: selectedAssessment?.assessment_type || "Written",
-            assessment_date: assessmentDateVal ? new Date(assessmentDateVal).toISOString() : null,
+            assessment_type:
+              selectedAssessment?.assessment_type || "Written",
+            assessment_date: assessmentDateVal
+              ? new Date(assessmentDateVal).toISOString()
+              : null,
             start_time: startTimeVal,
             end_time: endTimeVal,
             duration: duration,
-            instructions: schedule?.instructions || schedule?.venue || "",
+            instructions:
+              schedule?.instructions || schedule?.venue || "",
             status: "Scheduled",
-            attempt_number: prevAttempt + 1, // 👈 Increments attempt for retakes
+            attempt_number: prevAttempt + 1,
             assigned_at: new Date().toISOString(),
           };
         });
 
-        const { error: assignError } = await supabase
+        const {
+          data,
+          error: assignError,
+        } = await supabase
           .from("assignments")
-          .insert(assignmentsPayload);
+          .insert(assignmentsPayload)
+          .select("id, trainee_id, assessor_id, batch_id");
 
         if (assignError) {
           // Rollback batch if assignments insert fails
-          await supabase.from("assessment_batches").delete().eq("id", createdBatchId);
+          await supabase
+            .from("assessment_batches")
+            .delete()
+            .eq("id", createdBatchId);
+
           throw assignError;
         }
+
+        createdAssignments = data || [];
       }
+
+      // 4. Create notifications only after the batch and assignments
+      //    have been successfully created.
+      //
+      //    Notification failure must NOT rollback a valid assessment schedule.
+
+      try {
+        const createdAssignmentRows = createdAssignments || [];
+
+        // Notify each selected trainee
+        const traineeNotificationResults = await Promise.all(
+          createdAssignmentRows.map(async (assignment) => {
+            return notifyTraineeSchedule({
+              traineeId: assignment.trainee_id,
+              relatedId: assignment.batch_id,
+              assessmentTitle:
+                selectedAssessment?.title || "Scheduled Assessment",
+            });
+          })
+        );
+
+        // Notify assigned assessor once
+        let assessorNotificationResult = null;
+
+        if (assessor?.id && createdAssignmentRows.length > 0) {
+          assessorNotificationResult = await notifyAssessorSchedule({
+            assessorId: assessor.id,
+            relatedId: createdAssignmentRows[0].batch_id,
+            assessmentTitle:
+              selectedAssessment?.title || "Scheduled Assessment",
+          });
+        }
+
+        console.log("Assessment scheduling notifications:", {
+          traineeNotifications: traineeNotificationResults,
+          assessorNotification: assessorNotificationResult,
+        });
+      } catch (notificationError) {
+        console.error(
+          "Assessment scheduled successfully, but notification creation encountered an error:",
+          notificationError
+        );
+      }
+
+
 
       onComplete?.(assessmentData);
       setShowSuccessMessage(true);

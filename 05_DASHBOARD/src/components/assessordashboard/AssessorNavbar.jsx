@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { supabase } from "../../supabaseClient"; // Adjust path if needed
+import NotificationBell from "../common/NotificationBell";
 
 function AssessorNavbar() {
   const location = useLocation();
@@ -76,6 +77,8 @@ function AssessorNavbar() {
       <h1 className="text-xl font-semibold text-gray-400">{currentTitle}</h1>
 
       <div className="flex items-center gap-3">
+        <NotificationBell />
+
         <img
           src={assessorProfile.photoUrl}
           alt={assessorProfile.name}

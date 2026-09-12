@@ -8,6 +8,7 @@ import {
 } from "react-router-dom";
 
 import { supabase } from "../../../supabaseClient";
+import { notifyTraineeResult } from "../../../services/notificationService";
 
 import AssessorBreadcrumbs from "../../../components/assessordashboard/flow/AssessorBreadcrumbs";
 import ConfirmationModal from "../../../components/assessordashboard/flow/ConfirmationModal";
@@ -601,7 +602,7 @@ export default function FinalizeEvaluation() {
 
           setNewScore(
             dbOverrideScore !== null &&
-            dbOverrideScore !== undefined
+              dbOverrideScore !== undefined
               ? String(
                 dbOverrideScore
               )
@@ -762,7 +763,7 @@ export default function FinalizeEvaluation() {
 
                 if (
                   !optionsByQuestion[
-                    option.question_id
+                  option.question_id
                   ]
                 ) {
 
@@ -861,7 +862,7 @@ export default function FinalizeEvaluation() {
 
               const traineeAnswer =
                 traineeAnswersMap[
-                  question.id
+                question.id
                 ];
 
 
@@ -895,13 +896,13 @@ export default function FinalizeEvaluation() {
                 !rawTraineeAnswer &&
                 traineeAnswer?.selected_option_id &&
                 optionsMap[
-                  traineeAnswer.selected_option_id
+                traineeAnswer.selected_option_id
                 ]
               ) {
 
                 const option =
                   optionsMap[
-                    traineeAnswer.selected_option_id
+                  traineeAnswer.selected_option_id
                   ];
 
 
@@ -920,9 +921,9 @@ export default function FinalizeEvaluation() {
 
               let traineeAnswerString =
                 rawTraineeAnswer &&
-                String(
-                  rawTraineeAnswer
-                ).trim() !== ""
+                  String(
+                    rawTraineeAnswer
+                  ).trim() !== ""
 
                   ? String(
                     rawTraineeAnswer
@@ -955,7 +956,7 @@ export default function FinalizeEvaluation() {
 
               const rawCorrectKey =
                 answerKeysMap[
-                  question.id
+                question.id
                 ] ??
                 "N/A";
 
@@ -966,7 +967,7 @@ export default function FinalizeEvaluation() {
 
               const questionOptions =
                 optionsByQuestion[
-                  question.id
+                question.id
                 ] ??
                 [];
 
@@ -1129,8 +1130,8 @@ export default function FinalizeEvaluation() {
 
         const activeStoredScore =
           dbOverrideApplied &&
-          dbOverrideScore !== null &&
-          dbOverrideScore !== undefined
+            dbOverrideScore !== null &&
+            dbOverrideScore !== undefined
             ? Number(
               dbOverrideScore
             )
@@ -1161,14 +1162,14 @@ export default function FinalizeEvaluation() {
 
         if (
           dbStatus?.toLowerCase() ===
-            "evaluated" ||
+          "evaluated" ||
           dbStatus?.toLowerCase() ===
-            "finalized"
+          "finalized"
         ) {
 
           statusResult =
             dbOverrideApplied &&
-            dbOverrideResult
+              dbOverrideResult
               ? dbOverrideResult
               : (
                 dbResult ??
@@ -1376,6 +1377,166 @@ export default function FinalizeEvaluation() {
 
 
       return data.certificate;
+
+    };
+
+  /* ============================================================
+ TEMPORARY NOTIFICATION TEST
+ ============================================================ */
+
+  const handleTestNotification =
+    async () => {
+
+      console.log(
+        "========== TEST NOTIFICATION START =========="
+      );
+
+      try {
+
+        /* --------------------------------------------------------
+           CHECK CURRENT BROWSER SESSION
+           -------------------------------------------------------- */
+
+        const {
+          data: {
+            user,
+          },
+          error: authError,
+        } = await supabase.auth.getUser();
+
+
+        console.log(
+          "TEST AUTH USER:",
+          user
+        );
+
+        console.log(
+          "TEST AUTH USER ID:",
+          user?.id
+        );
+
+        console.log(
+          "TEST AUTH ERROR:",
+          authError
+        );
+
+
+        if (!user) {
+
+          alert(
+            "No authenticated user was found in the browser."
+          );
+
+          return;
+
+        }
+
+
+        /* --------------------------------------------------------
+           CHECK CALLER PROFILE
+           -------------------------------------------------------- */
+
+        const {
+          data: callerProfile,
+          error: profileError,
+        } = await supabase
+
+          .from("profiles")
+
+          .select(
+            "id, role, email"
+          )
+
+          .eq(
+            "id",
+            user.id
+          )
+
+          .maybeSingle();
+
+
+        console.log(
+          "TEST CALLER PROFILE:",
+          callerProfile
+        );
+
+        console.log(
+          "TEST PROFILE ERROR:",
+          profileError
+        );
+
+
+        /* --------------------------------------------------------
+           TEST NOTIFICATION INSERT
+           -------------------------------------------------------- */
+
+        console.log(
+          "TEST TRAINEE ID:",
+          selectedTrainee.id
+        );
+
+
+        const result =
+          await notifyTraineeResult({
+
+            traineeId:
+              selectedTrainee.id,
+
+            submissionId:
+              submissionId,
+
+            assessmentTitle:
+              "TEST - Notification",
+
+            result:
+              "Competent",
+
+          });
+
+
+        console.log(
+          "========== TEST NOTIFICATION RESULT ==========",
+          result
+        );
+
+
+        if (
+          result?.success
+        ) {
+
+          alert(
+            "Notification test succeeded!"
+          );
+
+        }
+
+        else {
+
+          alert(
+            `Notification test failed: ${result?.error?.message ??
+            result?.reason ??
+            "Unknown error"
+            }`
+          );
+
+        }
+
+      }
+
+      catch (error) {
+
+        console.error(
+          "========== TEST NOTIFICATION ERROR ==========",
+          error
+        );
+
+
+        alert(
+          error?.message ??
+          "Notification test failed."
+        );
+
+      }
 
     };
 
@@ -1654,6 +1815,65 @@ export default function FinalizeEvaluation() {
 
         }
 
+        /* ======================================================
+   NOTIFY TRAINEE OF FINAL RESULT
+   
+   Notification failure must NOT rollback
+   the successfully finalized evaluation.
+   ====================================================== */
+
+        try {
+
+          console.log(
+            "FINALIZE: ABOUT TO NOTIFY TRAINEE",
+            {
+              traineeId:
+                selectedTrainee.id,
+
+              submissionId:
+                submissionId,
+
+              assessmentTitle:
+                assessment?.title ??
+                evaluationSummary?.assessment?.title ??
+                "Assessment",
+
+              result:
+                displayResult,
+            }
+          );
+
+          const notificationResult =
+            await notifyTraineeResult({
+              traineeId:
+                selectedTrainee.id,
+
+              submissionId:
+                submissionId,
+
+              assessmentTitle:
+                assessment?.title ??
+                evaluationSummary?.assessment?.title ??
+                "Assessment",
+
+              result:
+                displayResult,
+            });
+
+          console.log(
+            "Trainee result notification:",
+            notificationResult
+          );
+
+        } catch (notificationError) {
+
+          console.error(
+            "Evaluation finalized successfully, but trainee result notification failed:",
+            notificationError
+          );
+
+        }
+
 
         /* ======================================================
            UPDATE UI
@@ -1737,7 +1957,7 @@ export default function FinalizeEvaluation() {
 
   const previewScore =
     decision === "override" &&
-    newScore !== ""
+      newScore !== ""
 
       ? Number(
         newScore

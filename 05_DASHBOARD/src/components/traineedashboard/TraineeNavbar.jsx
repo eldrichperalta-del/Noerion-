@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
+import NotificationBell from "../common/NotificationBell";
 
 function TraineeNavbar() {
   const location = useLocation();
@@ -68,14 +69,16 @@ function TraineeNavbar() {
   }, []);
 
   return (
-    <header className="h-16 w-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.15)] flex items-center justify-between px-6 z-10">
+    <header className="relative h-16 w-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.15)] flex items-center justify-between px-6 z-50">
       {/* Page Title */}
       <h1 className="text-xl font-semibold text-gray-400">
         {currentTitle}
       </h1>
 
       {/* User Section */}
-      <div className="flex items-center gap-3">
+      <div className="relative flex items-center gap-3">
+        <NotificationBell />
+
         <img
           src={traineeProfile.photoUrl}
           alt={traineeProfile.name}
