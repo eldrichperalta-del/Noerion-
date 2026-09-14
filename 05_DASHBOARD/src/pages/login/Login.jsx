@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, X, CheckCircle2 } from "lucide-react";
 import AnimatedWave from "./AnimatedWave.jsx";
 import { supabase } from "../../supabaseClient.js";
 
@@ -13,6 +13,13 @@ export default function Login() {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+
+    // Forgot Password Modal States
+    const [showForgotModal, setShowForgotModal] = useState(false);
+    const [resetEmail, setResetEmail] = useState("");
+    const [resetLoading, setResetLoading] = useState(false);
+    const [resetError, setResetError] = useState("");
+    const [resetSuccess, setResetSuccess] = useState(false);
 
     // =========================================================
     // LISTEN FOR SUPABASE INVITATION & PASSWORD RESET TOKENS
@@ -253,6 +260,42 @@ export default function Login() {
         }
     };
 
+    // =========================================================
+    // HANDLE FORGOT PASSWORD RESET REQUEST
+    // =========================================================
+    const handleResetPassword = async (e) => {
+        e.preventDefault();
+        setResetError("");
+        setResetSuccess(false);
+
+        const cleanResetEmail = resetEmail.trim().toLowerCase();
+        if (!cleanResetEmail) {
+            setResetError("Please enter your email address.");
+            return;
+        }
+
+        setResetLoading(true);
+
+        try {
+            const appUrl = window.location.origin;
+
+            const { error: resetErr } = await supabase.auth.resetPasswordForEmail(cleanResetEmail, {
+                redirectTo: `${appUrl}/set-password`,
+            });
+
+            if (resetErr) {
+                throw new Error(resetErr.message);
+            }
+
+            setResetSuccess(true);
+        } catch (err) {
+            console.error("RESET PASSWORD ERROR:", err);
+            setResetError(err?.message || "Failed to send password reset link.");
+        } finally {
+            setResetLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-[#040814] flex justify-center items-center overflow-hidden relative">
 
@@ -376,15 +419,88 @@ export default function Login() {
                 </form>
 
                 <div className="text-center mt-5">
-                    <a
-                        href="#"
-                        className="text-purple-400 text-sm"
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setResetEmail(email.trim());
+                            setResetError("");
+                            setResetSuccess(false);
+                            setShowForgotModal(true);
+                        }}
+                        className="text-purple-400 text-sm hover:underline focus:outline-none"
                     >
                         Forgot Password?
-                    </a>
+                    </button>
                 </div>
 
             </div>
+
+            {/* FORGOT PASSWORD MODAL */}
+            {showForgotModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+                    <div className="relative w-full max-w-md p-6 rounded-3xl bg-slate-950/90 border border-cyan-400/50 shadow-[0_0_30px_rgba(0,242,255,.3)]">
+                        <button
+                            type="button"
+                            onClick={() => setShowForgotModal(false)}
+                            className="absolute top-4 right-4 text-slate-400 hover:text-white"
+                        >
+                            <X size={20} />
+                        </button>
+
+                        <h3 className="text-xl font-bold text-white text-center mb-2">
+                            Reset Your Password
+                        </h3>
+                        <p className="text-slate-400 text-xs text-center mb-6">
+                            Enter your registered email address and we will send you a link to reset your password.
+                        </p>
+
+                        {resetSuccess ? (
+                            <div className="text-center py-4 space-y-3">
+                                <CheckCircle2 size={48} className="text-cyan-400 mx-auto animate-bounce" />
+                                <h4 className="text-white font-bold text-base">Reset Link Sent!</h4>
+                                <p className="text-slate-400 text-xs">
+                                    Check your inbox at <span className="text-cyan-300 font-semibold">{resetEmail}</span> for instructions to reset your password.
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowForgotModal(false)}
+                                    className="mt-4 px-6 py-2.5 rounded-xl text-xs font-bold bg-slate-800 text-white hover:bg-slate-700 transition"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        ) : (
+                            <form onSubmit={handleResetPassword} className="space-y-4">
+                                <div className="flex items-center h-12 px-4 rounded-2xl bg-slate-900/60 border border-cyan-400/40">
+                                    <Mail size={18} className="text-cyan-300 mr-3" />
+                                    <input
+                                        type="email"
+                                        placeholder="Enter your email"
+                                        value={resetEmail}
+                                        onChange={(e) => setResetEmail(e.target.value)}
+                                        className="flex-1 bg-transparent outline-none text-white text-sm"
+                                        required
+                                    />
+                                </div>
+
+                                {resetError && (
+                                    <p className="text-red-400 text-xs text-center bg-red-950/40 py-2 rounded-xl border border-red-500/30">
+                                        {resetError}
+                                    </p>
+                                )}
+
+                                <button
+                                    type="submit"
+                                    disabled={resetLoading}
+                                    className="w-full h-12 rounded-2xl text-white font-bold bg-gradient-to-r from-cyan-400 via-teal-300 to-purple-500 shadow-lg hover:opacity-95 transition disabled:opacity-40"
+                                >
+                                    {resetLoading ? "Sending Link..." : "Send Reset Link"}
+                                </button>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            )}
 
         </div>
     );
