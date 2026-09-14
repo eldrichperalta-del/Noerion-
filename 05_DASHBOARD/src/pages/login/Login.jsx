@@ -1,11 +1,12 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import AnimatedWave from "./AnimatedWave.jsx";
 import { supabase } from "../../supabaseClient.js";
 
 export default function Login() {
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -13,17 +14,32 @@ export default function Login() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
+    // =========================================================
+    // LISTEN FOR SUPABASE INVITATION & PASSWORD RESET TOKENS
+    // =========================================================
+    useEffect(() => {
+        const hash = window.location.hash;
+        if (hash && (hash.includes("type=invite") || hash.includes("type=recovery") || hash.includes("access_token="))) {
+            // Forward the token directly to the set-password route
+            navigate(`/set-password${hash}`, { replace: true });
+        }
+    }, [navigate]);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
         setError("");
 
-        if (!email || email.trim() === "") {
+        // Clean input strings by trimming whitespace
+        const cleanEmail = email.trim();
+        const cleanPassword = password.trim();
+
+        if (!cleanEmail) {
             setError("Email is required");
             return;
         }
 
-        if (password.length < 6) {
+        if (cleanPassword.length < 6) {
             setError("Password must be at least 6 characters");
             return;
         }
@@ -39,8 +55,8 @@ export default function Login() {
                 data: authData,
                 error: authError,
             } = await supabase.auth.signInWithPassword({
-                email: email.trim(),
-                password,
+                email: cleanEmail,
+                password: cleanPassword,
             });
 
             if (authError) {
@@ -112,10 +128,6 @@ export default function Login() {
             );
 
             if (profileError) {
-                // IMPORTANT:
-                // Do NOT sign out here.
-                // We need to preserve the Supabase
-                // session and show the real error.
                 console.error(
                     "Profile lookup failed:",
                     profileError
