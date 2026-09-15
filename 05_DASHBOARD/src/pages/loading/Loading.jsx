@@ -38,21 +38,31 @@ export default function Loading() {
             }
         }, 800); // Cycles step every 800ms instead of 1800ms
 
-        // 3. IMMEDIATE DATABASE & ROLE CHECK
         const verifyAndNavigate = async () => {
             const startTime = Date.now();
 
             try {
-                // Get Session
-                const { data: { session } } = await supabase.auth.getSession();
+                // ==========================================
+                // GET SESSION
+                // ==========================================
+                const {
+                    data: { session },
+                } = await supabase.auth.getSession();
 
                 if (!session) {
-                    if (isMounted) navigate("/");
+                    if (isMounted) {
+                        navigate("/", { replace: true });
+                    }
                     return;
                 }
 
-                // Get User Profile & Role
-                const { data: profile, error } = await supabase
+                // ==========================================
+                // GET USER PROFILE & ROLE
+                // ==========================================
+                const {
+                    data: profile,
+                    error,
+                } = await supabase
                     .from("profiles")
                     .select("role")
                     .eq("id", session.user.id)
@@ -60,42 +70,88 @@ export default function Loading() {
 
                 if (error || !profile) {
                     console.error("Profile fetch error:", error);
-                    if (isMounted) navigate("/");
+
+                    if (isMounted) {
+                        navigate("/", { replace: true });
+                    }
+
                     return;
                 }
 
-                // Guarantee a minimum display time of 1.2s so the user sees the cool animation
+                const role = profile.role?.toLowerCase();
+
+                // ==========================================
+                // DETERMINE DESTINATION
+                // ==========================================
+                let destination = "/";
+
+                if (role === "admin") {
+                    destination = "/admin";
+                } else if (role === "assessor") {
+                    destination = "/assessor";
+                } else if (role === "trainee") {
+                    // Privacy consent is stored in Supabase,
+                    // not localStorage.
+                    const {
+                        data: traineeProfile,
+                        error: traineeProfileError,
+                    } = await supabase
+                        .from("trainee_profiles")
+                        .select("privacy_accepted")
+                        .eq("user_id", session.user.id)
+                        .maybeSingle();
+
+                    if (traineeProfileError) {
+                        console.error(
+                            "Trainee privacy lookup failed:",
+                            traineeProfileError
+                        );
+
+                        destination = "/privacy";
+                    } else if (
+                        traineeProfile?.privacy_accepted === true
+                    ) {
+                        console.log(
+                            "Loading: Privacy already accepted → trainee dashboard."
+                        );
+
+                        destination = "/trainee";
+                    } else {
+                        console.log(
+                            "Loading: Privacy not yet accepted → Privacy Page."
+                        );
+
+                        destination = "/privacy";
+                    }
+                }
+
+                // ==========================================
+                // MINIMUM LOADING DISPLAY TIME
+                // ==========================================
                 const elapsedTime = Date.now() - startTime;
-                const minDisplayTime = 1200; 
-                const remainingTime = Math.max(0, minDisplayTime - elapsedTime);
+                const minDisplayTime = 1200;
+                const remainingTime = Math.max(
+                    0,
+                    minDisplayTime - elapsedTime
+                );
 
                 setTimeout(() => {
                     if (!isMounted) return;
 
-                    const role = profile.role?.toLowerCase();
-                    const privacyAccepted = localStorage.getItem("privacyAccepted");
-
-                    if (role === "admin") {
-                        navigate("/admin");
-                    } else if (role === "assessor") {
-                        navigate("/assessor");
-                    } else if (role === "trainee") {
-                        if (privacyAccepted === "true") {
-                            navigate("/trainee");
-                        } else {
-                            navigate("/privacy");
-                        }
-                    } else {
-                        navigate("/");
-                    }
+                    navigate(destination, { replace: true });
                 }, remainingTime);
 
             } catch (err) {
-                console.error("Auth routing error:", err);
-                if (isMounted) navigate("/");
+                console.error(
+                    "Auth routing error:",
+                    err
+                );
+
+                if (isMounted) {
+                    navigate("/", { replace: true });
+                }
             }
         };
-
         verifyAndNavigate();
 
         return () => {
