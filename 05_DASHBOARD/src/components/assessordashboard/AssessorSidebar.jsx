@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import {
-  Home,
+  LayoutDashboard,
   ClipboardList,
   ClipboardCheck,
   History,
@@ -45,8 +45,8 @@ function AssessorSidebar({ isOpen, setIsOpen }) {
 
   const menuItems = [
     {
-      icon: Home,
-      label: "Home",
+      icon: LayoutDashboard,
+      label: "Dashboard",
       path: "/assessor/home",
     },
     {

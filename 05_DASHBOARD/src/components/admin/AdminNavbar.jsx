@@ -58,7 +58,7 @@ function AdminNavbar() {
     }, []);
 
     const pageTitles = {
-        "/admin": "Home",
+        "/admin": "Dashboard",
         "/admin/user-management": "User Management",
         "/admin/user-management/trainees": "Trainee Management",
         "/admin/user-management/add-trainee": "Add Trainee",

@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import {
-  Home,
+  LayoutDashboard,
   Users,
   ClipboardList,
   BarChart3,
@@ -46,7 +46,7 @@ function AdminSidebar({ isOpen, setIsOpen }) {
   };
 
   const menuItems = [
-    { icon: Home, label: "Home", path: "/admin" },
+    { icon: LayoutDashboard, label: "Dashboard", path: "/admin" },
     { icon: Users, label: "User Management", path: "/admin/user-management" },
     { icon: ClipboardList, label: "Assessment Management", path: "/admin/assessments" },
     { icon: BarChart3, label: "Results Monitoring", path: "/admin/results" },

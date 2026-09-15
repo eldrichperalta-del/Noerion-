@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import {
-  Home,
+  LayoutDashboard,
   ClipboardList,
   BarChart3,
   Award,
@@ -45,7 +45,7 @@ function TraineeSidebar({ isOpen, setIsOpen }) {
 
 
   const menuItems = [
-    { icon: Home, label: "Home", path: "/trainee" },
+    { icon: LayoutDashboard, label: "Dashboard", path: "/trainee" },
     { icon: ClipboardList, label: "Assessments", path: "/trainee/assessment" },
     { icon: BarChart3, label: "Results", path: "/trainee/results" },
     { icon: Award, label: "Certificates", path: "/trainee/certificates" },

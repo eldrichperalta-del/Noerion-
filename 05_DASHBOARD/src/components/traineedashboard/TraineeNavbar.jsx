@@ -12,7 +12,7 @@ function TraineeNavbar() {
   });
 
   const pageTitles = {
-    "/trainee": "Home",
+    "/trainee": "Dashboard",
     "/trainee/assessment": "Assessments",
     "/trainee/assessment/overview": "Assessment Overview",
     "/trainee/assessment/baseline": "Baseline",
