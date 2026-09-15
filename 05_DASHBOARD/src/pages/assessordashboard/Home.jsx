@@ -8,6 +8,7 @@ import AssessorOverviewCards from "../../components/assessordashboard/home/Asses
 import UpcomingSchedule from "../../components/assessordashboard/home/UpcomingSchedule";
 
 import { supabase } from "../../supabaseClient";
+import useNotifications from "../../hooks/useNotifications";
 
 
 /* ============================================================================
@@ -148,6 +149,11 @@ function getStatus(assignment) {
 
 export default function Home() {
   const navigate = useNavigate();
+
+  const {
+    notifications,
+    isLoading: notificationsLoading,
+  } = useNotifications();
 
   const [assessorName, setAssessorName] =
     useState("Assessor");
@@ -580,7 +586,7 @@ export default function Home() {
         if (mounted) {
           setErrorMessage(
             error?.message ||
-              "Unable to load assessor dashboard data."
+            "Unable to load assessor dashboard data."
           );
 
           setDashboardStats({
@@ -733,12 +739,9 @@ export default function Home() {
           />
 
 
-          {/*
-           * Notifications remain empty for now because there is no
-           * notifications table in the database schema you provided.
-           */}
           <AssessorNotifications
-            notifications={[]}
+            notifications={notifications}
+            loading={notificationsLoading}
           />
 
         </div>
