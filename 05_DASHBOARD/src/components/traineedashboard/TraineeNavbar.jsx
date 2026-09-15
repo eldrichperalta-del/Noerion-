@@ -8,7 +8,7 @@ function TraineeNavbar() {
 
   const [traineeProfile, setTraineeProfile] = useState({
     name: "Trainee",
-    photoUrl: "/trainee.jpg",
+    photoUrl: null,
   });
 
   const pageTitles = {
@@ -25,7 +25,9 @@ function TraineeNavbar() {
     "/trainee/settings": "My Account",
   };
 
-  const currentTitle = /^\/trainee\/certificates\/[^/]+$/.test(location.pathname)
+  const currentTitle = /^\/trainee\/certificates\/[^/]+$/.test(
+    location.pathname
+  )
     ? "View Certificates"
     : pageTitles[location.pathname] || "Trainee Dashboard";
 
@@ -36,28 +38,55 @@ function TraineeNavbar() {
       try {
         const {
           data: { user },
+          error: userError,
         } = await supabase.auth.getUser();
 
-        if (user && isMounted) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("first_name, last_name, profile_photo_url")
-            .eq("id", user.id)
-            .maybeSingle();
+        if (userError) {
+          console.error("[TraineeNavbar] Auth error:", userError);
+          return;
+        }
 
-          if (profile && isMounted) {
-            const fullName =
-              [profile.first_name, profile.last_name].filter(Boolean).join(" ") ||
-              "Trainee";
+        if (!user) {
+          console.error("[TraineeNavbar] No authenticated user found.");
+          return;
+        }
 
-            setTraineeProfile({
-              name: fullName,
-              photoUrl: profile.profile_photo_url || "/trainee.jpg",
-            });
-          }
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("first_name, last_name, profile_photo_url")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profileError) {
+          console.error(
+            "[TraineeNavbar] Profile fetch error:",
+            profileError
+          );
+          return;
+        }
+
+        if (profile && isMounted) {
+          const fullName =
+            [profile.first_name, profile.last_name]
+              .filter(Boolean)
+              .join(" ") || "Trainee";
+
+          console.log("[TraineeNavbar] User ID:", user.id);
+          console.log(
+            "[TraineeNavbar] Database photo URL:",
+            profile.profile_photo_url
+          );
+
+          setTraineeProfile({
+            name: fullName,
+            photoUrl: profile.profile_photo_url || null,
+          });
         }
       } catch (error) {
-        console.error("Error fetching trainee profile for navbar:", error);
+        console.error(
+          "[TraineeNavbar] Error fetching trainee profile:",
+          error
+        );
       }
     }
 
@@ -79,14 +108,28 @@ function TraineeNavbar() {
       <div className="relative flex items-center gap-3">
         <NotificationBell />
 
-        <img
-          src={traineeProfile.photoUrl}
-          alt={traineeProfile.name}
-          className="w-10 h-10 rounded-full object-cover border border-gray-200"
-          onError={(e) => {
-            e.target.src = "/trainee.jpg";
-          }}
-        />
+        {traineeProfile.photoUrl ? (
+          <img
+            src={traineeProfile.photoUrl}
+            alt={traineeProfile.name}
+            className="w-10 h-10 rounded-full object-cover border border-gray-200"
+            onLoad={() => {
+              console.log(
+                "[TraineeNavbar] Database profile image loaded successfully."
+              );
+            }}
+            onError={() => {
+              console.error(
+                "[TraineeNavbar] Database profile image failed to load:",
+                traineeProfile.photoUrl
+              );
+            }}
+          />
+        ) : (
+          <div className="w-10 h-10 rounded-full bg-gray-200 border border-gray-200 flex items-center justify-center text-gray-500 text-sm">
+            {traineeProfile.name?.charAt(0)?.toUpperCase() || "T"}
+          </div>
+        )}
 
         <span className="font-medium text-gray-800">
           {traineeProfile.name}

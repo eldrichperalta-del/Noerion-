@@ -265,7 +265,7 @@ function UserManagement() {
             },
           });
         } catch (
-          error
+        error
         ) {
           console.error(
             "Unexpected error fetching live metrics:",
@@ -366,10 +366,10 @@ function UserManagement() {
                     profile.assessor_profiles
                   )
                     ? profile
-                        .assessor_profiles[0] ||
-                      null
+                      .assessor_profiles[0] ||
+                    null
                     : profile.assessor_profiles ||
-                      null;
+                    null;
 
                 // =================================
                 // NORMALIZE STATUS
@@ -444,28 +444,27 @@ function UserManagement() {
                   // =============================
 
                   name:
-                    `${profile.first_name || ""} ${
-                      profile.last_name || ""
-                    }`.trim() ||
+                    `${profile.first_name || ""} ${profile.last_name || ""
+                      }`.trim() ||
                     "Unknown User",
 
                   date:
                     profile.created_at
                       ? new Date(
-                          profile.created_at
-                        ).toLocaleDateString(
-                          "en-US",
-                          {
-                            month:
-                              "short",
+                        profile.created_at
+                      ).toLocaleDateString(
+                        "en-US",
+                        {
+                          month:
+                            "short",
 
-                            day:
-                              "numeric",
+                          day:
+                            "numeric",
 
-                            year:
-                              "numeric",
-                          }
-                        )
+                          year:
+                            "numeric",
+                        }
+                      )
                       : "N/A",
 
                   status,
@@ -527,7 +526,7 @@ function UserManagement() {
             1
           );
         } catch (
-          error
+        error
         ) {
           console.error(
             "Unexpected error fetching recent activity:",
@@ -551,7 +550,7 @@ function UserManagement() {
     Math.max(
       Math.ceil(
         recentActivities.length /
-          rowsPerPage
+        rowsPerPage
       ),
       1
     );
@@ -698,8 +697,8 @@ function UserManagement() {
                   {loadingMetrics
                     ? "..."
                     : metrics
-                        .trainees
-                        .active}
+                      .trainees
+                      .active}
                 </span>
 
                 <span className="mt-2 flex items-center justify-center gap-2 text-sm text-gray-600">
@@ -718,8 +717,8 @@ function UserManagement() {
                   {loadingMetrics
                     ? "..."
                     : metrics
-                        .trainees
-                        .pending}
+                      .trainees
+                      .pending}
                 </span>
 
                 <span className="mt-2 flex items-center justify-center gap-2 text-sm text-gray-600">
@@ -786,8 +785,8 @@ function UserManagement() {
                   {loadingMetrics
                     ? "..."
                     : metrics
-                        .assessors
-                        .active}
+                      .assessors
+                      .active}
                 </span>
 
                 <span className="mt-2 flex items-center justify-center gap-2 text-sm text-gray-600">
@@ -806,8 +805,8 @@ function UserManagement() {
                   {loadingMetrics
                     ? "..."
                     : metrics
-                        .assessors
-                        .pending}
+                      .assessors
+                      .pending}
                 </span>
 
                 <span className="mt-2 flex items-center justify-center gap-2 text-sm text-gray-600">
@@ -839,9 +838,9 @@ function UserManagement() {
           RECENT ACTIVITY TABLE
       ===================== */}
 
-      <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-lg">
+      <div className="w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[0_4px_12px_rgba(0,0,0,0.20)]">
 
-        <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-5">
 
           <h3 className="text-2xl font-bold text-gray-900">
             RECENT ACTIVITY
@@ -871,7 +870,7 @@ function UserManagement() {
 
             </colgroup>
 
-            <thead className="border-b border-gray-200">
+            <thead className="bg-gray-200">
 
               <tr>
 
@@ -939,10 +938,10 @@ function UserManagement() {
                       key={
                         activity.id
                       }
-                      className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
+                      className="border-b border-gray-100 last:border-0 hover:bg-gray-100"
                     >
 
-                      <td className="px-4 py-5 text-center font-medium text-gray-900">
+                      <td className="px-4 py-4 text-center capitalize text-gray-600">
                         {
                           activity.name
                         }
@@ -967,15 +966,15 @@ function UserManagement() {
                           <span
                             className={
                               activity.status ===
-                              "Pending"
+                                "Pending"
                                 ? "rounded-lg bg-yellow-100 px-3 py-1 text-sm font-semibold text-yellow-800"
                                 : activity.status ===
-                                    "Approved" ||
+                                  "Approved" ||
                                   activity.status ===
-                                    "Active"
+                                  "Active"
                                   ? "rounded-lg bg-green-100 px-3 py-1 text-sm font-semibold text-green-800"
                                   : activity.status ===
-                                      "Rejected"
+                                    "Rejected"
                                     ? "rounded-lg bg-red-100 px-3 py-1 text-sm font-semibold text-red-800"
                                     : "rounded-lg bg-gray-200 px-3 py-1 text-sm font-semibold text-gray-800"
                             }
@@ -994,7 +993,7 @@ function UserManagement() {
                         <div
                           ref={
                             openMenuId ===
-                            activity.id
+                              activity.id
                               ? menuRef
                               : null
                           }
@@ -1030,23 +1029,23 @@ function UserManagement() {
                           {openMenuId ===
                             activity.id && (
 
-                            <div className="absolute right-0 top-10 z-30 w-44 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg">
+                              <div className="absolute right-0 top-10 z-30 w-44 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg">
 
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleViewProfile(
-                                    activity
-                                  )
-                                }
-                                className="w-full px-4 py-3 text-left text-sm text-gray-700 transition hover:bg-gray-100"
-                              >
-                                View Profile
-                              </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleViewProfile(
+                                      activity
+                                    )
+                                  }
+                                  className="w-full px-4 py-3 text-left text-sm text-gray-700 transition hover:bg-gray-100"
+                                >
+                                  View Profile
+                                </button>
 
-                            </div>
+                              </div>
 
-                          )}
+                            )}
 
                         </div>
 
@@ -1069,7 +1068,7 @@ function UserManagement() {
 
           {!loadingActivities &&
             recentActivities.length >
-              0 && (
+            0 && (
 
               <div className="mt-4 flex items-center justify-between border-t border-gray-200 px-4 py-4 text-sm">
 
@@ -1099,7 +1098,7 @@ function UserManagement() {
                         ) =>
                           Math.max(
                             page -
-                              1,
+                            1,
                             1
                           )
                       )
@@ -1138,7 +1137,7 @@ function UserManagement() {
                         ) =>
                           Math.min(
                             page +
-                              1,
+                            1,
                             totalPages
                           )
                       )
@@ -1182,15 +1181,15 @@ function UserManagement() {
           }
           title={
             selectedProfile.role ===
-            "assessor"
+              "assessor"
               ? "Assessor Profile"
               : "Trainee Profile"
           }
           onClose={
             handleCloseProfile
           }
-          onApprove={() => {}}
-          onReject={() => {}}
+          onApprove={() => { }}
+          onReject={() => { }}
         />
 
       )}

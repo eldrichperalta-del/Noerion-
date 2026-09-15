@@ -123,7 +123,7 @@ function AccountSetup() {
   // ============================================================
 
   return (
-    <div className="h-full overflow-y-auto px-6 pt-4 pb-6">
+    <div className="px-6 pt-4 pb-6">
 
       {/* ========================================================
           PAGE HEADER
@@ -278,34 +278,18 @@ function AccountSetup() {
           </div>
 
           {/* ====================================================
-              ACTION BUTTONS
-          ==================================================== */}
+    ACTION BUTTONS
+==================================================== */}
 
-          <div className="mt-8 flex items-center justify-between border-t border-gray-200 pt-6">
+          <div className="mt-8 flex justify-end gap-3 border-t border-gray-200 pt-5">
 
-            {/* LEFT BUTTONS */}
-
-            <div className="flex items-center gap-3">
-
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                onClick={handleBack}
-                className="rounded-lg border border-[#15294b] bg-white px-5 py-2.5 text-sm font-semibold text-[#15294b] transition hover:bg-blue-50"
-              >
-                Back
-              </button>
-
-            </div>
-
-            {/* NEXT BUTTON */}
+            <button
+              type="button"
+              onClick={handleBack}
+              className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-[#15294b] transition hover:bg-blue-50"
+            >
+              Back
+            </button>
 
             <button
               type="button"
@@ -313,7 +297,7 @@ function AccountSetup() {
               disabled={!isStepTwoComplete}
               className="rounded-lg bg-[#15294b] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f1f3b] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Continue
+              Next
             </button>
 
           </div>

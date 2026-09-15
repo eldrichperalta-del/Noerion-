@@ -114,18 +114,39 @@ function isFullUrl(value) {
 // =========================================================
 // HELPER: CREATE SIGNED STORAGE URL
 // =========================================================
-
-async function getStorageUrl(path) {
+async function getStorageUrl(
+  path,
+  bucket = ASSESSOR_DOCUMENTS_BUCKET
+) {
   if (!path) {
     return "";
   }
 
-  // Already a complete URL.
-  if (isFullUrl(path)) {
-    return path;
+  let cleanPath = String(path)
+    .trim();
+
+  if (!cleanPath) {
+    return "";
   }
 
-  const cleanPath = String(path)
+  // If this is already a full Supabase Storage URL,
+  // extract the actual Storage object path so we can
+  // create a signed URL from the correct bucket.
+  if (isFullUrl(cleanPath)) {
+    const marker =
+      `/storage/v1/object/public/${bucket}/`;
+
+    if (cleanPath.includes(marker)) {
+      cleanPath =
+        cleanPath.split(marker)[1];
+    } else {
+      // If it is a full URL but does not belong
+      // to the requested bucket, leave it alone.
+      return cleanPath;
+    }
+  }
+
+  cleanPath = cleanPath
     .replace(/^\/+/, "")
     .trim();
 
@@ -137,7 +158,7 @@ async function getStorageUrl(path) {
     data,
     error,
   } = await supabase.storage
-    .from(ASSESSOR_DOCUMENTS_BUCKET)
+    .from(bucket)
     .createSignedUrl(
       cleanPath,
       60 * 60
@@ -145,7 +166,7 @@ async function getStorageUrl(path) {
 
   if (error) {
     console.error(
-      "Error creating signed storage URL:",
+      `[RegistrationProfileModal] Error creating signed URL from ${bucket}:`,
       error,
       cleanPath
     );
@@ -155,7 +176,6 @@ async function getStorageUrl(path) {
 
   return data?.signedUrl || "";
 }
-
 // =========================================================
 // DETAILS COMPONENT
 // =========================================================
@@ -284,7 +304,7 @@ export default function RegistrationProfileModal({
 
   const assessor =
     profile?.role?.toLowerCase() ===
-      "assessor" ||
+    "assessor" ||
     title
       .toLowerCase()
       .includes("assessor");
@@ -359,17 +379,30 @@ export default function RegistrationProfileModal({
   ]);
 
   // =======================================================
-  // RESOLVE PROFILE PHOTO URL
+  // RESOLVE PROFILE PHOTO FROM profiles TABLE
   // =======================================================
 
   useEffect(() => {
     let cancelled = false;
 
     const resolveProfilePhoto = async () => {
-      const photoPath =
+      const photoValue =
         profile?.profile_photo_url;
 
-      if (!photoPath) {
+      console.log(
+        "[RegistrationProfileModal] profile:",
+        profile
+      );
+
+      console.log(
+        "[RegistrationProfileModal] profile_photo_url:",
+        photoValue
+      );
+
+      if (
+        typeof photoValue !== "string" ||
+        photoValue.trim() === ""
+      ) {
         if (!cancelled) {
           setProfilePhotoUrl("");
         }
@@ -377,24 +410,66 @@ export default function RegistrationProfileModal({
         return;
       }
 
-      if (isFullUrl(photoPath)) {
+      const photoPath =
+        photoValue.trim();
+
+      // =====================================================
+      // TRAINEE PHOTO
+      // Bucket: trainee-documents
+      // =====================================================
+
+      if (
+        profile?.role?.toLowerCase() ===
+        "trainee"
+      ) {
+        const resolvedUrl =
+          await getStorageUrl(
+            photoPath,
+            "trainee-documents"
+          );
+
         if (!cancelled) {
           setProfilePhotoUrl(
-            photoPath
+            resolvedUrl
           );
         }
 
         return;
       }
 
-      const signedUrl =
-        await getStorageUrl(
-          photoPath
-        );
+      // =====================================================
+      // ASSESSOR PHOTO
+      // Bucket: assessor-documents
+      // =====================================================
+
+      if (
+        profile?.role?.toLowerCase() ===
+        "assessor"
+      ) {
+        const resolvedUrl =
+          await getStorageUrl(
+            photoPath,
+            ASSESSOR_DOCUMENTS_BUCKET
+          );
+
+        if (!cancelled) {
+          setProfilePhotoUrl(
+            resolvedUrl
+          );
+        }
+
+        return;
+      }
+
+      // =====================================================
+      // FALLBACK
+      // =====================================================
 
       if (!cancelled) {
         setProfilePhotoUrl(
-          signedUrl
+          isFullUrl(photoPath)
+            ? photoPath
+            : ""
         );
       }
     };
@@ -405,9 +480,10 @@ export default function RegistrationProfileModal({
       cancelled = true;
     };
   }, [
+    profile?.id,
+    profile?.role,
     profile?.profile_photo_url,
   ]);
-
   // =======================================================
   // FETCH ASSESSOR DOCUMENTS
   // =======================================================
@@ -550,14 +626,12 @@ export default function RegistrationProfileModal({
   // =======================================================
 
   const initials =
-    `${
-      profile.first_name?.[0] ||
+    `${profile.first_name?.[0] ||
       profile.fullName?.[0] ||
       "?"
-    }${
-      profile.last_name?.[0] ||
+      }${profile.last_name?.[0] ||
       ""
-    }`.toUpperCase();
+      }`.toUpperCase();
 
   const normalizedStatus =
     String(
@@ -682,6 +756,19 @@ export default function RegistrationProfileModal({
                     src={profilePhotoUrl}
                     alt="Avatar"
                     className="h-full w-full object-cover"
+                    onError={(event) => {
+                      console.error(
+                        "[RegistrationProfileModal] FAILED TO LOAD PROFILE PHOTO:",
+                        profilePhotoUrl
+                      );
+
+                      console.error(
+                        "[RegistrationProfileModal] Image error:",
+                        event
+                      );
+
+                      setProfilePhotoUrl("");
+                    }}
                   />
                 ) : (
                   initials
@@ -704,9 +791,8 @@ export default function RegistrationProfileModal({
             <div>
               <h2 className="text-2xl font-bold text-[#111827]">
                 {profile.fullName ||
-                  `${profile.first_name || ""} ${
-                    profile.last_name || ""
-                  }`.trim()}
+                  `${profile.first_name || ""} ${profile.last_name || ""
+                    }`.trim()}
               </h2>
 
               <p className="text-sm text-[#6b7280]">

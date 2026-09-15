@@ -29,6 +29,17 @@ import AccountSetup from "../pages/admin/user-management/AccountSetup";
 import Verification from "../pages/admin/user-management/Verification";
 
 /* =========================
+   Add Trainee Workflow
+========================= */
+
+import AddTrainee from "../pages/admin/user-management/AddTrainee";
+
+import TrainingInformation from "../components/admin/add-trainee/TrainingInformation";
+
+import VerificationDocuments from "../components/admin/add-trainee/VerificationDocuments";
+
+
+/* =========================
    Assessment Management
 ========================= */
 
@@ -150,6 +161,49 @@ export default function AdminRoutes() {
         element={
           <AdminLayout>
             <Verification />
+          </AdminLayout>
+        }
+      />
+
+      {/* =========================
+        Add Trainee Workflow
+      ========================= */}
+
+      {/* 🔵 STEP 1
+        Basic Information
+      */}
+
+      <Route
+        path="/user-management/add-trainee"
+        element={
+          <AdminLayout>
+            <AddTrainee />
+          </AdminLayout>
+        }
+      />
+
+      {/* 🟢 STEP 2
+        Training Information
+      */}
+
+      <Route
+        path="/user-management/add-trainee/training-information"
+        element={
+          <AdminLayout>
+            <TrainingInformation />
+          </AdminLayout>
+        }
+      />
+
+      {/* 🟣 STEP 3
+        Verification Documents
+      */}
+
+      <Route
+        path="/user-management/add-trainee/verification"
+        element={
+          <AdminLayout>
+            <VerificationDocuments />
           </AdminLayout>
         }
       />

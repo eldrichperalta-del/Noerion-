@@ -362,57 +362,35 @@ function ProfessionalInformationForm({
         </div>
       </div>
 
+      
       {/* ======================================================
-          BUTTONS
+        BUTTONS
       ====================================================== */}
 
-      <div className="mt-8 flex items-center justify-between gap-3 border-t border-gray-200 pt-5">
+      <div className="mt-8 flex justify-end gap-3 border-t border-gray-200 pt-5">
 
-        {/* LEFT BUTTONS */}
+        {/* BACK */}
 
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={
-              onBack
-            }
-            className="
-              rounded-lg
-              border
-              border-gray-300
-              px-5
-              py-2.5
-              text-sm
-              font-semibold
-              text-gray-700
-              transition
-              hover:bg-gray-100
-            "
-          >
-            Back
-          </button>
-
-          <button
-            type="button"
-            onClick={
-              onCancel
-            }
-            className="
-              rounded-lg
-              border
-              border-red-200
-              px-5
-              py-2.5
-              text-sm
-              font-semibold
-              text-red-600
-              transition
-              hover:bg-red-50
-            "
-          >
-            Cancel
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={
+            onBack
+          }
+          className="
+      rounded-lg
+      border
+      border-gray-300
+      px-5
+      py-2.5
+      text-sm
+      font-semibold
+      text-gray-700
+      transition
+      hover:bg-gray-100
+    "
+        >
+          Back
+        </button>
 
         {/* NEXT */}
 
@@ -425,31 +403,33 @@ function ProfessionalInformationForm({
             !isStepTwoComplete
           }
           className={`
-            rounded-lg
-            px-6
-            py-2.5
-            text-sm
-            font-semibold
-            text-white
-            shadow-sm
-            transition
+      rounded-lg
+      px-6
+      py-2.5
+      text-sm
+      font-semibold
+      text-white
+      shadow-sm
+      transition
 
-            ${
-              isStepTwoComplete
-                ? `
-                  bg-[#15294b]
-                  hover:bg-[#0f1f3b]
-                `
-                : `
-                  cursor-not-allowed
-                  bg-gray-400
-                `
+      ${isStepTwoComplete
+              ? `
+            bg-[#15294b]
+            hover:bg-[#0f1f3b]
+          `
+              : `
+            cursor-not-allowed
+            bg-gray-400
+          `
             }
-          `}
+    `}
         >
           Next
         </button>
+
       </div>
+      
+
 
     </div>
   );

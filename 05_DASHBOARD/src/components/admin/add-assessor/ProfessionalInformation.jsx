@@ -434,7 +434,7 @@ function ProfessionalInformation() {
   }
 
   return (
-    <div className="h-full overflow-y-auto px-6 pt-4 pb-6">
+    <div className="px-6 pt-4 pb-6">
       {/* ======================================================
           PAGE HEADER
       ====================================================== */}

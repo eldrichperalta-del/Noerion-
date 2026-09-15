@@ -105,11 +105,53 @@ function AddAssessor() {
   // ============================================================
 
   return (
-    <div className="h-full overflow-y-auto px-6 pt-4 pb-6">
+    <div className="px-6 pt-4 pb-6">
 
       {/* ========================================================
           PAGE HEADER
       ======================================================== */}
+
+      {/* ========================================================
+    BREADCRUMBS
+======================================================== */}
+
+      <nav className="-mt-4 mb-3 flex items-center gap-2 text-sm font-semibold">
+        <button
+          type="button"
+          onClick={() =>
+            navigate("/admin/user-management")
+          }
+          className="text-gray-500 hover:text-[#002f86] hover:underline"
+        >
+          User Management
+        </button>
+
+        <span className="text-gray-400">
+          &gt;
+        </span>
+
+        <button
+          type="button"
+          onClick={() =>
+            navigate("/admin/user-management/assessors")
+          }
+          className="text-gray-500 hover:text-[#002f86] hover:underline"
+        >
+          Assessor Management
+        </button>
+
+        <span className="text-gray-400">
+          &gt;
+        </span>
+
+        <span className="text-[#002f86]">
+          Add Assessor
+        </span>
+      </nav>
+
+      {/* ========================================================
+    PAGE HEADER
+======================================================== */}
 
       <div className="mb-4">
         <h1 className="text-2xl font-bold text-[#15294b]">

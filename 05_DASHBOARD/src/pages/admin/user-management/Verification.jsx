@@ -379,9 +379,9 @@ function Verification() {
 
             if (
                 file.type !==
-                    "image/jpeg" &&
+                "image/jpeg" &&
                 file.type !==
-                    "image/png"
+                "image/png"
             ) {
                 setErrorMessage(
                     "Profile photo must be a JPG or PNG image."
@@ -690,7 +690,7 @@ function Verification() {
                         session,
                     },
                     error:
-                        sessionError,
+                    sessionError,
                 } =
                     await supabase
                         .auth
@@ -918,7 +918,7 @@ function Verification() {
                             );
 
                         } catch (
-                            responseReadError
+                        responseReadError
                         ) {
 
                             console.error(
@@ -1007,7 +1007,7 @@ function Verification() {
                 );
 
             } catch (
-                error
+            error
             ) {
 
                 console.error(
@@ -1037,7 +1037,7 @@ function Verification() {
 
     return (
 
-        <div className="h-full overflow-y-auto px-6 pt-4 pb-6">
+        <div className="px-6 pt-4 pb-6">
 
             <div className="mb-4">
 
@@ -1306,29 +1306,16 @@ function Verification() {
 
                     {/* ACTIONS */}
 
-                    <div className="mt-8 flex items-center justify-between border-t border-gray-200 pt-6">
+                    <div className="mt-8 flex justify-end gap-3 border-t border-gray-200 pt-5">
 
-                        <div className="flex items-center gap-3">
-
-                            <button
-                                type="button"
-                                onClick={handleCancel}
-                                disabled={isSubmitting}
-                                className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={handleBack}
-                                disabled={isSubmitting}
-                                className="rounded-lg border border-[#15294b] bg-white px-5 py-2.5 text-sm font-semibold text-[#15294b] transition hover:bg-blue-50 disabled:opacity-50"
-                            >
-                                Back
-                            </button>
-
-                        </div>
+                        <button
+                            type="button"
+                            onClick={handleBack}
+                            disabled={isSubmitting}
+                            className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-[#15294b] transition hover:bg-blue-50 disabled:opacity-50"
+                        >
+                            Back
+                        </button>
 
                         <button
                             type="button"

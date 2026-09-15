@@ -61,6 +61,7 @@ function AdminNavbar() {
         "/admin": "Home",
         "/admin/user-management": "User Management",
         "/admin/user-management/trainees": "Trainee Management",
+        "/admin/user-management/add-trainee": "Add Trainee",
         "/admin/user-management/assessors": "Assessor Management",
         "/admin/user-management/add-assessor": "Add Assessor",
 
@@ -86,14 +87,14 @@ function AdminNavbar() {
         )
             ? "Course Results"
             : /^\/admin\/assessments\/course\/[^/]+$/.test(
-                  location.pathname
-              )
-              ? "Course Assessment"
-              : /^\/admin\/assessments\/[^/]+$/.test(
+                location.pathname
+            )
+                ? "Course Assessment"
+                : /^\/admin\/assessments\/[^/]+$/.test(
                     location.pathname
                 )
-                ? "Assessment Details"
-                : "Admin Dashboard");
+                    ? "Assessment Details"
+                    : "Admin Dashboard");
 
     return (
         <header

@@ -314,7 +314,7 @@ function TraineeTable({
 
   return (
     <>
-      <div className="overflow-hidden rounded-xl border-2 border-gray-100 shadow-[0_4px_12px_rgba(0,0,0,0.20)]">
+      <div className="w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[0_4px_12px_rgba(0,0,0,0.20)]">
 
         <div className="overflow-x-auto">
 
@@ -344,9 +344,7 @@ function TraineeTable({
                   Status
                 </th>
 
-                <th className="px-4 py-4 text-left font-bold text-gray-800">
-                  Verification Status
-                </th>
+               
 
                 <th className="px-4 py-4 text-center font-bold text-gray-800">
                   Actions
@@ -434,11 +432,7 @@ function TraineeTable({
 
                         </td>
 
-                        <td className="px-4 py-3 text-gray-700">
-                          {
-                            trainee.verificationStatus
-                          }
-                        </td>
+                        
 
                         <td className="px-4 py-3">
 

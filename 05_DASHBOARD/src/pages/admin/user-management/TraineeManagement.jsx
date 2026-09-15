@@ -4,6 +4,10 @@ import {
 } from "react";
 
 import {
+  useNavigate,
+} from "react-router-dom";
+
+import {
   X,
   AlertTriangle,
   RefreshCw,
@@ -12,6 +16,10 @@ import {
 import {
   supabase,
 } from "../../../supabaseClient";
+
+import {
+  notifyTrainee,
+} from "../../../services/notificationService";
 
 import SearchBar from "../../../components/admin/shared/SearchBar";
 
@@ -22,6 +30,7 @@ import VerificationFilter from "../../../components/admin/trainee-management/Ver
 import TraineeTable from "../../../components/admin/trainee-management/TraineeTable";
 
 function TraineeManagement() {
+  const navigate = useNavigate();
   // ==========================================
   // STATE
   // ==========================================
@@ -167,32 +176,29 @@ function TraineeManagement() {
                 ...item,
                 ...(training || {}),
 
+                profile_photo_url:
+                  item.profile_photo_url || null,
+
                 id:
                   item.id,
 
                 fullName:
-                  `${item.first_name || ""} ${
-                    item.last_name || ""
-                  }`.trim() ||
+                  `${item.first_name || ""} ${item.last_name || ""}`.trim() ||
                   "N/A",
 
                 traineeId:
                   item.trainee_id ||
-                  `TRN-${item.id
-                    .slice(0, 7)
-                    .toUpperCase()}`,
+                  `TRN-${item.id.slice(0, 7).toUpperCase()}`,
 
                 email:
-                  item.email ||
-                  "N/A",
+                  item.email || "N/A",
 
                 status,
 
                 verificationStatus,
 
                 rejected_reason:
-                  item.rejected_reason ||
-                  null,
+                  item.rejected_reason || null,
               };
             }
           );
@@ -244,31 +250,48 @@ function TraineeManagement() {
         return;
       }
 
+      // ========================================
+      // SEND APPROVAL NOTIFICATION
+      // ========================================
+
+      await notifyTrainee({
+        traineeId: id,
+        type: "user_registration",
+        title: "Registration Approved",
+        message:
+          "Your trainee registration has been approved. You can now access your trainee account.",
+        relatedId: id,
+        relatedType: "user_registration",
+      });
+
+      // ========================================
+      // UPDATE LOCAL STATE
+      // ========================================
+
       setTrainees(
         (prev) =>
           prev.map(
             (trainee) =>
               trainee.id === id
                 ? {
-                    ...trainee,
+                  ...trainee,
 
-                    status:
-                      "Approved",
+                  status:
+                    "Approved",
 
-                    verificationStatus:
-                      "Verified",
+                  verificationStatus:
+                    "Verified",
 
-                    registration_status:
-                      "Approved",
+                  registration_status:
+                    "Approved",
 
-                    rejected_reason:
-                      null,
-                  }
+                  rejected_reason:
+                    null,
+                }
                 : trainee
           )
       );
     };
-
   // ==========================================
   // REJECT TRAINEE
   // ==========================================
@@ -303,31 +326,44 @@ function TraineeManagement() {
         return;
       }
 
+      // ========================================
+      // SEND REJECTION NOTIFICATION
+      // ========================================
+
+      await notifyTrainee({
+        traineeId: id,
+        type: "user_registration",
+        title: "Registration Rejected",
+        message:
+          `Your trainee registration has been rejected.${rejectionReason ? ` Reason: ${rejectionReason}` : ""}`,
+        relatedId: id,
+        relatedType: "user_registration",
+      });
+
       setTrainees(
         (prev) =>
           prev.map(
             (trainee) =>
               trainee.id === id
                 ? {
-                    ...trainee,
+                  ...trainee,
 
-                    status:
-                      "Rejected",
+                  status:
+                    "Rejected",
 
-                    verificationStatus:
-                      "N/A",
+                  verificationStatus:
+                    "N/A",
 
-                    registration_status:
-                      "Rejected",
+                  registration_status:
+                    "Rejected",
 
-                    rejected_reason:
-                      rejectionReason,
-                  }
+                  rejected_reason:
+                    rejectionReason,
+                }
                 : trainee
           )
       );
     };
-
   // ==========================================
   // OPEN DEACTIVATE MODAL
   // ==========================================
@@ -453,17 +489,17 @@ function TraineeManagement() {
             (trainee) =>
               trainee.id === id
                 ? {
-                    ...trainee,
+                  ...trainee,
 
-                    status:
-                      "Deactivated",
+                  status:
+                    "Deactivated",
 
-                    verificationStatus:
-                      "Deactivated",
+                  verificationStatus:
+                    "Deactivated",
 
-                    registration_status:
-                      "Deactivated",
-                  }
+                  registration_status:
+                    "Deactivated",
+                }
                 : trainee
           )
       );
@@ -540,20 +576,20 @@ function TraineeManagement() {
             (trainee) =>
               trainee.id === id
                 ? {
-                    ...trainee,
+                  ...trainee,
 
-                    status:
-                      "Approved",
+                  status:
+                    "Approved",
 
-                    verificationStatus:
-                      "Verified",
+                  verificationStatus:
+                    "Verified",
 
-                    registration_status:
-                      "Approved",
+                  registration_status:
+                    "Approved",
 
-                    rejected_reason:
-                      null,
-                  }
+                  rejected_reason:
+                    null,
+                }
                 : trainee
           )
       );
@@ -621,15 +657,15 @@ function TraineeManagement() {
 
         const matchesStatus =
           statusFilter ===
-            "All" ||
+          "All" ||
           trainee.status ===
-            statusFilter;
+          statusFilter;
 
         const matchesVerification =
           verificationFilter ===
-            "All" ||
+          "All" ||
           trainee.verificationStatus ===
-            verificationFilter;
+          verificationFilter;
 
         return (
           matchesSearch &&
@@ -674,28 +710,52 @@ function TraineeManagement() {
         "
       >
         {/* ======================================
-            PAGE HEADER
-        ======================================= */}
+    BREADCRUMBS
+======================================= */}
+
+        <nav className="mt-1 mb-3 flex items-center gap-2 text-sm font-semibold">
+          <button
+            type="button"
+            onClick={() =>
+              navigate("/admin/user-management")
+            }
+            className="text-gray-500 hover:text-[#002f86] hover:underline"
+          >
+            User Management
+          </button>
+
+          <span className="text-gray-400">
+            &gt;
+          </span>
+
+          <span className="text-[#002f86]">
+            Trainee Management
+          </span>
+        </nav>
+
+        {/* ======================================
+    PAGE HEADER
+======================================= */}
 
         <div
           className="
-            mb-6
-          "
+    mb-6
+  "
         >
           <h1
             className="
-              text-4xl
-              font-bold
-              text-gray-900
-            "
+      text-4xl
+      font-bold
+      text-gray-900
+    "
           >
             Trainees
           </h1>
 
           <p
             className="
-              text-gray-600
-            "
+      text-gray-600
+    "
           >
             Manage and review
             trainee accounts
@@ -731,12 +791,12 @@ function TraineeManagement() {
 
             <div
               className="
-                flex
-                flex-col
-                gap-4
-                sm:flex-row
-                lg:ml-auto
-              "
+    flex
+    flex-col
+    gap-4
+    sm:flex-row
+    lg:ml-auto
+  "
             >
               <StatusFilter
                 value={
@@ -747,14 +807,36 @@ function TraineeManagement() {
                 }
               />
 
-              <VerificationFilter
-                value={
-                  verificationFilter
+
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(
+                    "/admin/user-management/add-trainee"
+                  )
                 }
-                onChange={
-                  setVerificationFilter
-                }
-              />
+                className="
+      inline-flex
+      items-center
+      justify-center
+      rounded-lg
+      bg-[#15294b]
+      px-5
+      py-2.5
+      text-sm
+      font-semibold
+      text-white
+      shadow-sm
+      transition
+      hover:bg-[#0f1f3a]
+      focus:outline-none
+      focus:ring-2
+      focus:ring-[#15294b]
+      focus:ring-offset-2
+    "
+              >
+                + Add Trainee
+              </button>
             </div>
           </div>
         </div>
@@ -763,14 +845,7 @@ function TraineeManagement() {
             TABLE CONTAINER
         ======================================= */}
 
-        <div
-          className="
-            rounded-2xl
-            bg-white
-            p-5
-            shadow-[0_4px_12px_rgba(0,0,0,0.35)]
-          "
-        >
+        <div className="w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[0_4px_12px_rgba(0,0,0,0.20)]">
           {loading ? (
             <div
               className="
@@ -1049,10 +1124,9 @@ function TraineeManagement() {
                     disabled:cursor-not-allowed
                     disabled:opacity-60
 
-                    ${
-                      isDeactivateAction
-                        ? "bg-red-600 hover:bg-red-700"
-                        : "bg-[#15294b] hover:bg-[#0f1f3a]"
+                    ${isDeactivateAction
+                      ? "bg-red-600 hover:bg-red-700"
+                      : "bg-[#15294b] hover:bg-[#0f1f3a]"
                     }
                   `}
                 >
