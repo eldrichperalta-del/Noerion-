@@ -11,6 +11,7 @@ import {
 import DashboardPageHeader from "../../components/common/DashboardPageHeader";
 import { mockAdminDashboard } from "../../data/mockAdminDashboard";
 import { supabase } from "../../supabaseClient";
+import useNotifications from "../../hooks/useNotifications";
 
 // ==========================================
 // DASHBOARD CARD
@@ -95,6 +96,21 @@ export default function Home() {
     useState("Admin");
 
   // ==========================================
+  // NOTIFICATIONS
+  //
+  // Uses the exact same notification source
+  // as NotificationBell.jsx.
+  //
+  // This keeps Navbar Notifications and
+  // Admin Recent Activity synchronized.
+  // ==========================================
+
+  const {
+    notifications,
+    isLoading: notificationsLoading,
+  } = useNotifications();
+
+  // ==========================================
   // DASHBOARD STATS
   // ==========================================
 
@@ -145,7 +161,6 @@ export default function Home() {
 
   const {
     analytics,
-    activities,
   } = mockAdminDashboard;
 
   // ==========================================
@@ -434,7 +449,7 @@ export default function Home() {
         if (certificatesError) {
           throw new Error(
             certificatesError.message ||
-              "Unable to load certificates from Supabase."
+            "Unable to load certificates from Supabase."
           );
         }
 
@@ -572,7 +587,7 @@ export default function Home() {
 
         setCertificateError(
           error?.message ||
-            "Failed to load certificate status data."
+          "Failed to load certificate status data."
         );
       } finally {
         setCertificateLoading(false);
@@ -600,7 +615,7 @@ export default function Home() {
     Math.max(
       Math.ceil(
         certificates.length /
-          certificateRowsPerPage
+        certificateRowsPerPage
       ),
       1
     );
@@ -793,16 +808,16 @@ export default function Home() {
                             <td className="px-6 py-4 text-gray-600">
                               {assessment.assessment_date
                                 ? new Date(
-                                    `${assessment.assessment_date}T00:00:00`
-                                  ).toLocaleDateString(
-                                    "en-US",
-                                    {
-                                      month:
-                                        "short",
-                                      day: "numeric",
-                                      year: "numeric",
-                                    }
-                                  )
+                                  `${assessment.assessment_date}T00:00:00`
+                                ).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    month:
+                                      "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  }
+                                )
                                 : "—"}
                             </td>
                           </tr>
@@ -939,71 +954,71 @@ export default function Home() {
 
                 {certificates.length >
                   certificateRowsPerPage && (
-                  <div className="flex items-center justify-between border-t border-gray-200 px-4 py-4 text-sm">
-                    <p className="font-medium text-gray-700">
-                      Showing{" "}
-                      {certificateShowingStart}-
-                      {certificateShowingEnd}{" "}
-                      of{" "}
-                      {certificates.length}{" "}
-                      certificates
-                    </p>
+                    <div className="flex items-center justify-between border-t border-gray-200 px-4 py-4 text-sm">
+                      <p className="font-medium text-gray-700">
+                        Showing{" "}
+                        {certificateShowingStart}-
+                        {certificateShowingEnd}{" "}
+                        of{" "}
+                        {certificates.length}{" "}
+                        certificates
+                      </p>
 
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCertificatePage(
-                            (page) =>
-                              Math.max(
-                                page - 1,
-                                1
-                              )
-                          )
-                        }
-                        disabled={
-                          certificatePage ===
-                          1
-                        }
-                        className="flex items-center gap-1 text-gray-500 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        <ChevronLeft
-                          size={16}
-                        />
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCertificatePage(
+                              (page) =>
+                                Math.max(
+                                  page - 1,
+                                  1
+                                )
+                            )
+                          }
+                          disabled={
+                            certificatePage ===
+                            1
+                          }
+                          className="flex items-center gap-1 text-gray-500 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <ChevronLeft
+                            size={16}
+                          />
 
-                        Prev
-                      </button>
+                          Prev
+                        </button>
 
-                      <span className="rounded-lg border border-gray-200 px-3 py-2 font-medium text-gray-700 shadow-sm">
-                        {certificatePage}
-                      </span>
+                        <span className="rounded-lg border border-gray-200 px-3 py-2 font-medium text-gray-700 shadow-sm">
+                          {certificatePage}
+                        </span>
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCertificatePage(
-                            (page) =>
-                              Math.min(
-                                page + 1,
-                                certificateTotalPages
-                              )
-                          )
-                        }
-                        disabled={
-                          certificatePage >=
-                          certificateTotalPages
-                        }
-                        className="flex items-center gap-1 text-gray-500 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        Next
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCertificatePage(
+                              (page) =>
+                                Math.min(
+                                  page + 1,
+                                  certificateTotalPages
+                                )
+                            )
+                          }
+                          disabled={
+                            certificatePage >=
+                            certificateTotalPages
+                          }
+                          className="flex items-center gap-1 text-gray-500 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Next
 
-                        <ChevronRight
-                          size={16}
-                        />
-                      </button>
+                          <ChevronRight
+                            size={16}
+                          />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
             </div>
           </section>
@@ -1025,16 +1040,59 @@ export default function Home() {
             </h2>
 
             <div className="rounded-xl bg-white p-4 shadow-[0_4px_12px_rgba(0,0,0,0.20)]">
-              {activities.length ? (
-                activities.map(
-                  (activity) => (
-                    <p key={activity.id}>
-                      {activity.message}
-                    </p>
-                  )
-                )
+              {notificationsLoading ? (
+                <p className="py-4 text-center text-sm text-gray-500">
+                  Loading recent activity...
+                </p>
+              ) : notifications.length > 0 ? (
+                <div className="space-y-3">
+                  {notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={`rounded-lg border p-3 transition-colors ${notification.is_read
+                        ? "border-gray-100 bg-white"
+                        : "border-blue-100 bg-blue-50/50"
+                        }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${notification.is_read
+                            ? "bg-gray-300"
+                            : "bg-blue-600"
+                            }`}
+                        />
+
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-gray-900">
+                            {notification.title}
+                          </p>
+
+                          <p className="mt-1 text-sm leading-5 text-gray-600">
+                            {notification.message}
+                          </p>
+
+                          {notification.created_at && (
+                            <p className="mt-2 text-xs text-gray-400">
+                              {new Date(
+                                notification.created_at
+                              ).toLocaleString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                                hour: "numeric",
+                                minute: "2-digit",
+                              })}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : (
-                <p>No recent activity</p>
+                <p className="py-4 text-center text-sm text-gray-500">
+                  No recent activity
+                </p>
               )}
             </div>
           </section>

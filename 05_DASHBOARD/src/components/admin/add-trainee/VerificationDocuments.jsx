@@ -22,6 +22,10 @@ import {
 } from "../../../supabaseClient";
 
 import {
+    notifyPendingApproval,
+} from "../../../services/notificationService";
+
+import {
     FunctionsFetchError as SupabaseFunctionsFetchError,
     FunctionsHttpError as SupabaseFunctionsHttpError,
     FunctionsRelayError as SupabaseFunctionsRelayError,
@@ -1018,6 +1022,34 @@ function VerificationDocuments() {
                     "TRAINEE PROFILE PHOTO DATABASE UPDATE SUCCESS:",
                     updatedTraineeProfile
                 );
+
+                // ==================================================
+                // SEND PENDING TRAINEE REGISTRATION NOTIFICATION
+                //
+                // The trainee has now been successfully created.
+                // Notify Admin that the new trainee is pending review.
+                //
+                // IMPORTANT:
+                // Do not use assignments.id or another bigint here.
+                // traineeUserId is the auth/profile UUID and is safe
+                // for notifications.related_id.
+                // ==================================================
+
+                // 7. NOTIFY ADMINS OF PENDING TRAINEE REGISTRATION
+                try {
+                    await notifyPendingApproval({
+                        userId: traineeUserId,
+                        userName:
+                            `${traineeData.firstName || ""} ${traineeData.lastName || ""}`.trim(),
+                        role: "trainee",
+                    });
+                } catch (notificationError) {
+                    // Notification failure should not invalidate an already-created trainee.
+                    console.error(
+                        "Failed to send pending trainee registration notification:",
+                        notificationError
+                    );
+                }
                 // ==================================================
                 // 8. SUCCESS
                 // ==================================================

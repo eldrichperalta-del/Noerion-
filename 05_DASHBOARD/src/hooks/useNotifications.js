@@ -269,7 +269,9 @@ function useNotifications() {
         }
 
         const channelName =
-            `notifications-user-${user.id}`;
+            `notifications-user-${user.id}-${Date.now()}-${Math.random()
+                .toString(36)
+                .slice(2)}`;
 
         const channel = supabase
             .channel(channelName)
@@ -338,7 +340,7 @@ function useNotifications() {
                             currentNotifications.map(
                                 (notification) =>
                                     notification.id ===
-                                    updatedNotification.id
+                                        updatedNotification.id
                                         ? updatedNotification
                                         : notification
                             )
@@ -483,13 +485,13 @@ function useNotifications() {
                         currentNotifications.map(
                             (notification) =>
                                 notification.id ===
-                                notificationId
+                                    notificationId
                                     ? {
-                                          ...notification,
-                                          ...(data || {}),
-                                          is_read: true,
-                                          read_at: readAt,
-                                      }
+                                        ...notification,
+                                        ...(data || {}),
+                                        is_read: true,
+                                        read_at: readAt,
+                                    }
                                     : notification
                         )
                 );
