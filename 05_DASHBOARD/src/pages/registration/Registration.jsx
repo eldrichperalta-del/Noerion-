@@ -23,6 +23,9 @@ import {
 
 import AnimatedWave from "../login/AnimatedWave";
 import { supabase } from "../../supabaseClient";
+import {
+  notifyPendingApproval,
+} from "../../services/notificationService";
 
 const inputClass =
   "auth-input w-full h-11 rounded-xl border border-cyan-300/30 bg-slate-800/70 px-3 text-sm text-white outline-none placeholder:text-slate-400 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20";
@@ -42,13 +45,12 @@ function Progress({ step }) {
         {[1, 2, 3].map((number) => (
           <span
             key={number}
-            className={`relative z-10 grid h-8 w-8 place-items-center rounded-full text-xs font-bold ${
-              number < step
-                ? "bg-cyan-400 text-slate-950"
-                : number === step
-                  ? "bg-cyan-300 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,.9)]"
-                  : "bg-slate-200 text-slate-700"
-            }`}
+            className={`relative z-10 grid h-8 w-8 place-items-center rounded-full text-xs font-bold ${number < step
+              ? "bg-cyan-400 text-slate-950"
+              : number === step
+                ? "bg-cyan-300 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,.9)]"
+                : "bg-slate-200 text-slate-700"
+              }`}
           >
             {number < step ? (
               <Check size={15} />
@@ -159,23 +161,23 @@ export default function Registration() {
         form.email &&
         form.password &&
         form.password ===
-          form.confirmPassword,
+        form.confirmPassword,
       [form]
     );
 
   const stepThreeReady =
     isAssessor
       ? form.assessorId &&
-        form.assessmentCenter &&
-        form.specialization &&
-        photoFile &&
-        documents.accreditation &&
-        accepted
+      form.assessmentCenter &&
+      form.specialization &&
+      photoFile &&
+      documents.accreditation &&
+      accepted
       : form.trainingCenter &&
-        form.ncLevel &&
-        form.qualification &&
-        photoFile &&
-        accepted;
+      form.ncLevel &&
+      form.qualification &&
+      photoFile &&
+      accepted;
 
   // =========================================================
   // FORM UPDATE
@@ -283,8 +285,8 @@ export default function Registration() {
         crypto.randomUUID
           ? crypto.randomUUID()
           : Math.random()
-              .toString(36)
-              .substring(2, 11);
+            .toString(36)
+            .substring(2, 11);
 
       const filePath =
         pathPrefix
@@ -535,13 +537,31 @@ export default function Registration() {
       }
 
       // -----------------------------------------------------
-      // 4. ROLE-SPECIFIC PROFILE
+      // 3. RECREATE / UPDATE ROLE PROFILE
       // -----------------------------------------------------
 
       await saveRoleProfile(
         userId,
         formattedRole
       );
+
+      // -----------------------------------------------------
+      // 4. NOTIFY ADMINS OF PENDING REGISTRATION
+      // -----------------------------------------------------
+
+      try {
+        await notifyPendingApproval({
+          userId,
+          userName:
+            `${form.firstName || ""} ${form.lastName || ""}`.trim(),
+          role: formattedRole,
+        });
+      } catch (notificationError) {
+        console.error(
+          "Failed to send pending registration notification:",
+          notificationError
+        );
+      }
 
       // -----------------------------------------------------
       // 5. SIGN OUT
@@ -597,7 +617,7 @@ export default function Registration() {
 
         const {
           error:
-            assessorError,
+          assessorError,
         } =
           await supabase
             .from(
@@ -620,9 +640,9 @@ export default function Registration() {
                 years_of_experience:
                   form.experience
                     ? parseInt(
-                        form.experience,
-                        10
-                      )
+                      form.experience,
+                      10
+                    )
                     : null,
 
                 accreditation_cert_url:
@@ -659,7 +679,7 @@ export default function Registration() {
 
       const {
         error:
-          traineeError,
+        traineeError,
       } =
         await supabase
           .from(
@@ -745,7 +765,7 @@ export default function Registration() {
 
       const {
         error:
-          profileError,
+        profileError,
       } =
         await supabase
           .from(
@@ -901,7 +921,7 @@ export default function Registration() {
           "An account with this email already exists."
         );
       } catch (
-        err
+      err
       ) {
         console.error(
           "Registration error:",
@@ -910,7 +930,7 @@ export default function Registration() {
 
         setErrorMessage(
           err.message ||
-            "An error occurred during registration."
+          "An error occurred during registration."
         );
       } finally {
         setLoading(false);
@@ -947,7 +967,7 @@ export default function Registration() {
 
         setStep(4);
       } catch (
-        err
+      err
       ) {
         console.error(
           "Resubmission error:",
@@ -956,7 +976,7 @@ export default function Registration() {
 
         setErrorMessage(
           err.message ||
-            "Could not resubmit your registration."
+          "Could not resubmit your registration."
         );
 
         setShowResubmitDialog(
@@ -1056,12 +1076,11 @@ export default function Registration() {
       <div className="absolute -bottom-40 -right-32 h-[500px] w-[500px] bg-purple-500/20 blur-[180px]" />
 
       <main
-        className={`relative z-10 w-full ${
-          step === 3 &&
+        className={`relative z-10 w-full ${step === 3 &&
           isAssessor
-            ? "max-w-4xl"
-            : "max-w-2xl"
-        } rounded-[28px] border border-cyan-300/40 bg-slate-950/80 p-5 shadow-[0_0_20px_rgba(0,242,255,.32),0_0_70px_rgba(0,242,255,.18)] backdrop-blur-[30px] sm:p-8`}
+          ? "max-w-4xl"
+          : "max-w-2xl"
+          } rounded-[28px] border border-cyan-300/40 bg-slate-950/80 p-5 shadow-[0_0_20px_rgba(0,242,255,.32),0_0_70px_rgba(0,242,255,.18)] backdrop-blur-[30px] sm:p-8`}
       >
 
         <div className="mb-4 text-center">
@@ -1323,11 +1342,10 @@ function AccountType({
                   key
                 )
               }
-              className={`min-h-52 rounded-xl border p-5 text-center transition ${
-                role === key
-                  ? "border-cyan-300 bg-cyan-300/10 shadow-[0_0_18px_rgba(34,211,238,.4)]"
-                  : "border-slate-500/40 bg-slate-900/50 hover:border-cyan-300/60"
-              }`}
+              className={`min-h-52 rounded-xl border p-5 text-center transition ${role === key
+                ? "border-cyan-300 bg-cyan-300/10 shadow-[0_0_18px_rgba(34,211,238,.4)]"
+                : "border-slate-500/40 bg-slate-900/50 hover:border-cyan-300/60"
+                }`}
             >
 
               <Icon
@@ -1600,41 +1618,41 @@ function Verification({
   const fields =
     isAssessor
       ? [
-          [
-            "assessorId",
-            "TESDA Assessor ID Number",
-          ],
-          [
-            "assessmentCenter",
-            "Assessment Center / Training Institution",
-          ],
-          [
-            "specialization",
-            "Qualification / Specialization",
-          ],
-          [
-            "experience",
-            "Years of Experience (Optional)",
-          ],
-        ]
+        [
+          "assessorId",
+          "TESDA Assessor ID Number",
+        ],
+        [
+          "assessmentCenter",
+          "Assessment Center / Training Institution",
+        ],
+        [
+          "specialization",
+          "Qualification / Specialization",
+        ],
+        [
+          "experience",
+          "Years of Experience (Optional)",
+        ],
+      ]
       : [
-          [
-            "trainingCenter",
-            "Training Center / TVET Institution",
-          ],
-          [
-            "ncLevel",
-            "NC Level",
-          ],
-          [
-            "qualification",
-            "Qualification / Course",
-          ],
-          [
-            "batch",
-            "Batch (Optional)",
-          ],
-        ];
+        [
+          "trainingCenter",
+          "Training Center / TVET Institution",
+        ],
+        [
+          "ncLevel",
+          "NC Level",
+        ],
+        [
+          "qualification",
+          "Qualification / Course",
+        ],
+        [
+          "batch",
+          "Batch (Optional)",
+        ],
+      ];
 
   return (
     <section>
