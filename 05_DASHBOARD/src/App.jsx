@@ -8,6 +8,7 @@ import SetPassword from "./pages/login/SetPassword";
 import Registration from "./pages/registration/Registration";
 import Loading from "./pages/loading/Loading";
 import Privacy from "./pages/privacy/Privacy";
+import AssessorPrivacy from "./pages/privacy/AssessorPrivacy";
 import CertificateVerification from "./pages/verification/CertificateVerification";
 import CertificateSearch from "./pages/verification/CertificateSearch";
 
@@ -44,6 +45,7 @@ function App() {
       <Route path="/set-password" element={<SetPassword />} />
       <Route path="/loading" element={<Loading />} />
       <Route path="/privacy" element={<Privacy />} />
+      <Route path="/assessor-privacy" element={<AssessorPrivacy />} />
       <Route path="/verify-certificate/:certificateId?" element={<CertificateVerification />} />
       <Route
         path="/verify/:certificateId"

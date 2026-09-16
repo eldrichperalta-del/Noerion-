@@ -87,11 +87,49 @@ export default function Loading() {
 
                 if (role === "admin") {
                     destination = "/admin";
+
                 } else if (role === "assessor") {
-                    destination = "/assessor";
+                    // ==========================================
+                    // CHECK ASSESSOR PRIVACY CONSENT
+                    // ==========================================
+                    const {
+                        data: assessorProfile,
+                        error: assessorProfileError,
+                    } = await supabase
+                        .from("assessor_profiles")
+                        .select("privacy_accepted")
+                        .eq("user_id", session.user.id)
+                        .maybeSingle();
+
+                    if (assessorProfileError) {
+                        console.error(
+                            "Assessor privacy lookup failed:",
+                            assessorProfileError
+                        );
+
+                        // If the privacy status cannot be verified,
+                        // send the assessor to the privacy page.
+                        destination = "/assessor-privacy";
+
+                    } else if (assessorProfile?.privacy_accepted === true) {
+                        console.log(
+                            "Loading: Assessor privacy already accepted → assessor dashboard."
+                        );
+
+                        destination = "/assessor";
+
+                    } else {
+                        console.log(
+                            "Loading: Assessor privacy not yet accepted → Assessor Privacy Page."
+                        );
+
+                        destination = "/assessor-privacy";
+                    }
+
                 } else if (role === "trainee") {
-                    // Privacy consent is stored in Supabase,
-                    // not localStorage.
+                    // ==========================================
+                    // CHECK TRAINEE PRIVACY CONSENT
+                    // ==========================================
                     const {
                         data: traineeProfile,
                         error: traineeProfileError,
@@ -108,6 +146,7 @@ export default function Loading() {
                         );
 
                         destination = "/privacy";
+
                     } else if (
                         traineeProfile?.privacy_accepted === true
                     ) {
@@ -116,6 +155,7 @@ export default function Loading() {
                         );
 
                         destination = "/trainee";
+
                     } else {
                         console.log(
                             "Loading: Privacy not yet accepted → Privacy Page."
@@ -124,7 +164,6 @@ export default function Loading() {
                         destination = "/privacy";
                     }
                 }
-
                 // ==========================================
                 // MINIMUM LOADING DISPLAY TIME
                 // ==========================================
