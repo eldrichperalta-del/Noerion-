@@ -1332,7 +1332,7 @@ export default function AssessmentDetails() {
         <div className="grid grid-cols-1 gap-6 px-6 py-6 sm:grid-cols-2 lg:grid-cols-3">
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+            <p className="text-m font-bold uppercase tracking-wide ">
               Assessment Name
             </p>
 
@@ -1343,7 +1343,7 @@ export default function AssessmentDetails() {
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+            <p className="text-m font-bold uppercase tracking-wide">
               Course Code / Title
             </p>
 
@@ -1353,7 +1353,7 @@ export default function AssessmentDetails() {
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+            <p className="text-m font-bold uppercase tracking-wide">
               Assessment Type
             </p>
 
@@ -1364,7 +1364,7 @@ export default function AssessmentDetails() {
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+            <p className="text-m font-bold uppercase tracking-wide">
               Total Questions
             </p>
 
@@ -1375,7 +1375,7 @@ export default function AssessmentDetails() {
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+            <p className="text-m font-bold uppercase tracking-wide">
               Time Limit
             </p>
 
@@ -1387,7 +1387,7 @@ export default function AssessmentDetails() {
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+            <p className="text-m font-bold uppercase tracking-wide">
               Created Date
             </p>
 
