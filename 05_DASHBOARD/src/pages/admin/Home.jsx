@@ -318,16 +318,20 @@ export default function Home() {
         } = await supabase
           .from("assessment_batches")
           .select(`
-            id,
-            assessment_name,
-            qualification,
-            assessment_type,
-            assessment_date,
-            start_time,
-            end_time,
-            created_at
-          `)
+    id,
+    assessment_name,
+    qualification,
+    assessment_type,
+    assessment_date,
+    start_time,
+    end_time,
+    created_at
+  `)
           .order("assessment_date", {
+            ascending: false,
+            nullsFirst: false,
+          })
+          .order("start_time", {
             ascending: true,
             nullsFirst: false,
           });
@@ -1165,8 +1169,8 @@ export default function Home() {
                           {/* Activity Dot */}
                           <span
                             className={`mt-1.5 h-3 w-3 shrink-0 rounded-full ${notification.is_read
-                                ? "bg-gray-300"
-                                : "bg-[#2563EB]"
+                              ? "bg-gray-300"
+                              : "bg-[#2563EB]"
                               }`}
                           />
 
