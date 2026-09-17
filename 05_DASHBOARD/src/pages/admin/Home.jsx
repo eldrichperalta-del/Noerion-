@@ -1,5 +1,5 @@
-
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Award,
   ClipboardList,
@@ -7,9 +7,9 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
+  Clock,
 } from "lucide-react";
 import DashboardPageHeader from "../../components/common/DashboardPageHeader";
-import { mockAdminDashboard } from "../../data/mockAdminDashboard";
 import { supabase } from "../../supabaseClient";
 import useNotifications from "../../hooks/useNotifications";
 
@@ -19,14 +19,18 @@ import useNotifications from "../../hooks/useNotifications";
 
 const Card = ({ label, value, Icon, tint }) => (
   <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
-    <p className="text-sm font-medium text-gray-900">{label}</p>
+    <p className="text-sm font-medium text-gray-900">
+      {label}
+    </p>
 
     <div className="mt-4 flex items-center gap-3">
       <div className={`rounded-xl p-3 ${tint}`}>
         <Icon size={22} />
       </div>
 
-      <span className="text-3xl font-bold">{value}</span>
+      <span className="text-3xl font-bold">
+        {value}
+      </span>
     </div>
   </div>
 );
@@ -40,48 +44,19 @@ function formatDate(dateValue) {
     return "—";
   }
 
-  const date = new Date(dateValue);
+  const date = new Date(
+    `${String(dateValue).slice(0, 10)}T00:00:00`
+  );
 
   if (Number.isNaN(date.getTime())) {
     return "—";
   }
 
   return date.toLocaleDateString("en-US", {
-    month: "2-digit",
-    day: "2-digit",
+    month: "short",
+    day: "numeric",
     year: "numeric",
   });
-}
-
-// ==========================================
-// TIME FORMATTER
-// ==========================================
-
-function formatTime12Hour(timeStr) {
-  if (!timeStr) {
-    return "";
-  }
-
-  const cleanStr = String(timeStr)
-    .replace(/(AM|PM)/gi, "")
-    .trim();
-
-  const [hourStr, minuteStr] = cleanStr.split(":");
-
-  let hours = parseInt(hourStr, 10);
-  const minutes = minuteStr
-    ? minuteStr.substring(0, 2)
-    : "00";
-
-  if (Number.isNaN(hours)) {
-    return timeStr;
-  }
-
-  const ampm = hours >= 12 ? "PM" : "AM";
-
-  hours = hours % 12 || 12;
-
-  return `${String(hours).padStart(2, "0")}:${minutes} ${ampm}`;
 }
 
 // ==========================================
@@ -89,8 +64,7 @@ function formatTime12Hour(timeStr) {
 // ==========================================
 
 export default function Home() {
-  const [animateAnalytics, setAnimateAnalytics] =
-    useState(false);
+  const navigate = useNavigate();
 
   const [adminName, setAdminName] =
     useState("Admin");
@@ -135,6 +109,11 @@ export default function Home() {
   const [assessmentLoading, setAssessmentLoading] =
     useState(true);
 
+  const [assessmentPage, setAssessmentPage] =
+    useState(1);
+
+  const assessmentRowsPerPage = 5;
+
   // ==========================================
   // CERTIFICATE STATUS PANEL
   // ==========================================
@@ -151,30 +130,7 @@ export default function Home() {
   const [certificatePage, setCertificatePage] =
     useState(1);
 
-  // IMPORTANT:
-  // Same pagination size as TraineeTable.jsx.
   const certificateRowsPerPage = 5;
-
-  // ==========================================
-  // EXISTING ANALYTICS / ACTIVITY
-  // ==========================================
-
-  const {
-    analytics,
-  } = mockAdminDashboard;
-
-  // ==========================================
-  // ANALYTICS ANIMATION
-  // ==========================================
-
-  useEffect(() => {
-    const timer = setTimeout(
-      () => setAnimateAnalytics(true),
-      120
-    );
-
-    return () => clearTimeout(timer);
-  }, []);
 
   // ==========================================
   // LOAD ADMIN NAME
@@ -371,8 +327,9 @@ export default function Home() {
             end_time,
             created_at
           `)
-          .order("created_at", {
-            ascending: false,
+          .order("assessment_date", {
+            ascending: true,
+            nullsFirst: false,
           });
 
         if (error) {
@@ -598,14 +555,42 @@ export default function Home() {
   }, []);
 
   // ==========================================
-  // RESET CERTIFICATE PAGE
-  //
-  // Same behavior as TraineeTable.jsx.
+  // ASSESSMENT PAGINATION
   // ==========================================
 
-  useEffect(() => {
-    setCertificatePage(1);
-  }, [certificates.length]);
+  const assessmentTotalPages =
+    Math.max(
+      Math.ceil(
+        assessments.length /
+        assessmentRowsPerPage
+      ),
+      1
+    );
+
+  const assessmentStartIndex =
+    (assessmentPage - 1) *
+    assessmentRowsPerPage;
+
+  const assessmentEndIndex =
+    assessmentStartIndex +
+    assessmentRowsPerPage;
+
+  const paginatedAssessments =
+    assessments.slice(
+      assessmentStartIndex,
+      assessmentEndIndex
+    );
+
+  const assessmentShowingStart =
+    assessments.length === 0
+      ? 0
+      : assessmentStartIndex + 1;
+
+  const assessmentShowingEnd =
+    Math.min(
+      assessmentEndIndex,
+      assessments.length
+    );
 
   // ==========================================
   // CERTIFICATE PAGINATION
@@ -620,8 +605,16 @@ export default function Home() {
       1
     );
 
+  // Keep the current page valid if the
+  // certificate data changes.
+  const safeCertificatePage =
+    Math.min(
+      Math.max(certificatePage, 1),
+      certificateTotalPages
+    );
+
   const certificateStartIndex =
-    (certificatePage - 1) *
+    (safeCertificatePage - 1) *
     certificateRowsPerPage;
 
   const certificateEndIndex =
@@ -644,6 +637,23 @@ export default function Home() {
       certificateEndIndex,
       certificates.length
     );
+
+  // ==========================================
+  // RESET / CLAMP PAGINATION
+  // ==========================================
+
+  useEffect(() => {
+    setAssessmentPage(1);
+  }, [assessments.length]);
+
+  useEffect(() => {
+    setCertificatePage((currentPage) =>
+      Math.min(
+        Math.max(currentPage, 1),
+        certificateTotalPages
+      )
+    );
+  }, [certificateTotalPages]);
 
   // ==========================================
   // CERTIFICATE STATUS STYLE
@@ -780,7 +790,7 @@ export default function Home() {
                         </td>
                       </tr>
                     ) : assessments.length > 0 ? (
-                      assessments.map(
+                      paginatedAssessments.map(
                         (assessment) => (
                           <tr
                             key={assessment.id}
@@ -806,19 +816,9 @@ export default function Home() {
                             </td>
 
                             <td className="px-6 py-4 text-gray-600">
-                              {assessment.assessment_date
-                                ? new Date(
-                                  `${assessment.assessment_date}T00:00:00`
-                                ).toLocaleDateString(
-                                  "en-US",
-                                  {
-                                    month:
-                                      "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                  }
-                                )
-                                : "—"}
+                              {formatDate(
+                                assessment.assessment_date
+                              )}
                             </td>
                           </tr>
                         )
@@ -836,6 +836,77 @@ export default function Home() {
                     )}
                   </tbody>
                 </table>
+
+                {/* ==========================================
+                    ASSESSMENT PAGINATION
+                ========================================== */}
+
+                {assessments.length >
+                  assessmentRowsPerPage && (
+                    <div className="flex items-center justify-between border-t border-gray-200 px-4 py-4 text-sm">
+                      <p className="font-medium text-gray-700">
+                        Showing{" "}
+                        {assessmentShowingStart}-
+                        {assessmentShowingEnd}{" "}
+                        of{" "}
+                        {assessments.length}{" "}
+                        assessments
+                      </p>
+
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAssessmentPage(
+                              (page) =>
+                                Math.max(
+                                  page - 1,
+                                  1
+                                )
+                            )
+                          }
+                          disabled={
+                            assessmentPage === 1
+                          }
+                          className="flex items-center gap-1 text-gray-500 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <ChevronLeft
+                            size={16}
+                          />
+
+                          Prev
+                        </button>
+
+                        <span className="rounded-lg border border-gray-200 px-3 py-2 font-medium text-gray-700 shadow-sm">
+                          {assessmentPage}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAssessmentPage(
+                              (page) =>
+                                Math.min(
+                                  page + 1,
+                                  assessmentTotalPages
+                                )
+                            )
+                          }
+                          disabled={
+                            assessmentPage >=
+                            assessmentTotalPages
+                          }
+                          className="flex items-center gap-1 text-gray-500 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Next
+
+                          <ChevronRight
+                            size={16}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                  )}
               </div>
             </div>
           </section>
@@ -849,35 +920,35 @@ export default function Home() {
               Certificate Status Panel
             </h2>
 
-            <div className="overflow-hidden rounded-xl border-2 border-gray-100 bg-white shadow-[0_4px_12px_rgba(0,0,0,0.20)]">
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-200">
+                <table className="w-full min-w-[700px]">
+                  <thead className="border-b border-gray-200 bg-gray-50/80 text-left text-xs font-semibold uppercase text-gray-500">
                     <tr>
-                      <th className="px-4 py-4 text-left font-bold">
+                      <th className="px-6 py-4">
                         Trainee Name
                       </th>
 
-                      <th className="px-4 py-4 text-left font-bold">
+                      <th className="px-6 py-4">
                         Course
                       </th>
 
-                      <th className="px-4 py-4 text-left font-bold">
+                      <th className="px-6 py-4">
                         Status
                       </th>
 
-                      <th className="px-4 py-4 text-left font-bold">
+                      <th className="px-6 py-4">
                         Date Issued
                       </th>
                     </tr>
                   </thead>
 
-                  <tbody>
+                  <tbody className="divide-y divide-gray-100 text-sm">
                     {certificateLoading ? (
                       <tr>
                         <td
                           colSpan="4"
-                          className="py-8 text-center text-gray-500"
+                          className="px-6 py-12 text-center text-gray-500"
                         >
                           Loading certificates...
                         </td>
@@ -886,56 +957,67 @@ export default function Home() {
                       <tr>
                         <td
                           colSpan="4"
-                          className="py-8 text-center text-red-500"
+                          className="px-6 py-12 text-center text-red-500"
                         >
                           Unable to load certificates.
                         </td>
                       </tr>
-                    ) : paginatedCertificates.length >
-                      0 ? (
-                      paginatedCertificates.map(
-                        (certificate) => (
-                          <tr
-                            key={certificate.id}
-                            className="border-b border-gray-300 hover:bg-gray-100"
-                          >
-                            <td className="px-4 py-3">
-                              {
-                                certificate.traineeName
-                              }
-                            </td>
-
-                            <td className="px-4 py-3">
-                              {
-                                certificate.course
-                              }
-                            </td>
-
-                            <td className="px-4 py-3">
-                              <span
-                                className={`rounded-full px-4 py-1 font-medium ${getCertificateStatusClass(
-                                  certificate.status
-                                )}`}
-                              >
+                    ) : certificates.length > 0 ? (
+                      paginatedCertificates.length > 0 ? (
+                        paginatedCertificates.map(
+                          (certificate) => (
+                            <tr
+                              key={certificate.id}
+                              className="transition-colors hover:bg-gray-50/60"
+                            >
+                              <td className="px-6 py-4 text-gray-900">
                                 {
-                                  certificate.status
+                                  certificate.traineeName
                                 }
-                              </span>
-                            </td>
+                              </td>
 
-                            <td className="px-4 py-3">
-                              {formatDate(
-                                certificate.dateIssued
-                              )}
-                            </td>
-                          </tr>
+                              <td className="px-6 py-4 text-gray-600">
+                                {
+                                  certificate.course
+                                }
+                              </td>
+
+                              <td className="px-6 py-4">
+                                <span
+                                  className={`rounded-full px-4 py-1 font-medium ${getCertificateStatusClass(
+                                    certificate.status
+                                  )}`}
+                                >
+                                  {
+                                    certificate.status
+                                  }
+                                </span>
+                              </td>
+
+                              <td className="px-6 py-4 text-gray-600">
+                                {formatDate(
+                                  certificate.dateIssued
+                                )}
+                              </td>
+                            </tr>
+                          )
                         )
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan="4"
+                            className="px-6 py-12 text-center text-gray-500"
+                          >
+                            No certificates found
+                            for this page.
+                          </td>
+                        </tr>
                       )
                     ) : (
                       <tr>
                         <td
                           colSpan="4"
-                          className="py-8 text-center text-gray-500"
+                          className="px-6 py-12 text-center text-gray-500"
                         >
                           No certificates found.
                         </td>
@@ -945,11 +1027,14 @@ export default function Home() {
                 </table>
 
                 {/* ==========================================
-                    PAGINATION
+                    CERTIFICATE PAGINATION
 
-                    IMPORTANT:
-                    Pagination only appears when there
-                    are MORE THAN 5 certificates.
+                    EXACT SAME BEHAVIOR AS ASSESSMENTS:
+                    - 5 certificates per page
+                    - Hidden when 5 or fewer
+                    - Prev / Next
+                    - Current page indicator
+                    - Showing X-Y of Z
                 ========================================== */}
 
                 {certificates.length >
@@ -977,7 +1062,7 @@ export default function Home() {
                             )
                           }
                           disabled={
-                            certificatePage ===
+                            safeCertificatePage ===
                             1
                           }
                           className="flex items-center gap-1 text-gray-500 disabled:cursor-not-allowed disabled:opacity-40"
@@ -990,7 +1075,7 @@ export default function Home() {
                         </button>
 
                         <span className="rounded-lg border border-gray-200 px-3 py-2 font-medium text-gray-700 shadow-sm">
-                          {certificatePage}
+                          {safeCertificatePage}
                         </span>
 
                         <button
@@ -1005,7 +1090,7 @@ export default function Home() {
                             )
                           }
                           disabled={
-                            certificatePage >=
+                            safeCertificatePage >=
                             certificateTotalPages
                           }
                           className="flex items-center gap-1 text-gray-500 disabled:cursor-not-allowed disabled:opacity-40"
@@ -1030,122 +1115,126 @@ export default function Home() {
 
         <aside className="space-y-6">
 
-          {/* ==========================================
-              RECENT ACTIVITY
-          ========================================== */}
 
           <section>
-            <h2 className="mb-4 text-1xl font-bold">
-              Recent Activity
-            </h2>
+            <div className="mt-10 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-sm">
 
-            <div className="rounded-xl bg-white p-4 shadow-[0_4px_12px_rgba(0,0,0,0.20)]">
-              {notificationsLoading ? (
-                <p className="py-4 text-center text-sm text-gray-500">
-                  Loading recent activity...
-                </p>
-              ) : notifications.length > 0 ? (
+              {/* ==========================================
+        RECENT ACTIVITY HEADER
+    ========================================== */}
+
+              <div className="flex items-center gap-3 px-5 pt-5 pb-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50">
+                  <Clock
+                    size={24}
+                    className="text-[#001F5B]"
+                    strokeWidth={2.2}
+                  />
+                </div>
+
+                <h2 className="text-l font-bold text-[#001F5B]">
+                  Recent Activity
+                </h2>
+              </div>
+
+              {/* ==========================================
+        ACTIVITY LIST
+        Only this area scrolls.
+        Approximately 2 activity cards visible.
+    ========================================== */}
+
+              <div className="max-h-[260px] overflow-y-auto px-5 pb-5 pr-3">
                 <div className="space-y-3">
-                  {notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      className={`rounded-lg border p-3 transition-colors ${notification.is_read
-                        ? "border-gray-100 bg-white"
-                        : "border-blue-100 bg-blue-50/50"
-                        }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${notification.is_read
-                            ? "bg-gray-300"
-                            : "bg-blue-600"
-                            }`}
-                        />
 
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-gray-900">
-                            {notification.title}
-                          </p>
+                  {notificationsLoading ? (
+                    <div className="flex items-center justify-center py-10 text-sm text-gray-500">
+                      Loading recent activity...
+                    </div>
+                  ) : notifications.length === 0 ? (
+                    <div className="flex items-center justify-center py-10 text-sm text-gray-500">
+                      No recent activity.
+                    </div>
+                  ) : (
+                    notifications.map((notification) => (
+                      <div
+                        key={notification.id}
+                        className="rounded-xl border border-gray-100 bg-white px-4 py-4 shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-shadow hover:shadow-[0_4px_12px_rgba(0,0,0,0.12)]"
+                      >
+                        <div className="flex items-start gap-4">
 
-                          <p className="mt-1 text-sm leading-5 text-gray-600">
-                            {notification.message}
-                          </p>
+                          {/* Activity Dot */}
+                          <span
+                            className={`mt-1.5 h-3 w-3 shrink-0 rounded-full ${notification.is_read
+                                ? "bg-gray-300"
+                                : "bg-[#2563EB]"
+                              }`}
+                          />
 
-                          {notification.created_at && (
-                            <p className="mt-2 text-xs text-gray-400">
-                              {new Date(
-                                notification.created_at
-                              ).toLocaleString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                                hour: "numeric",
-                                minute: "2-digit",
-                              })}
+                          <div className="min-w-0 flex-1">
+
+                            {/* Notification Title */}
+                            <p className="text-base font-semibold text-[#001F5B]">
+                              {notification.title || "Notification"}
                             </p>
-                          )}
+
+                            {/* Notification Message */}
+                            <p className="mt-1.5 text-sm leading-6 text-gray-600">
+                              {notification.message ||
+                                "No additional details available."}
+                            </p>
+
+                            {/* Timestamp */}
+                            <p className="mt-1.5 text-xs text-gray-400">
+                              {notification.created_at
+                                ? new Date(
+                                  notification.created_at
+                                ).toLocaleString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                })
+                                : "—"}
+                            </p>
+
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
+
                 </div>
-              ) : (
-                <p className="py-4 text-center text-sm text-gray-500">
-                  No recent activity
-                </p>
-              )}
+              </div>
             </div>
           </section>
 
           {/* ==========================================
-              QUICK ANALYTICS
+              RESULTS OVERVIEW
           ========================================== */}
 
           <section>
             <h2 className="mb-4 text-1xl font-bold">
-              Quick Analytics
+              Results Overview
             </h2>
 
             <div className="rounded-xl bg-white p-4 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
               <div className="space-y-5">
-                {[
-                  [
-                    "Pass Rate",
-                    analytics.passRate,
-                    "bg-blue-600",
-                  ],
-                  [
-                    "Completion Rate",
-                    analytics.completionRate,
-                    "bg-cyan-500",
-                  ],
-                ].map(
-                  ([label, value, color]) => (
-                    <div key={label}>
-                      <div className="mb-2 flex justify-between">
-                        <span>
-                          {label}
-                        </span>
+                <p className="text-sm leading-6 text-gray-600">
+                  View course-based assessment
+                  performance, completion outcomes,
+                  and trainee results.
+                </p>
 
-                        <span>
-                          {value}%
-                        </span>
-                      </div>
-
-                      <div className="h-3 w-full rounded-full bg-gray-200">
-                        <div
-                          className={`h-3 rounded-full transition-all duration-1000 ease-out ${color}`}
-                          style={{
-                            width:
-                              animateAnalytics
-                                ? `${value}%`
-                                : "0%",
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )
-                )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate("/admin/results")
+                  }
+                  className="w-full rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1D4ED8]"
+                >
+                  View Results Monitoring
+                </button>
               </div>
             </div>
           </section>
@@ -1154,4 +1243,3 @@ export default function Home() {
     </div>
   );
 }
-
