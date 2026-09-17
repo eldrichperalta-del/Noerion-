@@ -6,8 +6,10 @@ function AssessorStatusFilter({ value, onChange }) {
       className="min-w-[180px] rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-[#002f86] focus:ring-2 focus:ring-blue-100"
     >
       <option value="All">Status: All</option>
-      <option value="Active">Active</option>
-      <option value="Inactive">Inactive</option>
+      <option value="Pending">Pending</option>
+      <option value="Approved">Approved</option>
+      <option value="Rejected">Rejected</option>
+      <option value="Deactivated">Deactivated</option>
     </select>
   );
 }

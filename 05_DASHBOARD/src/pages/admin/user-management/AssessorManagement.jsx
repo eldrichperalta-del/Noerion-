@@ -47,13 +47,13 @@ function AssessorManagement() {
         let status = "Pending";
         let verificationStatus = "Not Verified";
 
-        if (normalizedStatus.includes("approved") || normalizedStatus.includes("active")) {
+        if (normalizedStatus === "approved") {
           status = "Approved";
           verificationStatus = "Verified";
-        } else if (normalizedStatus.includes("reject")) {
+        } else if (normalizedStatus === "rejected") {
           status = "Rejected";
           verificationStatus = "N/A";
-        } else if (normalizedStatus.includes("deactiv") || normalizedStatus.includes("inactiv")) {
+        } else if (normalizedStatus === "deactivated") {
           status = "Deactivated";
           verificationStatus = "Deactivated";
         }

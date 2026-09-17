@@ -9,8 +9,10 @@ function StatusFilter({ value, onChange }) {
       <option value="Pending">Pending</option>
       <option value="Approved">Approved</option>
       <option value="Rejected">Rejected</option>
+      <option value="Deactivated">Deactivated</option>
     </select>
   );
 }
 
 export default StatusFilter;
+
