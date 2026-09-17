@@ -938,20 +938,71 @@ export async function notifyTrainee({
 export async function notifyPendingApproval({
     userId,
     userName,
-    role = "trainee",
+    role,
 }) {
-    return notifyAdmins({
-        type: "user_registration",
+    try {
+        console.log(
+            "[notifyPendingApproval] Calling database RPC..."
+        );
 
-        title: "Pending Approval",
+        console.log(
+            "[notifyPendingApproval] Payload:",
+            {
+                userId,
+                userName,
+                role,
+            }
+        );
 
-        message:
-            `${userName || "A user"} has submitted a new ${role} registration for approval.`,
+        const {
+            data,
+            error,
+        } = await supabase.rpc(
+            "notify_pending_registration",
+            {
+                p_user_id: userId,
+                p_user_name: userName || "A user",
+                p_role: role || "trainee",
+            }
+        );
 
-        relatedId: userId,
+        console.log(
+            "[notifyPendingApproval] RPC result:",
+            data
+        );
 
-        relatedType: "user_registration",
-    });
+        if (error) {
+            console.error(
+                "[notifyPendingApproval] RPC error:",
+                error
+            );
+
+            return {
+                success: false,
+                skipped: false,
+                error,
+            };
+        }
+
+        return {
+            success: true,
+            skipped: false,
+            data,
+        };
+
+    } catch (error) {
+
+        console.error(
+            "[notifyPendingApproval] Unexpected error:",
+            error
+        );
+
+        return {
+            success: false,
+            skipped: false,
+            error,
+        };
+    }
 }
 
 /*

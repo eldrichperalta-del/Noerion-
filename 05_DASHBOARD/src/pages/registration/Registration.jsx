@@ -23,9 +23,6 @@ import {
 
 import AnimatedWave from "../login/AnimatedWave";
 import { supabase } from "../../supabaseClient";
-import {
-  notifyPendingApproval,
-} from "../../services/notificationService";
 
 const inputClass =
   "auth-input w-full h-11 rounded-xl border border-cyan-300/30 bg-slate-800/70 px-3 text-sm text-white outline-none placeholder:text-slate-400 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20";
@@ -431,14 +428,9 @@ export default function Registration() {
 
           options: {
             data: {
-              first_name:
-                form.firstName,
-
-              last_name:
-                form.lastName,
-
-              role:
-                formattedRole,
+              first_name: form.firstName,
+              last_name: form.lastName,
+              role: formattedRole,
             },
           },
         });
@@ -457,6 +449,47 @@ export default function Registration() {
       }
 
       // -----------------------------------------------------
+      // 2. SAVE PERSONAL INFORMATION TO PROFILE
+      // -----------------------------------------------------
+
+      const {
+        error: profileError,
+      } = await supabase
+        .from("profiles")
+        .update({
+          first_name:
+            form.firstName,
+
+          middle_name:
+            form.middleName || null,
+
+          last_name:
+            form.lastName,
+
+          suffix:
+            form.suffix || null,
+
+          gender:
+            form.gender || null,
+
+          date_of_birth:
+            form.birthDate || null,
+
+          contact_number:
+            form.contactNumber || null,
+
+          registration_status:
+            "Pending",
+
+          is_approved:
+            false,
+        })
+        .eq("id", userId);
+
+      if (profileError) {
+        throw profileError;
+      }
+      // -----------------------------------------------------
       // 2. UPLOAD PROFILE PHOTO
       // -----------------------------------------------------
 
@@ -472,68 +505,23 @@ export default function Registration() {
           );
       }
 
-      // -----------------------------------------------------
-      // 3. UPDATE PROFILE
-      //
-      // The auth trigger may already have created the row.
-      // upsert safely updates it.
-      // -----------------------------------------------------
-
-      const {
-        error: profileError,
-      } =
-        await supabase
+      if (profilePhotoUrl) {
+        const {
+          error: profilePhotoError,
+        } = await supabase
           .from("profiles")
-          .upsert({
-            id:
-              userId,
-
-            role:
-              formattedRole,
-
-            first_name:
-              form.firstName,
-
-            middle_name:
-              form.middleName ||
-              null,
-
-            last_name:
-              form.lastName,
-
-            suffix:
-              form.suffix ||
-              null,
-
-            gender:
-              form.gender,
-
-            date_of_birth:
-              form.birthDate,
-
-            contact_number:
-              form.contactNumber,
-
-            email:
-              normalizeEmail(
-                form.email
-              ),
-
+          .update({
             profile_photo_url:
               profilePhotoUrl,
+          })
+          .eq(
+            "id",
+            userId
+          );
 
-            registration_status:
-              "Pending",
-
-            is_approved:
-              false,
-
-            rejected_reason:
-              null,
-          });
-
-      if (profileError) {
-        throw profileError;
+        if (profilePhotoError) {
+          throw profilePhotoError;
+        }
       }
 
       // -----------------------------------------------------
@@ -548,19 +536,75 @@ export default function Registration() {
       // -----------------------------------------------------
       // 4. NOTIFY ADMINS OF PENDING REGISTRATION
       // -----------------------------------------------------
+      //
+      // IMPORTANT:
+      // Do NOT insert directly into notifications from the
+      // registration client. The notifications INSERT RLS
+      // intentionally blocks ordinary users.
+      //
+      // Use the SECURITY DEFINER RPC instead.
+      // -----------------------------------------------------
 
       try {
-        await notifyPendingApproval({
-          userId,
-          userName:
-            `${form.firstName || ""} ${form.lastName || ""}`.trim(),
-          role: formattedRole,
-        });
+        console.log(
+          "========================================"
+        );
+
+        console.log(
+          "SENDING PENDING REGISTRATION NOTIFICATION"
+        );
+
+        console.log(
+          "USER ID:",
+          userId
+        );
+
+        console.log(
+          "USER NAME:",
+          `${form.firstName || ""} ${form.lastName || ""}`.trim()
+        );
+
+        console.log(
+          "ROLE:",
+          formattedRole
+        );
+
+        console.log(
+          "========================================"
+        );
+
+        const {
+          data: notificationResult,
+          error: notificationError,
+        } = await supabase.rpc(
+          "notify_pending_registration",
+          {
+            p_user_id: userId,
+            p_user_name:
+              `${form.firstName || ""} ${form.lastName || ""}`.trim(),
+            p_role: formattedRole,
+          }
+        );
+
+        if (notificationError) {
+          console.error(
+            "PENDING REGISTRATION NOTIFICATION ERROR:",
+            notificationError
+          );
+        } else {
+          console.log(
+            "PENDING REGISTRATION NOTIFICATION RESULT:",
+            notificationResult
+          );
+        }
+
       } catch (notificationError) {
+
         console.error(
-          "Failed to send pending registration notification:",
+          "FAILED TO SEND PENDING REGISTRATION NOTIFICATION:",
           notificationError
         );
+
       }
 
       // -----------------------------------------------------
@@ -837,7 +881,43 @@ export default function Registration() {
       );
 
       // -----------------------------------------------------
-      // 4. SIGN OUT
+      // 4. NOTIFY ADMINS OF RESUBMITTED REGISTRATION
+      // -----------------------------------------------------
+
+      try {
+        const {
+          data: notificationResult,
+          error: notificationError,
+        } = await supabase.rpc(
+          "notify_pending_registration",
+          {
+            p_user_id: userId,
+            p_user_name:
+              `${form.firstName || ""} ${form.lastName || ""}`.trim(),
+            p_role: formattedRole,
+          }
+        );
+
+        if (notificationError) {
+          console.error(
+            "RESUBMISSION NOTIFICATION ERROR:",
+            notificationError
+          );
+        } else {
+          console.log(
+            "RESUBMISSION NOTIFICATION RESULT:",
+            notificationResult
+          );
+        }
+      } catch (notificationError) {
+        console.error(
+          "FAILED TO SEND RESUBMISSION NOTIFICATION:",
+          notificationError
+        );
+      }
+
+      // -----------------------------------------------------
+      // 5. SIGN OUT
       // -----------------------------------------------------
 
       await supabase.auth.signOut();
