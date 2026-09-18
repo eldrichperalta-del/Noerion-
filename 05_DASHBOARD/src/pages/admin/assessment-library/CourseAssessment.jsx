@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import {
     Archive,
+    AlertTriangle,
+    ChevronLeft,
+    ChevronRight,
     Copy,
     MoreVertical,
     RotateCcw,
     Search,
     Trash2,
+    X,
 } from "lucide-react";
 import {
     useLocation,
@@ -115,8 +119,8 @@ function MenuItem({
             type="button"
             onClick={onClick}
             className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition ${destructive
-                    ? "text-red-600 hover:bg-red-50"
-                    : "text-gray-700 hover:bg-gray-50"
+                ? "text-red-600 hover:bg-red-50"
+                : "text-gray-700 hover:bg-gray-50"
                 }`}
         >
             <Icon size={16} />
@@ -169,6 +173,17 @@ export default function CourseAssessment() {
 
     const [errorMessage, setErrorMessage] =
         useState("");
+
+    const [currentPage, setCurrentPage] =
+        useState(1);
+
+    const [deleteTarget, setDeleteTarget] =
+        useState(null);
+
+    const [duplicatingId, setDuplicatingId] =
+        useState(null);
+
+    const rowsPerPage = 5;
 
     /* ========================================================
        LOAD COURSE
@@ -399,6 +414,7 @@ export default function CourseAssessment() {
         loadAssessments();
     }, [courseId]);
 
+
     /* ========================================================
        SEARCH
        ======================================================== */
@@ -426,6 +442,45 @@ export default function CourseAssessment() {
         );
     }, [assessments, search]);
 
+
+    /* ========================================================
+       PAGINATION
+       ======================================================== */
+
+    const totalPages =
+        Math.max(
+            Math.ceil(
+                filteredAssessments.length /
+                rowsPerPage
+            ),
+            1
+        );
+
+    const startIndex =
+        (currentPage - 1) *
+        rowsPerPage;
+
+    const endIndex =
+        startIndex +
+        rowsPerPage;
+
+    const paginatedAssessments =
+        filteredAssessments.slice(
+            startIndex,
+            endIndex
+        );
+
+    const showingStart =
+        filteredAssessments.length === 0
+            ? 0
+            : startIndex + 1;
+
+    const showingEnd =
+        Math.min(
+            endIndex,
+            filteredAssessments.length
+        );
+
     /* ========================================================
        CLOSE MENU
        ======================================================== */
@@ -435,7 +490,7 @@ export default function CourseAssessment() {
     };
 
     /* ========================================================
-       VIEW ASSESSMENT
+       const filteredAssessments
        ======================================================== */
 
     const handleViewAssessment = (
@@ -515,20 +570,80 @@ export default function CourseAssessment() {
         }
     };
 
-    /* ========================================================
-       DUPLICATE ASSESSMENT
-       ======================================================== */
-
-    const duplicateAssessment = async (
-        assessment
-    ) => {
+    const duplicateAssessment = async (assessment) => {
         try {
-            const source =
-                assessment.raw || {};
+            const source = assessment.raw || {};
+            const originalAssessmentId = assessment.id;
 
+            /*
+             * ========================================================
+             * 1. DETERMINE THE BASE TITLE
+             * ========================================================
+             *
+             * Examples:
+             *
+             * Assessment
+             * Assessment - Copy 1
+             * Assessment - Copy 2
+             *
+             * All of these use:
+             *
+             * Assessment
+             *
+             * as the base title.
+             */
+            const baseTitle = assessment.title
+                .replace(
+                    /(?:\s*-\s*Copy(?:\s+\d+)?)+$/i,
+                    ""
+                )
+                .trim();
+
+            /*
+             * ========================================================
+             * 2. FIND THE NEXT COPY NUMBER
+             * ========================================================
+             */
+            const escapedBaseTitle = baseTitle.replace(
+                /[.*+?^${}()|[\]\\]/g,
+                "\\$&"
+            );
+
+            const copyPattern = new RegExp(
+                `^${escapedBaseTitle}\\s+-\\s+Copy\\s+(\\d+)$`,
+                "i"
+            );
+
+            const existingCopyNumbers = assessments
+                .map((item) => {
+                    const match = item.title.match(copyPattern);
+
+                    return match
+                        ? Number(match[1])
+                        : null;
+                })
+                .filter((number) =>
+                    Number.isInteger(number)
+                );
+
+            const nextCopyNumber =
+                existingCopyNumbers.length > 0
+                    ? Math.max(
+                        ...existingCopyNumbers
+                    ) + 1
+                    : 1;
+
+            const newTitle =
+                `${baseTitle} - Copy ${nextCopyNumber}`;
+
+            /*
+             * ========================================================
+             * 3. CREATE THE NEW ASSESSMENT
+             * ========================================================
+             */
             const {
                 data: newAssessment,
-                error,
+                error: assessmentError,
             } = await supabase
                 .from("assessments")
                 .insert({
@@ -536,17 +651,14 @@ export default function CourseAssessment() {
                         source.course_id ||
                         courseId,
 
-                    title:
-                        `${assessment.title} - Copy`,
+                    title: newTitle,
 
                     set_type:
                         source.set_type ||
                         "Written",
 
                     total_items:
-                        Number(
-                            source.total_items
-                        ) || 0,
+                        Number(source.total_items) || 0,
 
                     time_limit_minutes:
                         Number(
@@ -560,17 +672,251 @@ export default function CourseAssessment() {
                 .select()
                 .single();
 
-            if (error) {
-                throw error;
+            if (assessmentError) {
+                throw assessmentError;
             }
 
+            if (!newAssessment?.id) {
+                throw new Error(
+                    "The duplicate assessment was created, but its ID could not be retrieved."
+                );
+            }
+
+            const newAssessmentId = newAssessment.id;
+
+            /*
+             * ========================================================
+             * 4. GET ORIGINAL QUESTIONS
+             * ========================================================
+             */
+            const {
+                data: originalQuestions,
+                error: questionsFetchError,
+            } = await supabase
+                .from("questions")
+                .select(`
+                id,
+                item_number,
+                test_section,
+                question_text,
+                column_b_match,
+                question_type,
+                max_points,
+                cognitive_level,
+                tesda_difficulty
+            `)
+                .eq(
+                    "assessment_id",
+                    originalAssessmentId
+                )
+                .order("item_number", {
+                    ascending: true,
+                });
+
+            if (questionsFetchError) {
+                throw questionsFetchError;
+            }
+
+            /*
+             * ========================================================
+             * 5. COPY EACH QUESTION
+             * ========================================================
+             *
+             * We create a NEW question ID.
+             *
+             * Original:
+             * question.id = OLD_ID
+             *
+             * Duplicate:
+             * question.id = NEW_ID
+             *
+             * This is important because question_options and
+             * answer_keys reference question_id.
+             */
+            if (
+                originalQuestions &&
+                originalQuestions.length > 0
+            ) {
+                for (const originalQuestion of originalQuestions) {
+                    /*
+                     * ------------------------------------------------
+                     * CREATE NEW QUESTION
+                     * ------------------------------------------------
+                     */
+                    const {
+                        data: newQuestion,
+                        error: questionInsertError,
+                    } = await supabase
+                        .from("questions")
+                        .insert({
+                            assessment_id:
+                                newAssessmentId,
+
+                            item_number:
+                                originalQuestion.item_number,
+
+                            test_section:
+                                originalQuestion.test_section,
+
+                            question_text:
+                                originalQuestion.question_text,
+
+                            column_b_match:
+                                originalQuestion.column_b_match,
+
+                            question_type:
+                                originalQuestion.question_type,
+
+                            max_points:
+                                originalQuestion.max_points,
+
+                            cognitive_level:
+                                originalQuestion.cognitive_level,
+
+                            tesda_difficulty:
+                                originalQuestion.tesda_difficulty,
+                        })
+                        .select()
+                        .single();
+
+                    if (questionInsertError) {
+                        throw questionInsertError;
+                    }
+
+                    if (!newQuestion?.id) {
+                        throw new Error(
+                            `Could not create the duplicated question for item ${originalQuestion.item_number}.`
+                        );
+                    }
+
+                    const newQuestionId = newQuestion.id;
+
+                    /*
+                     * ------------------------------------------------
+                     * GET ORIGINAL OPTIONS
+                     * ------------------------------------------------
+                     */
+                    const {
+                        data: originalOptions,
+                        error: optionsFetchError,
+                    } = await supabase
+                        .from("question_options")
+                        .select(`
+                        option_letter,
+                        option_text
+                    `)
+                        .eq(
+                            "question_id",
+                            originalQuestion.id
+                        )
+                        .order("option_letter", {
+                            ascending: true,
+                        });
+
+                    if (optionsFetchError) {
+                        throw optionsFetchError;
+                    }
+
+                    /*
+                     * ------------------------------------------------
+                     * COPY OPTIONS
+                     * ------------------------------------------------
+                     */
+                    if (
+                        originalOptions &&
+                        originalOptions.length > 0
+                    ) {
+                        const copiedOptions =
+                            originalOptions.map(
+                                (option) => ({
+                                    question_id:
+                                        newQuestionId,
+
+                                    option_letter:
+                                        option.option_letter,
+
+                                    option_text:
+                                        option.option_text,
+                                })
+                            );
+
+                        const {
+                            error: optionsInsertError,
+                        } = await supabase
+                            .from("question_options")
+                            .insert(copiedOptions);
+
+                        if (optionsInsertError) {
+                            throw optionsInsertError;
+                        }
+                    }
+
+                    /*
+                     * ------------------------------------------------
+                     * GET ORIGINAL ANSWER KEY
+                     * ------------------------------------------------
+                     */
+                    const {
+                        data: originalAnswerKey,
+                        error: answerKeyFetchError,
+                    } = await supabase
+                        .from("answer_keys")
+                        .select(`
+                        correct_answer,
+                        explanation
+                    `)
+                        .eq(
+                            "question_id",
+                            originalQuestion.id
+                        )
+                        .maybeSingle();
+
+                    if (answerKeyFetchError) {
+                        throw answerKeyFetchError;
+                    }
+
+                    /*
+                     * ------------------------------------------------
+                     * COPY ANSWER KEY
+                     * ------------------------------------------------
+                     */
+                    if (originalAnswerKey) {
+                        const {
+                            error: answerKeyInsertError,
+                        } = await supabase
+                            .from("answer_keys")
+                            .insert({
+                                question_id:
+                                    newQuestionId,
+
+                                correct_answer:
+                                    originalAnswerKey.correct_answer,
+
+                                explanation:
+                                    originalAnswerKey.explanation,
+                            });
+
+                        if (answerKeyInsertError) {
+                            throw answerKeyInsertError;
+                        }
+                    }
+                }
+            }
+
+            /*
+             * ========================================================
+             * 6. RELOAD ASSESSMENT LIST
+             * ========================================================
+             */
             await loadAssessments();
 
-            alert(
-                `Assessment "${newAssessment?.title ||
-                "Copy"
-                }" was created as a draft.`
-            );
+            /*
+             * ========================================================
+             * 7. SUCCESS
+             * ========================================================
+             */
+            await loadAssessments();
+            closeMenu();
         } catch (error) {
             console.error(
                 "Error duplicating assessment:",
@@ -586,7 +932,6 @@ export default function CourseAssessment() {
             closeMenu();
         }
     };
-
     /* ========================================================
        DELETE ASSESSMENT
        ======================================================== */
@@ -594,27 +939,60 @@ export default function CourseAssessment() {
     const removeAssessment = async (
         assessmentId
     ) => {
-        const confirmed =
-            window.confirm(
-                "Delete this assessment? This action cannot be undone."
+        if (!assessmentId) {
+            console.error(
+                "Delete failed: assessment ID is missing."
             );
 
-        if (!confirmed) {
-            closeMenu();
             return;
         }
 
         try {
+            /*
+             * ----------------------------------------------------
+             * DELETE FROM SUPABASE
+             *
+             * .select("id") makes Supabase return the deleted row.
+             * This lets us verify that the database actually
+             * deleted something.
+             * ----------------------------------------------------
+             */
+
             const {
+                data: deletedAssessment,
                 error,
             } = await supabase
                 .from("assessments")
                 .delete()
-                .eq("id", assessmentId);
+                .eq("id", assessmentId)
+                .select("id")
+                .maybeSingle();
 
             if (error) {
                 throw error;
             }
+
+            /*
+             * ----------------------------------------------------
+             * VERIFY DATABASE DELETE
+             *
+             * If no row was returned, the assessment was not
+             * actually deleted from the database.
+             * ----------------------------------------------------
+             */
+
+            if (!deletedAssessment) {
+                throw new Error(
+                    "The assessment could not be deleted from the database. Check your Supabase DELETE policy (RLS)."
+                );
+            }
+
+            /*
+             * ----------------------------------------------------
+             * REMOVE FROM LOCAL STATE ONLY AFTER DATABASE DELETE
+             * HAS BEEN CONFIRMED.
+             * ----------------------------------------------------
+             */
 
             setAssessments(
                 (current) =>
@@ -624,21 +1002,34 @@ export default function CourseAssessment() {
                             assessmentId
                     )
             );
+
+            /*
+             * Close modal after successful deletion.
+             */
+
+            setDeleteTarget(null);
+
         } catch (error) {
+
             console.error(
                 "Error deleting assessment:",
                 error
             );
 
             alert(
-                `Error deleting assessment: ${error?.message ||
+                `Unable to delete assessment: ${error?.message ||
                 "Unknown error"
-                }`
+                } `
             );
+
         } finally {
+
             closeMenu();
+
         }
     };
+
+
 
     /* ========================================================
        ACTION MENU
@@ -678,12 +1069,14 @@ export default function CourseAssessment() {
                         />
 
                         <MenuItem
-                            label="Duplicate"
+                            label={
+                                duplicatingId === assessment.id
+                                    ? "Duplicating..."
+                                    : "Duplicate"
+                            }
                             Icon={Copy}
                             onClick={() =>
-                                duplicateAssessment(
-                                    assessment
-                                )
+                                duplicateAssessment(assessment)
                             }
                         />
 
@@ -716,11 +1109,10 @@ export default function CourseAssessment() {
                             label="Delete"
                             Icon={Trash2}
                             destructive
-                            onClick={() =>
-                                removeAssessment(
-                                    assessment.id
-                                )
-                            }
+                            onClick={() => {
+                                setDeleteTarget(assessment);
+                                closeMenu();
+                            }}
                         />
                     </div>
                 )}
@@ -967,7 +1359,7 @@ export default function CourseAssessment() {
                             ) : (
                                 /* DATA */
 
-                                filteredAssessments.map(
+                                paginatedAssessments.map(
                                     (assessment) => (
                                         <tr
                                             key={
@@ -1057,33 +1449,319 @@ export default function CourseAssessment() {
                         </tbody>
                     </table>
                 </div>
+                {/* ====================================================
+    PAGINATION
+==================================================== */}
+
+                {!loading &&
+                    filteredAssessments.length > 0 && (
+                        <div className="flex items-center justify-between border-t border-gray-200 px-4 py-4 text-sm">
+
+                            <p className="font-medium text-gray-700">
+
+                                Showing {showingStart}-
+                                {showingEnd} of{" "}
+                                {filteredAssessments.length}{" "}
+                                assessments
+
+                            </p>
+
+                            <div className="flex items-center gap-3">
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setCurrentPage(
+                                            (page) =>
+                                                Math.max(
+                                                    page - 1,
+                                                    1
+                                                )
+                                        )
+                                    }
+                                    disabled={
+                                        currentPage === 1
+                                    }
+                                    className="flex items-center gap-1 text-gray-500 transition hover:text-[#002f86] disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+
+                                    <ChevronLeft
+                                        size={16}
+                                    />
+
+                                    Prev
+
+                                </button>
+
+                                <span className="rounded-lg border border-gray-200 px-3 py-2 font-semibold text-[#002f86] shadow-sm">
+
+                                    {currentPage}
+
+                                </span>
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setCurrentPage(
+                                            (page) =>
+                                                Math.min(
+                                                    page + 1,
+                                                    totalPages
+                                                )
+                                        )
+                                    }
+                                    disabled={
+                                        currentPage >=
+                                        totalPages
+                                    }
+                                    className="flex items-center gap-1 text-gray-500 transition hover:text-[#002f86] disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+
+                                    Next
+
+                                    <ChevronRight
+                                        size={16}
+                                    />
+
+                                </button>
+
+                            </div>
+
+                        </div>
+                    )}
             </section>
 
-            {/* ====================================================
-                SUMMARY
-            ==================================================== */}
+            {/* =====================================================
+    CUSTOM DELETE ASSESSMENT MODAL
+===================================================== */}
 
-            {!loading &&
-                filteredAssessments.length > 0 && (
-                    <p className="text-sm text-gray-500">
-                        Showing{" "}
-                        <span className="font-semibold text-gray-700">
-                            {
-                                filteredAssessments.length
-                            }
-                        </span>{" "}
-                        assessment
-                        {filteredAssessments.length !==
-                            1
-                            ? "s"
-                            : ""}{" "}
-                        for{" "}
-                        <span className="font-semibold text-gray-700">
-                            {course.title}
-                        </span>
-                        .
-                    </p>
-                )}
+            {deleteTarget && (
+                <div
+                    className="
+            fixed
+            inset-0
+            z-[100]
+            flex
+            items-center
+            justify-center
+            bg-black/50
+            p-4
+        "
+                >
+                    <div
+                        className="
+                w-full
+                max-w-md
+                overflow-hidden
+                rounded-xl
+                bg-white
+                shadow-2xl
+            "
+                    >
+                        {/* ==========================================
+                MODAL HEADER
+            =========================================== */}
+
+                        <div
+                            className="
+                    flex
+                    items-center
+                    justify-between
+                    bg-[#15294b]
+                    px-6
+                    py-4
+                    text-white
+                "
+                        >
+                            <div
+                                className="
+                        flex
+                        items-center
+                        gap-3
+                    "
+                            >
+                                <AlertTriangle
+                                    size={20}
+                                    className="text-white"
+                                />
+
+                                <h2
+                                    className="
+                            text-lg
+                            font-semibold
+                        "
+                                >
+                                    Confirmation
+                                </h2>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setDeleteTarget(null)
+                                }
+                                className="
+                        transition
+                        hover:text-red-300
+                    "
+                                aria-label="Close confirmation dialog"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* ==========================================
+                MODAL CONTENT
+            =========================================== */}
+
+                        <div
+                            className="
+                    px-6
+                    py-6
+                "
+                        >
+                            <h3
+                                className="
+                        text-lg
+                        font-bold
+                        text-gray-900
+                    "
+                            >
+                                Delete Assessment?
+                            </h3>
+
+                            <p
+                                className="
+                        mt-2
+                        text-sm
+                        leading-6
+                        text-gray-600
+                    "
+                            >
+                                This assessment will be permanently
+                                deleted and can no longer be restored.
+                            </p>
+
+                            {/* ASSESSMENT DETAILS */}
+
+                            <div
+                                className="
+                        mt-5
+                        rounded-lg
+                        border
+                        border-gray-200
+                        bg-gray-50
+                        p-4
+                    "
+                            >
+                                <p
+                                    className="
+                            text-xs
+                            font-medium
+                            uppercase
+                            tracking-wider
+                            text-gray-500
+                        "
+                                >
+                                    Assessment
+                                </p>
+
+                                <p
+                                    className="
+                            mt-1
+                            font-semibold
+                            text-gray-900
+                        "
+                                >
+                                    {deleteTarget.title}
+                                </p>
+
+                                <p
+                                    className="
+                            mt-1
+                            text-sm
+                            text-gray-600
+                        "
+                                >
+                                    {deleteTarget.type || "Written"} Assessment
+                                </p>
+                            </div>
+
+                            {/* ==========================================
+                    MODAL ACTIONS
+                =========================================== */}
+
+                            <div
+                                className="
+                        mt-6
+                        flex
+                        justify-end
+                        gap-3
+                        border-t
+                        border-gray-200
+                        pt-5
+                    "
+                            >
+                                {/* CANCEL */}
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setDeleteTarget(null)
+                                    }
+                                    className="
+                            rounded-lg
+                            border
+                            border-gray-300
+                            bg-white
+                            px-5
+                            py-2.5
+                            text-sm
+                            font-semibold
+                            text-gray-700
+                            shadow-sm
+                            transition
+                            hover:bg-gray-100
+                        "
+                                >
+                                    Cancel
+                                </button>
+
+                                {/* CONFIRM DELETE */}
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        removeAssessment(
+                                            deleteTarget.id
+                                        )
+                                    }
+                                    className="
+                            flex
+                            items-center
+                            gap-2
+                            rounded-lg
+                            bg-red-600
+                            px-5
+                            py-2.5
+                            text-sm
+                            font-semibold
+                            text-white
+                            shadow-sm
+                            transition
+                            hover:bg-red-700
+                        "
+                                >
+                                    <Trash2 size={16} />
+
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }
