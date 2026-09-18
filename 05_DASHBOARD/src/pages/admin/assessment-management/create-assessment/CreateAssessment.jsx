@@ -965,7 +965,7 @@ export default function CreateAssessment() {
                        COURSE
                     ================================================== */}
 
-                    <div className="md:col-span-2">
+                    <div>
 
                         <label
                             htmlFor="course"
