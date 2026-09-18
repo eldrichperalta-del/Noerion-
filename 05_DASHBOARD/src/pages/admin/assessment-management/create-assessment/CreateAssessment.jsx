@@ -575,11 +575,22 @@ export default function CreateAssessment() {
                         assessmentData.timeLimit
                     ) || 30,
 
-                is_active: false,
+                /*
+                 * SAVE = ACTIVE
+                 *
+                 * An assessment only exists in the database after
+                 * the administrator clicks Save Assessment.
+                 *
+                 * Therefore, a successfully saved assessment is Active.
+                 *
+                 * An unsaved assessment does not get inserted into
+                 * the assessments table, so it remains Draft only
+                 * while being edited and cannot appear in Course Assessment.
+                 */
+                is_active: true,
 
-                status: "Draft",
+                status: "Active",
             };
-
 
             const {
                 data: assessment,
