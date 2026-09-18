@@ -219,7 +219,9 @@ export default function ChooseAssessment({
       {/* Footer Controls */}
       <div className="mt-4 flex items-start justify-between px-2 py-2 text-sm">
         <p className="font-medium text-gray-700">
-          Total selected: {selected ? "1/1" : "0/1"}
+          {selected
+            ? "Selected: 1 assessment"
+            : "Select 1 assessment"}
         </p>
 
         <div className="flex flex-col items-end gap-4">
@@ -252,11 +254,10 @@ export default function ChooseAssessment({
             type="button"
             disabled={!selected}
             onClick={onNext}
-            className={`rounded-lg px-6 py-3 font-semibold text-white transition ${
-              selected
+            className={`rounded-lg px-6 py-3 font-semibold text-white transition ${selected
                 ? "bg-[#001F5B] hover:bg-[#001746]"
                 : "cursor-not-allowed bg-gray-300"
-            }`}
+              }`}
           >
             Next
           </button>

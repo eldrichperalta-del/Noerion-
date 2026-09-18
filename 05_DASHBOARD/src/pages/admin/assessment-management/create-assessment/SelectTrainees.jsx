@@ -441,7 +441,7 @@ export default function SelectTrainees({
 
       {/* TITLE */}
       <h2 className="mb-4 text-xl font-semibold text-gray-900">
-        Step 2: Select Trainees
+        Choose trainees for this assessment session
       </h2>
 
       {/* SEARCH + FILTER */}
@@ -627,14 +627,13 @@ export default function SelectTrainees({
                       <td className="px-4 py-3">
 
                         <span
-                          className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
-                            trainee.assessmentStatus === "Active"
-                              ? "bg-green-100 text-green-700"
-                              : trainee.assessmentStatus === "In Evaluation"
+                          className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${trainee.assessmentStatus === "Active"
+                            ? "bg-green-100 text-green-700"
+                            : trainee.assessmentStatus === "In Evaluation"
                               ? "bg-blue-100 text-blue-700"
                               : trainee.assessmentStatus === "In Another Session"
-                              ? "bg-amber-100 text-amber-700"
-                              : "bg-yellow-100 text-yellow-800"
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-yellow-100 text-yellow-800"
                             }`}
                         >
                           {
@@ -678,12 +677,13 @@ export default function SelectTrainees({
       {/* Footer / Pagination / Action Controls */}
       <div className="mt-4 flex items-start justify-between px-2 py-2 text-sm">
         {/* LEFT: Selected trainees */}
-        <p className="pt-2 font-medium text-gray-700">
-          Selected trainees:{" "}
-          <span className="font-bold text-[#001F5B]">
-            {selectedIds.length}
-          </span>
+
+        <p className="font-medium text-gray-700">
+          {selectedIds.length > 0
+            ? `Selected: ${selectedIds.length} trainee${selectedIds.length !== 1 ? "s" : ""}`
+            : "Select trainees"}
         </p>
+
 
         {/* RIGHT: Pagination + Back/Next */}
         <div className="flex flex-col items-end gap-4">
@@ -722,8 +722,8 @@ export default function SelectTrainees({
                   type="button"
                   onClick={() => setCurrentPage(page)}
                   className={`rounded-md border px-3 py-1 font-medium ${currentPage === page
-                      ? "border-gray-300 bg-gray-100"
-                      : "border-gray-300 hover:bg-gray-50"
+                    ? "border-gray-300 bg-gray-100"
+                    : "border-gray-300 hover:bg-gray-50"
                     }`}
                 >
                   {page}
@@ -761,8 +761,8 @@ export default function SelectTrainees({
               disabled={selectedIds.length === 0}
               onClick={handleContinue}
               className={`rounded-lg px-6 py-3 font-semibold text-white transition ${selectedIds.length > 0
-                  ? "bg-[#001F5B] hover:bg-[#001746]"
-                  : "cursor-not-allowed bg-gray-300"
+                ? "bg-[#001F5B] hover:bg-[#001746]"
+                : "cursor-not-allowed bg-gray-300"
                 }`}
             >
               Next
