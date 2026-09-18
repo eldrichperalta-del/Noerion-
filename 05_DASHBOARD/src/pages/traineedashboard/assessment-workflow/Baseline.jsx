@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import BaselineInstructionsModal from "../../../components/traineedashboard/assessment-workflow/BaselineInstructionsModal";
@@ -78,6 +79,7 @@ export default function Baseline() {
     const [baselineDbId, setBaselineDbId] = useState(null);
     const [showAlarmModal, setShowAlarmModal] = useState(false);
     const [isAlarmPlaying, setIsAlarmPlaying] = useState(false);
+    const [showEyesClosedModal, setShowEyesClosedModal] = useState(false);
 
     // Hardware State from Python Middleware
     const [deviceConnected, setDeviceConnected] = useState(false);
@@ -91,6 +93,8 @@ export default function Baseline() {
     const wsRef = useRef(null);
     const audioCtxRef = useRef(null);
     const alarmIntervalRef = useRef(null);
+    const eyesClosedPromptTriggeredRef = useRef(false);
+    const eyesClosedPromptTimerRef = useRef(null);
 
     /* =========================================================================
         PRE-UNLOCK BROWSER AUDIO CONTEXT ON ANY USER INTERACTION
@@ -112,57 +116,66 @@ export default function Baseline() {
     };
 
     /* =========================================================================
-        CHECK EXISTING BASELINE IN SUPABASE
+        CHECK BASELINE FOR THIS SPECIFIC ATTEMPT
+        Plan B: eeg_baselines.assignment_id identifies the assessment attempt.
     ========================================================================= */
     useEffect(() => {
-        const checkExistingBaseline = async () => {
+        let cancelled = false;
+
+        const initializeAttemptBaseline = async () => {
+            // Always reset UI state when entering a different assignment/attempt.
+            setBaselineDbId(null);
+            setHasExistingBaseline(false);
+            setCompleted(false);
+            setTimeLeft(BASELINE_DURATION);
+            setRecording(false);
+            setRecordingStarted(false);
+            setAlarmTriggered(false);
+            setShowEyesClosedModal(false);
+
+            if (!assignmentId || cancelled) return;
+
             try {
-                const localTraineeId =
+                const activeTraineeId =
                     traineeId ||
                     localStorage.getItem("trainee_id") ||
                     localStorage.getItem("user_id");
 
-                const { data: authData } = await supabase.auth.getUser();
-                const authUserId = authData?.user?.id;
-
-                const activeId = localTraineeId || authUserId;
-
-                if (activeId) {
-                    const { data, error } = await supabase
-                        .from("eeg_baselines")
-                        .select("id")
-                        .eq("trainee_id", activeId)
-                        .order("created_at", { ascending: false })
-                        .limit(1);
-
-                    if (data && data.length > 0 && !error) {
-                        setBaselineDbId(data[0].id);
-                        setHasExistingBaseline(true);
-                        setCompleted(true);
-                        setTimeLeft(0);
-                        return;
-                    }
-                }
-
-                const { data: anyBaseline } = await supabase
+                const { data, error } = await supabase
                     .from("eeg_baselines")
-                    .select("id")
+                    .select("id, assignment_id")
+                    .eq("assignment_id", assignmentId)
+                    .eq("trainee_id", activeTraineeId)
+                    .eq("status", "COMPLETED")
                     .order("created_at", { ascending: false })
                     .limit(1);
 
-                if (anyBaseline && anyBaseline.length > 0) {
-                    setBaselineDbId(anyBaseline[0].id);
+                if (cancelled) return;
+
+                if (error) {
+                    console.warn("Could not query attempt baseline:", error);
+                    return;
+                }
+
+                if (data && data.length > 0) {
+                    setBaselineDbId(data[0].id);
                     setHasExistingBaseline(true);
                     setCompleted(true);
                     setTimeLeft(0);
                 }
             } catch (err) {
-                console.warn("Could not query existing baseline:", err);
+                if (!cancelled) {
+                    console.warn("Could not query attempt baseline:", err);
+                }
             }
         };
 
-        checkExistingBaseline();
-    }, [traineeId]);
+        initializeAttemptBaseline();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [assignmentId, traineeId]);
 
     /* =========================================================================
         WEBSOCKET REALTIME SYNCHRONIZATION WITH PYTHON MIDDLEWARE
@@ -210,29 +223,39 @@ export default function Baseline() {
                         setRecordingError("");
                     }
 
-                    if (data.recording || data.mode === "BASELINE") {
-                        if (data.time_left !== undefined) setTimeLeft(data.time_left);
-                    } else if (data.time_left !== undefined && !data.completed && !hasExistingBaseline) {
-                        setTimeLeft(data.time_left);
-                    }
+                    // Baseline state is only accepted when it belongs to this
+                    // exact assignment/attempt. This prevents an older attempt
+                    // from appearing as the current baseline after navigation/reload.
+                    const stateBelongsToCurrentAttempt =
+                        data.assignment_id !== undefined &&
+                        data.assignment_id !== null &&
+                        String(data.assignment_id) === String(assignmentId);
 
-                    // ROBUST STATE-BASED COMPLETION & ALARM TRIGGER
-                    if (data.completed === true) {
-                        if (data.baseline_id) setBaselineDbId(data.baseline_id);
-                        setHasExistingBaseline(true);
-                        setCompleted(true);
-                        setTimeLeft(0);
+                    if (stateBelongsToCurrentAttempt) {
+                        if (data.recording || data.mode === "BASELINE") {
+                            if (data.time_left !== undefined) setTimeLeft(data.time_left);
+                        } else if (data.time_left !== undefined && !data.completed && !hasExistingBaseline) {
+                            setTimeLeft(data.time_left);
+                        }
 
-                        setRecordingStarted((prevStarted) => {
-                            setAlarmTriggered((prevTriggered) => {
-                                if (prevStarted && !prevTriggered) {
-                                    startAlarm();
-                                    return true;
-                                }
-                                return prevTriggered;
+                        // ROBUST STATE-BASED COMPLETION & ALARM TRIGGER
+                        if (data.completed === true) {
+                            if (data.baseline_id) setBaselineDbId(data.baseline_id);
+                            setHasExistingBaseline(true);
+                            setCompleted(true);
+                            setTimeLeft(0);
+
+                            setRecordingStarted((prevStarted) => {
+                                setAlarmTriggered((prevTriggered) => {
+                                    if (prevStarted && !prevTriggered) {
+                                        startAlarm();
+                                        return true;
+                                    }
+                                    return prevTriggered;
+                                });
+                                return false;
                             });
-                            return false;
-                        });
+                        }
                     }
                 } catch (err) {
                     console.error("Error parsing WebSocket packet:", err);
@@ -344,6 +367,12 @@ export default function Baseline() {
     const handleResetRecording = async () => {
         setRecordingStarted(false);
         setAlarmTriggered(false);
+        eyesClosedPromptTriggeredRef.current = false;
+        if (eyesClosedPromptTimerRef.current) {
+            clearTimeout(eyesClosedPromptTimerRef.current);
+            eyesClosedPromptTimerRef.current = null;
+        }
+        setShowEyesClosedModal(false);
         stopAlarm();
 
         const idToDelete = baselineDbId;
@@ -353,10 +382,10 @@ export default function Baseline() {
             localStorage.getItem("user_id");
 
         try {
+            // Delete ONLY the exact baseline for this attempt.
+            // Never delete all baselines belonging to the trainee.
             if (idToDelete) {
                 await supabase.from("eeg_baselines").delete().eq("id", idToDelete);
-            } else if (activeTraineeId) {
-                await supabase.from("eeg_baselines").delete().eq("trainee_id", activeTraineeId);
             }
         } catch (err) {
             console.warn("Client-side Supabase deletion error:", err);
@@ -376,9 +405,11 @@ export default function Baseline() {
                     type: "RESTART_BASELINE",
                     baseline_id: idToDelete || null,
                     trainee_id: activeTraineeId || null,
+                    assignment_id: assignmentId || null,
                     data: {
                         baseline_id: idToDelete || null,
-                        trainee_id: activeTraineeId || null
+                        trainee_id: activeTraineeId || null,
+                        assignment_id: assignmentId || null
                     }
                 })
             );
@@ -402,6 +433,12 @@ export default function Baseline() {
 
         setRecordingStarted(true);
         setAlarmTriggered(false);
+        eyesClosedPromptTriggeredRef.current = false;
+        if (eyesClosedPromptTimerRef.current) {
+            clearTimeout(eyesClosedPromptTimerRef.current);
+            eyesClosedPromptTimerRef.current = null;
+        }
+        setShowEyesClosedModal(false);
 
         const { data: { user } } = await supabase.auth.getUser();
         const activeTraineeUuid = user?.id || traineeId || localStorage.getItem("trainee_id") || localStorage.getItem("user_id");
@@ -416,13 +453,47 @@ export default function Baseline() {
                     command: "START_BASELINE",
                     type: "START_BASELINE",
                     trainee_id: activeTraineeUuid || null,
+                    assignment_id: assignmentId || null,
                     data: {
-                        trainee_id: activeTraineeUuid || null
+                        trainee_id: activeTraineeUuid || null,
+                        assignment_id: assignmentId || null
                     }
                 })
             );
         }
     };
+
+    /* =========================================================================
+        EYES-CLOSED PROMPT
+        Appears when the visible baseline timer reaches 2:20 (140 seconds).
+        It stays visible for 10 seconds and does NOT stop EEG recording.
+    ========================================================================= */
+    useEffect(() => {
+        if (!recording) return;
+
+        if (timeLeft <= 165 && !eyesClosedPromptTriggeredRef.current) {
+            eyesClosedPromptTriggeredRef.current = true;
+            setShowEyesClosedModal(true);
+
+            if (eyesClosedPromptTimerRef.current) {
+                clearTimeout(eyesClosedPromptTimerRef.current);
+            }
+
+            eyesClosedPromptTimerRef.current = setTimeout(() => {
+                setShowEyesClosedModal(false);
+                eyesClosedPromptTimerRef.current = null;
+            }, 10000);
+        }
+    }, [recording, timeLeft]);
+
+    useEffect(() => {
+        return () => {
+            if (eyesClosedPromptTimerRef.current) {
+                clearTimeout(eyesClosedPromptTimerRef.current);
+                eyesClosedPromptTimerRef.current = null;
+            }
+        };
+    }, []);
 
     const handleStartAssessment = async () => {
         if (!canStartAssessment) return;
@@ -657,6 +728,33 @@ export default function Baseline() {
 
                 </div>
             </div>
+
+            {/* EYES-CLOSED PROMPT MODAL */}
+            {showEyesClosedModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <div className="w-full max-w-lg mx-4 rounded-3xl bg-white p-8 shadow-2xl text-center">
+                        <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100">
+                            <Brain size={42} className="text-blue-700" />
+                        </div>
+
+                        <h3 className="text-3xl font-bold text-slate-900">
+                            Please Close Your Eyes
+                        </h3>
+
+                        <p className="mt-4 text-lg text-slate-600">
+                            Please close your eyes, remain still, and relax.
+                        </p>
+
+                        <p className="mt-2 text-base font-semibold text-blue-700">
+                            Wait for the alarm before opening your eyes.
+                        </p>
+
+                        <div className="mt-6 rounded-xl bg-slate-100 p-3 text-sm text-slate-600">
+                            Your EEG baseline recording is still running.
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ALARM COMPLETION MODAL */}
             {showAlarmModal && (

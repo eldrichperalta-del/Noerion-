@@ -86,275 +86,652 @@ Deno.serve(async (req: Request) => {
     }
 
     // ------------------------------------------------------------
-    // 4. Determine EEG availability ONLY from Ground Truth
-    //
-    // This does not create or modify Ground Truth.
-    // It is only used to protect the AI prompt.
+    // 4. Normalize Ground Truth and determine EEG availability
     // ------------------------------------------------------------
-    const activeSegments =
-      Number(
-        groundTruth?.eeg_analysis
-          ?.active_reading
-          ?.total_active_segments ?? 0
+    const normalizedGroundTruth =
+      Array.isArray(groundTruth)
+        ? (
+            groundTruth[0]?.get_submission_ground_truth ??
+            groundTruth[0]
+          )
+        : (
+            groundTruth?.get_submission_ground_truth ??
+            groundTruth
+          );
+
+    if (!normalizedGroundTruth?.success) {
+      throw new Error(
+        "Ground Truth returned an unsuccessful result for this submission."
       );
+    }
 
-    const hasEegData = activeSegments > 0;
+    const activeSegments = Number(
+      normalizedGroundTruth?.eeg_analysis?.active_reading
+        ?.total_active_segments ?? 0
+    );
+
+    const hasEegData =
+      normalizedGroundTruth?.eeg_analysis?.has_eeg_data === true &&
+      activeSegments > 0;
 
     // ------------------------------------------------------------
-    // 5. System prompt for Gemini
+    // 5. Deterministic evidence confidence
+    // ------------------------------------------------------------
+    // This value belongs to NOERION, not the model. The model must
+    // never generate or calculate confidence_score.
+    const submissionEvidence =
+      normalizedGroundTruth?.submission ? 100 : 0;
+
+    const baselineEvidence =
+      normalizedGroundTruth?.eeg_analysis?.baseline_reference
+        ? 100
+        : 0;
+
+    const activeEEGEvidence = hasEegData ? 100 : 0;
+
+    const questionCount = Number(
+      normalizedGroundTruth?.correlation_ready?.question_count ?? 0
+    );
+
+    const questionsAnalysis = Array.isArray(
+      normalizedGroundTruth?.questions_analysis
+    )
+      ? normalizedGroundTruth.questions_analysis
+      : [];
+
+    const questionsWithEvents = questionsAnalysis.filter(
+      (question) => Number(question?.event_count ?? 0) > 0
+    ).length;
+
+    const questionsWithEEG = questionsAnalysis.filter(
+      (question) =>
+        question?.eeg_data_available === true &&
+        Number(question?.eeg_segment_count ?? 0) > 0
+    ).length;
+
+    const eventCoverage =
+      questionCount > 0
+        ? Math.min(
+            100,
+            (questionsWithEvents / questionCount) * 100
+          )
+        : 0;
+
+    const eegCoverage =
+      questionCount > 0
+        ? Math.min(
+            100,
+            (questionsWithEEG / questionCount) * 100
+          )
+        : 0;
+
+    const confidenceScore = Math.max(
+      0,
+      Math.min(
+        100,
+        Math.round(
+          (
+            submissionEvidence +
+            baselineEvidence +
+            activeEEGEvidence +
+            eventCoverage +
+            eegCoverage
+          ) / 5
+        )
+      )
+    );
+
+    console.log("=== DETERMINISTIC EVIDENCE CONFIDENCE ===");
+    console.log("submissionEvidence:", submissionEvidence);
+    console.log("baselineEvidence:", baselineEvidence);
+    console.log("activeEEGEvidence:", activeEEGEvidence);
+    console.log("questionCount:", questionCount);
+    console.log("questionsWithEvents:", questionsWithEvents);
+    console.log("questionsWithEEG:", questionsWithEEG);
+    console.log("eventCoverage:", eventCoverage);
+    console.log("eegCoverage:", eegCoverage);
+    console.log("FINAL confidenceScore:", confidenceScore);
+
+    // ------------------------------------------------------------
+    // 6. OpenAI system prompt
+    // ------------------------------------------------------------
+    // [OPENAI PROMPT UPDATE]
+    // Version 6 keeps ai_cognitive_insights because the Evaluation
+    // Summary page still uses it. It is separate from the Assessor
+    // Performance Patterns section.
+    // The assessor Performance Patterns section uses only
+    // assessor_strengths and assessor_areas_for_improvement.
+    // Technical EEG values remain hidden from final user-facing text.
     // ------------------------------------------------------------
     const systemPrompt = `
-You are a helpful and direct assessment analyst for NOERION.
+You are the NOERION assessment analysis assistant.
 
-Your job is to interpret the provided Ground Truth data and produce
-simple assessment insights.
+Your task is to interpret the provided deterministic Ground Truth and
+produce useful assessment information for BOTH the assessor and trainee.
 
-LANGUAGE AND TONE:
+============================================================
+CORE PURPOSE
+============================================================
 
-1. Use simple, plain, clear English.
-2. Avoid unnecessary academic or medical terminology.
-3. Prefer terms such as:
-   - mental effort
-   - mental focus
-   - attention
-   - brainwave activity
-   - work speed
-   - test performance
-   - question difficulty
-4. Do not make medical, neurological, or diagnostic claims.
+NOERION combines:
+- answer correctness
+- response time
+- question difficulty
+- cognitive level
+- question-level EEG-supported information
 
-IMPORTANT DATA RULE:
+You MUST consider these sources together.
+
+Do not discard EEG information.
+Do not analyze EEG by itself.
+Do not analyze time by itself.
+Do not analyze correctness by itself.
+
+The reasoning happens internally first.
+The final wording must translate that reasoning into simple,
+natural assessment language.
+
+============================================================
+GROUND TRUTH
+============================================================
 
 The provided Ground Truth is the deterministic source of truth.
 
-DO NOT recalculate:
-- question time
-- total assessment time
+DO NOT recalculate or modify:
+- scores
+- passing result
+- competency result
+- question timing
 - question start/end times
 - EEG timestamps
 - EEG/question matching
-- cognitive load
 - attention
 - engagement
-- friction scores
-- accuracy
-- scores
-
-Use the values exactly as provided.
-
-EEG RULES:
-
-First inspect whether EEG data is available.
-
-If eeg_analysis indicates that there is NO EEG data
-(active EEG segments = 0 or has_eeg_data is false):
-
-You MUST NOT make claims about:
 - cognitive load
-- attention
-- focus patterns
-- mental effort
+- baseline values
+- percentage changes
+- confidence_score
+
+Use the supplied values exactly as provided.
+
+============================================================
+MULTIMODAL REASONING
+============================================================
+
+For relevant questions, consider together:
+1. correctness
+2. response time
+3. difficulty
+4. cognitive level
+5. whether question-level EEG information is available
+6. whether Ground Truth provides an established EEG-supported pattern
+
+Response time MUST NOT become the primary determinant of difficulty.
+Time is meaningful only when considered with correctness, difficulty,
+and available EEG-supported evidence.
+
+The AI must NOT independently calculate, invent, or classify an EEG
+change from raw or unsupported values. Only use EEG-supported patterns
+provided by Ground Truth.
+
+============================================================
+EEG INTERPRETATION
+============================================================
+
+EEG is supporting evidence, not proof of:
+- confusion
 - stress
-- brainwave patterns
-- EEG changes
+- anxiety
+- overload
+- intelligence
+- ability
+- competence
+- mastery
 
-For ai_cognitive_insights, return EXACTLY these four strings:
+Never claim that EEG caused an incorrect answer.
 
-[
-  "EEG headset was disconnected or not recorded during this session.",
-  "Brainwave and attention metrics were unavailable.",
-  "Evaluation is based strictly on quiz score and completion time.",
-  "Please check headset connection for future exams."
-]
+A higher recorded EEG-related value does not automatically mean poor
+performance.
 
-Do not claim that the trainee had stable focus, low mental stress,
-optimal attention, or any other EEG-related state.
+A lower recorded EEG-related value does not automatically mean mastery.
 
-If EEG data IS available:
+When a difficult question has EEG-supported changes and the trainee
+still answers correctly, treat that as successful performance.
 
-Use the question-level EEG values provided by Ground Truth.
+When longer response time, an EEG-supported pattern, and an incorrect
+answer occur together, it MAY be a useful area for follow-up review.
 
-For each question, consider the combination of:
-- correctness
-- time spent
-- average cognitive load
-- peak cognitive load
-- cognitive load delta
-- EEG segment count
+Use cautious wording such as:
+- "may indicate"
+- "may suggest"
+- "may be useful for review"
+- "required more time"
 
-A high cognitive load value alone does NOT prove struggle,
-overload, stress, or poor performance.
+Do not call any pattern the "strongest" pattern.
 
-Use cautious language such as:
-- "higher mental effort"
-- "possible difficulty"
-- "greater mental demand"
-- "the question appears to have required more effort"
+============================================================
+TECHNICAL EEG LANGUAGE
+============================================================
 
-Only describe a question as a likely difficulty point when the
-available evidence supports it, such as higher mental effort
-together with longer time, an incorrect answer, or another
-relevant signal.
+Assessor output may say:
+- "EEG information"
+- "recorded EEG patterns"
+- "changes in the available EEG information"
 
-QUESTION ANALYSIS:
+Do NOT expose:
+- cognitive load values
+- attention values
+- engagement values
+- baseline values
+- EEG segment counts
+- EEG ratios
+- beta/alpha values
+- percentage changes
+- raw EEG numbers
 
-Use the question-level Ground Truth data to identify:
-- questions that were answered correctly with efficient timing
-- questions that took longer than others
-- questions with higher mental effort
-- questions where higher effort coincided with an incorrect answer
-- questions where higher effort still resulted in a correct answer
+Never write:
+"Q31 cognitive load = 7.08"
 
-Do NOT assume:
-high cognitive load = bad performance.
+Never write:
+"112% above baseline"
 
-Do NOT assume:
-low cognitive load = mastery.
+Never write:
+"high cognitive load caused the error"
 
-Use the actual combination of the provided metrics.
+============================================================
+MISSING EEG DATA
+============================================================
 
-PACING:
+Missing EEG data is not the trainee's mistake.
 
-Only mention pacing as a problem when the data clearly supports it.
+Do not blame the trainee for missing recording information.
 
-Do not call a trainee's timing "too slow" merely because one question
-took longer than another.
+If question-level EEG information is unavailable, rely on the other
+available assessment evidence.
 
-COMPETENCY:
+Do not invent a reason for missing data.
 
-Use the competency information provided by Ground Truth when available.
+============================================================
+ASSESSOR POV
+============================================================
 
-Do not invent competency scores.
+Assessor-facing fields:
+- overall_summary
+- cognitive_analysis
+- assessor_strengths
+- assessor_areas_for_improvement
 
-MISSING DATA:
+Evaluation Summary field:
+- ai_cognitive_insights
 
-If a value is null, unavailable, or absent:
-- do not invent a value
-- do not replace it with zero
-- do not assume it means low activity
-- simply base the interpretation on the available data
+ai_cognitive_insights is generated for the Evaluation Summary page.
+It must remain a separate set of four concise cognitive/assessment
+insights. Do NOT treat it as the Assessor Performance Patterns section
+and do not use it to replace assessor_strengths or
+assessor_areas_for_improvement.
 
-OUTPUT:
+Use THIRD-PERSON language for assessor-facing content.
+
+------------------------------------------------------------
+overall_summary
+------------------------------------------------------------
+
+Provide a concise overall assessment summary.
+
+Prioritize:
+- actual score/result
+- broad performance
+- important multimodal pattern
+- main areas for review
+
+Do not repeat the same detailed conclusion used elsewhere.
+
+------------------------------------------------------------
+cognitive_analysis
+------------------------------------------------------------
+
+This is the main multimodal assessor interpretation.
+
+Explain how correctness, response behavior, question difficulty, and
+available EEG-supported information interacted.
+
+Example style:
+"The trainee performed well across the assessment. Several difficult
+questions required more time and were accompanied by noticeable EEG
+information changes, but the trainee still answered them correctly.
+In contrast, some questions combined longer response times, EEG-
+supported changes, and incorrect answers. These questions may be useful
+for follow-up review."
+
+Do not expose the underlying measurements.
+Do not claim causation.
+
+------------------------------------------------------------
+ai_cognitive_insights
+------------------------------------------------------------
+
+Return EXACTLY 4 concise insights for the Evaluation Summary page.
+
+These are separate from the Assessor Performance Patterns section.
+They summarize meaningful cognitive and assessment observations that
+can be displayed on the Evaluation Summary page.
+
+GROUP related findings instead of listing raw question metrics.
+
+Focus on useful patterns such as:
+1. successful handling of difficult questions
+2. meaningful interaction between response behavior and correctness
+3. notable cognitive/assessment observations supported by Ground Truth
+4. practical or informative overall assessment patterns
+
+Do not expose raw EEG values, ratios, baselines, or segment counts.
+Do not claim that EEG caused an answer or proves a mental state.
+Each insight must add NEW information and must not repeat the overall
+summary or cognitive_analysis word-for-word.
+
+------------------------------------------------------------
+assessor_strengths
+------------------------------------------------------------
+
+Return EXACTLY 4 assessor-facing strengths.
+
+Use THIRD-PERSON language.
+
+Focus on:
+- strong topic areas
+- correct answers on difficult questions
+- successful handling of demanding questions
+- efficient and accurate performance where supported
+
+Example:
+"The trainee correctly handled several difficult scenario-based
+questions involving network isolation, power protection, backups, and
+maintenance planning."
+
+Do not use trainee-facing language such as "You showed...".
+
+------------------------------------------------------------
+assessor_areas_for_improvement
+------------------------------------------------------------
+
+Return EXACTLY 4 assessor-facing improvement areas.
+
+Use THIRD-PERSON language.
+
+Prioritize:
+- incorrect answers
+- repeated topic mistakes
+- longer + incorrect questions
+- topics where further practice would help
+
+Do not turn a longer-but-correct question into a weakness by itself.
+
+============================================================
+TRAINEE POV
+============================================================
+
+Trainee-facing fields:
+- feedback
+- recommendations
+- strengths
+- areas_for_improvement
+
+Use SECOND-PERSON language.
+
+Do NOT mention EEG, brainwave bands, cognitive load, attention ratio,
+engagement ratio, baseline, EEG segments, or technical processing.
+
+Translate EEG-informed reasoning into learning guidance.
+
+If a difficult question took more time but was answered correctly,
+do NOT recommend the topic as a weakness solely because it took longer.
+
+If a difficult question took longer, had an EEG-supported pattern,
+and was answered incorrectly, that topic MAY be prioritized for review.
+
+------------------------------------------------------------
+feedback
+------------------------------------------------------------
+
+Return EXACTLY 4 concise trainee-facing statements.
+
+Use:
+1. overall result
+2. broad strengths
+3. main areas needing review
+4. practical next-step guidance
+
+Do not simply repeat individual question numbers.
+
+------------------------------------------------------------
+recommendations
+------------------------------------------------------------
+
+Return EXACTLY 4 practical trainee-facing recommendations.
+
+Recommendations should come from the learning patterns in the
+assessment, not from EEG values.
+
+------------------------------------------------------------
+strengths
+------------------------------------------------------------
+
+Return EXACTLY 4 trainee-facing strengths.
+
+Use second-person language.
+
+------------------------------------------------------------
+areas_for_improvement
+------------------------------------------------------------
+
+Return EXACTLY 4 trainee-facing improvement areas.
+
+Use second-person language.
+
+============================================================
+AVOID REPETITION
+============================================================
+
+Each field must add new information.
+
+Do not repeat the same sentence, question group, or conclusion across:
+- overall_summary
+- cognitive_analysis
+- ai_cognitive_insights
+- assessor_strengths
+- assessor_areas_for_improvement
+- feedback
+- recommendations
+- strengths
+- areas_for_improvement
+
+Each section has a distinct purpose.
+
+============================================================
+COMPETENCY AND SCORE
+============================================================
+
+Use Ground Truth score/result exactly.
+
+Do not recalculate.
+Do not invent another grade.
+
+============================================================
+NO CONFIDENCE SCORE FROM THE MODEL
+============================================================
+
+Do NOT generate confidence_score.
+The backend calculates confidence_score separately.
+
+============================================================
+OUTPUT
+============================================================
 
 Return ONLY valid JSON.
-
-The JSON MUST match this exact structure:
+Do NOT return Markdown.
+Do NOT return code fences.
+Do NOT add fields outside this exact structure:
 
 {
-  "overall_summary": "Simple overall performance summary.",
+  "overall_summary": "Assessor-facing overall assessment summary.",
   "feedback": [
-    "Feedback point 1.",
-    "Feedback point 2.",
-    "Feedback point 3.",
-    "Feedback point 4."
+    "Trainee-facing feedback 1.",
+    "Trainee-facing feedback 2.",
+    "Trainee-facing feedback 3.",
+    "Trainee-facing feedback 4."
   ],
-  "cognitive_analysis": "Simple explanation of the relationship between performance, timing, and EEG findings.",
+  "cognitive_analysis": "Assessor-facing multimodal analysis.",
   "ai_cognitive_insights": [
-    "Observation 1.",
-    "Observation 2.",
-    "Observation 3.",
-    "Observation 4."
+    "Evaluation Summary insight 1.",
+    "Evaluation Summary insight 2.",
+    "Evaluation Summary insight 3.",
+    "Evaluation Summary insight 4."
   ],
   "recommendations": [
-    "Recommendation 1.",
-    "Recommendation 2.",
-    "Recommendation 3.",
-    "Recommendation 4."
+    "Trainee recommendation 1.",
+    "Trainee recommendation 2.",
+    "Trainee recommendation 3.",
+    "Trainee recommendation 4."
   ],
   "strengths": [
-    "Strength 1.",
-    "Strength 2.",
-    "Strength 3.",
-    "Strength 4."
+    "Trainee strength 1.",
+    "Trainee strength 2.",
+    "Trainee strength 3.",
+    "Trainee strength 4."
   ],
   "areas_for_improvement": [
-    "Improvement 1.",
-    "Improvement 2.",
-    "Improvement 3.",
-    "Improvement 4."
+    "Trainee improvement 1.",
+    "Trainee improvement 2.",
+    "Trainee improvement 3.",
+    "Trainee improvement 4."
+  ],
+  "assessor_strengths": [
+    "Assessor strength 1.",
+    "Assessor strength 2.",
+    "Assessor strength 3.",
+    "Assessor strength 4."
+  ],
+  "assessor_areas_for_improvement": [
+    "Assessor improvement 1.",
+    "Assessor improvement 2.",
+    "Assessor improvement 3.",
+    "Assessor improvement 4."
   ]
 }
 
-IMPORTANT:
-
-- Do not add extra JSON fields.
-- Do not return Markdown.
-- Do not wrap the JSON in code fences.
-- Do not invent measurements.
-- Do not modify the Ground Truth.
-- "feedback" MUST contain exactly 4 separate strings.
-- "ai_cognitive_insights" MUST contain exactly 4 separate strings.
-- "recommendations" MUST contain exactly 4 separate strings.
-- "strengths" MUST contain exactly 4 separate strings.
-- "areas_for_improvement" MUST contain exactly 4 separate strings.
-- Each array item must be a meaningful complete sentence.
+Every array MUST contain exactly 4 meaningful complete sentences.
 `;
 
     // ------------------------------------------------------------
-    // 6. Build Gemini prompt
-    //
-    // Ground Truth is passed AS-IS.
+    // 7. Build OpenAI input
     // ------------------------------------------------------------
     const promptText = `
-${systemPrompt}
-
 EEG AVAILABLE:
 ${hasEegData ? "true" : "false"}
 
 GROUND TRUTH DATA:
-${JSON.stringify(groundTruth)}
+${JSON.stringify(normalizedGroundTruth)}
 `;
 
     // ------------------------------------------------------------
-    // 7. Gemini API configuration
+    // 8. OpenAI configuration
     // ------------------------------------------------------------
-    const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
+    // [OPENAI CHANGE] Model + API endpoint.
+    const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
 
-    if (!geminiApiKey) {
+    if (!openaiApiKey) {
       throw new Error(
-        "GEMINI_API_KEY is not set in Supabase secrets."
+        "OPENAI_API_KEY is not set in Supabase secrets."
       );
     }
 
-    const apiUrl =
-      `https://generativelanguage.googleapis.com/v1beta/models/` +
-      `gemini-3.6-flash:generateContent?key=${geminiApiKey}`;
+    const openaiModel = "gpt-5.6-luna";
+    const openaiApiUrl =
+      "https://api.openai.com/v1/responses";
+
+    const responseSchema = {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        overall_summary: { type: "string" },
+        feedback: {
+          type: "array",
+          items: { type: "string" },
+        },
+        cognitive_analysis: { type: "string" },
+        ai_cognitive_insights: {
+          type: "array",
+          items: { type: "string" },
+        },
+        recommendations: {
+          type: "array",
+          items: { type: "string" },
+        },
+        strengths: {
+          type: "array",
+          items: { type: "string" },
+        },
+        areas_for_improvement: {
+          type: "array",
+          items: { type: "string" },
+        },
+        assessor_strengths: {
+          type: "array",
+          items: { type: "string" },
+        },
+        assessor_areas_for_improvement: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: [
+        "overall_summary",
+        "feedback",
+        "cognitive_analysis",
+        "ai_cognitive_insights",
+        "recommendations",
+        "strengths",
+        "areas_for_improvement",
+        "assessor_strengths",
+        "assessor_areas_for_improvement",
+      ],
+    };
 
     const apiBody = JSON.stringify({
-      contents: [
+      model: openaiModel,
+      input: [
         {
-          parts: [
-            {
-              text: promptText,
-            },
-          ],
+          role: "system",
+          content: systemPrompt,
+        },
+        {
+          role: "user",
+          content: promptText,
         },
       ],
-      generationConfig: {
-        responseMimeType: "application/json",
-        temperature: 0.1,
+      reasoning: {
+        effort: "low",
       },
+      text: {
+        format: {
+          type: "json_schema",
+          name: "noerion_assessment_insights",
+          strict: true,
+          schema: responseSchema,
+        },
+      },
+      max_output_tokens: 3500,
     });
 
     // ------------------------------------------------------------
-    // 8. Call Gemini with safe retry logic
-    //
-    // IMPORTANT:
-    // - 429 = rate limit. Do NOT immediately retry because that can
-    //        consume even more RPM. Return 429 to the caller.
-    // - 503/500/502/504 = temporary Gemini service problem. Retry
-    //        with exponential backoff + jitter.
-    // - Other 4xx errors = permanent request/configuration problem.
-    //        Do not retry.
+    // 9. Call OpenAI with retry logic
     // ------------------------------------------------------------
     let aiResult: any = null;
-
     const maxRetries = 3;
-
-    let lastGeminiStatus: number | null = null;
-    let lastGeminiMessage = "Gemini service unavailable.";
+    let lastOpenAIStatus: number | null = null;
+    let lastOpenAIMessage = "OpenAI service unavailable.";
     let retryAfterSeconds: number | null = null;
-    let temporaryGeminiFailure = false;
+    let temporaryOpenAIFailure = false;
 
     const retryableStatusCodes = new Set([
       500,
@@ -368,25 +745,29 @@ ${JSON.stringify(groundTruth)}
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const aiResponse = await fetch(apiUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: apiBody,
-        });
+        // [OPENAI CHANGE] Actual API call.
+        const aiResponse = await fetch(
+          openaiApiUrl,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${openaiApiKey}`,
+            },
+            body: apiBody,
+          }
+        );
 
-        lastGeminiStatus = aiResponse.status;
+        lastOpenAIStatus = aiResponse.status;
 
-        // Read the response body exactly once.
         let responseText = "";
 
         try {
           responseText = await aiResponse.text();
         } catch (readError: any) {
-          lastGeminiMessage =
+          lastOpenAIMessage =
             readError?.message ||
-            "Unable to read Gemini response.";
+            "Unable to read OpenAI response.";
         }
 
         try {
@@ -397,60 +778,43 @@ ${JSON.stringify(groundTruth)}
           aiResult = null;
         }
 
-        const geminiErrorMessage =
+        const openAIErrorMessage =
           aiResult?.error?.message ||
           (responseText
             ? responseText
-            : `Gemini returned HTTP ${aiResponse.status}.`);
+            : `OpenAI returned HTTP ${aiResponse.status}.`);
 
-        lastGeminiMessage = geminiErrorMessage;
+        lastOpenAIMessage = openAIErrorMessage;
 
-        // ----------------------------------------------------------
-        // Successful Gemini response
-        // ----------------------------------------------------------
         if (aiResponse.ok && !aiResult?.error) {
-          temporaryGeminiFailure = false;
+          temporaryOpenAIFailure = false;
           break;
         }
 
-        // ----------------------------------------------------------
-        // 429 RATE LIMIT
-        // ----------------------------------------------------------
-        // Do NOT retry a 429 inside this function. If the project has
-        // reached its RPM/TPM limit, another immediate request only
-        // makes the rate-limit situation worse.
         if (aiResponse.status === 429) {
-          temporaryGeminiFailure = false;
-
           const retryAfterHeader =
             aiResponse.headers.get("Retry-After");
 
-          if (retryAfterHeader) {
-            const parsedRetryAfter =
-              Number(retryAfterHeader);
+          const parsedRetryAfter =
+            retryAfterHeader
+              ? Number(retryAfterHeader)
+              : NaN;
 
-            if (
-              Number.isFinite(parsedRetryAfter) &&
-              parsedRetryAfter >= 0
-            ) {
-              retryAfterSeconds = parsedRetryAfter;
-            }
+          if (
+            Number.isFinite(parsedRetryAfter) &&
+            parsedRetryAfter >= 0
+          ) {
+            retryAfterSeconds = parsedRetryAfter;
           }
-
-          console.warn(
-            `Gemini rate limit reached (429). ` +
-            `No automatic retry will be made. ` +
-            `Message: ${geminiErrorMessage}`
-          );
 
           return new Response(
             JSON.stringify({
               success: false,
               error:
-                "Gemini rate limit reached. Please wait before trying again.",
-              details: lastGeminiMessage,
+                "OpenAI rate limit reached. Please wait before trying again.",
+              details: lastOpenAIMessage,
               retryable: true,
-              gemini_status: 429,
+              openai_status: 429,
               retry_after_seconds: retryAfterSeconds,
             }),
             {
@@ -469,98 +833,40 @@ ${JSON.stringify(groundTruth)}
           );
         }
 
-        // ----------------------------------------------------------
-        // Other Gemini errors
-        // ----------------------------------------------------------
-        temporaryGeminiFailure =
+        temporaryOpenAIFailure =
           retryableStatusCodes.has(aiResponse.status);
 
-        console.warn(
-          `Gemini API attempt ${attempt}/${maxRetries} failed. ` +
-          `Status: ${aiResponse.status}. ` +
-          `Message: ${geminiErrorMessage}`
-        );
-
-        // Do not retry permanent errors such as 400, 401, 403, 404.
-        if (!temporaryGeminiFailure) {
+        if (!temporaryOpenAIFailure) {
           break;
         }
-
-        // ----------------------------------------------------------
-        // Exponential backoff + jitter for 5xx errors
-        //
-        // Attempt 1 -> about 3-4 seconds
-        // Attempt 2 -> about 6-7 seconds
-        // ----------------------------------------------------------
-        if (attempt < maxRetries) {
-          const retryAfterHeader =
-            aiResponse.headers.get("Retry-After");
-
-          let delay: number;
-
-          const parsedRetryAfter =
-            retryAfterHeader
-              ? Number(retryAfterHeader)
-              : NaN;
-
-          if (
-            Number.isFinite(parsedRetryAfter) &&
-            parsedRetryAfter >= 0
-          ) {
-            delay = Math.min(
-              parsedRetryAfter * 1000,
-              30000
-            );
-          } else {
-            const baseDelay =
-              3000 * Math.pow(2, attempt - 1);
-
-            const jitter =
-              Math.floor(Math.random() * 1000);
-
-            delay = Math.min(
-              baseDelay + jitter,
-              30000
-            );
-          }
-
-          console.warn(
-            `Gemini temporary error (${aiResponse.status}). ` +
-            `Retrying in ${delay}ms...`
-          );
-
-          await sleep(delay);
-        }
-      } catch (error: any) {
-        // Network/fetch failures have no HTTP status. Treat them as
-        // temporary, but still limit the number of attempts.
-        lastGeminiStatus = null;
-
-        lastGeminiMessage =
-          error?.message ||
-          "Network error while contacting Gemini.";
-
-        temporaryGeminiFailure = true;
-
-        console.warn(
-          `Gemini fetch attempt ${attempt}/${maxRetries} failed: ` +
-          `${lastGeminiMessage}`
-        );
 
         if (attempt < maxRetries) {
           const baseDelay =
             3000 * Math.pow(2, attempt - 1);
-
           const jitter =
             Math.floor(Math.random() * 1000);
-
           const delay = Math.min(
             baseDelay + jitter,
             30000
           );
 
-          console.warn(
-            `Retrying Gemini request in ${delay}ms...`
+          await sleep(delay);
+        }
+      } catch (error: any) {
+        lastOpenAIStatus = null;
+        lastOpenAIMessage =
+          error?.message ||
+          "Network error while contacting OpenAI.";
+        temporaryOpenAIFailure = true;
+
+        if (attempt < maxRetries) {
+          const baseDelay =
+            3000 * Math.pow(2, attempt - 1);
+          const jitter =
+            Math.floor(Math.random() * 1000);
+          const delay = Math.min(
+            baseDelay + jitter,
+            30000
           );
 
           await sleep(delay);
@@ -569,40 +875,21 @@ ${JSON.stringify(groundTruth)}
     }
 
     // ------------------------------------------------------------
-    // 9. Handle Gemini failure after all retries
+    // 10. Handle OpenAI failure
     // ------------------------------------------------------------
-
     if (!aiResult || aiResult?.error) {
-      if (temporaryGeminiFailure) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error:
-              "Gemini service is temporarily unavailable after retries.",
-            details: lastGeminiMessage,
-            retryable: true,
-            gemini_status: lastGeminiStatus,
-          }),
-          {
-            status: 503,
-            headers: {
-              ...corsHeaders,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-      }
-
       return new Response(
         JSON.stringify({
           success: false,
-          error:
-            `Gemini API Error: ${lastGeminiMessage}`,
-          retryable: false,
-          gemini_status: lastGeminiStatus,
+          error: temporaryOpenAIFailure
+            ? "OpenAI service is temporarily unavailable after retries."
+            : `OpenAI API Error: ${lastOpenAIMessage}`,
+          details: lastOpenAIMessage,
+          retryable: temporaryOpenAIFailure,
+          openai_status: lastOpenAIStatus,
         }),
         {
-          status: 500,
+          status: temporaryOpenAIFailure ? 503 : 500,
           headers: {
             ...corsHeaders,
             "Content-Type": "application/json",
@@ -612,21 +899,23 @@ ${JSON.stringify(groundTruth)}
     }
 
     // ------------------------------------------------------------
-    // 10. Extract Gemini response
+    // 11. Extract OpenAI structured output
     // ------------------------------------------------------------
     const candidateText =
-      aiResult?.candidates?.[0]?.content?.parts?.[0]?.text;
+      aiResult?.output_text ||
+      aiResult?.output
+        ?.find((item: any) => item?.type === "message")
+        ?.content
+        ?.find((item: any) => item?.type === "output_text")
+        ?.text;
 
     if (!candidateText) {
       throw new Error(
-        `Gemini API returned empty text: ${JSON.stringify(aiResult)}`
+        `OpenAI returned empty structured output: ${JSON.stringify(aiResult)}`
       );
     }
 
-    const rawContent = candidateText
-      .replace(/```json\s*/gi, "")
-      .replace(/```\s*/gi, "")
-      .trim();
+    const rawContent = String(candidateText).trim();
 
     let insights: any;
 
@@ -634,21 +923,20 @@ ${JSON.stringify(groundTruth)}
       insights = JSON.parse(rawContent);
     } catch (_parseError) {
       throw new Error(
-        `Gemini returned invalid JSON: ${rawContent}`
+        `OpenAI returned invalid JSON: ${rawContent}`
       );
     }
 
     // ------------------------------------------------------------
-    // 11. Helper functions for safe AI output normalization
+    // 12. Output normalization helpers
     // ------------------------------------------------------------
-
     const normalizeString = (
       value: unknown,
       fieldName: string
     ): string => {
       if (typeof value !== "string") {
         throw new Error(
-          `Gemini output field must be a string: ${fieldName}`
+          `OpenAI output field must be a string: ${fieldName}`
         );
       }
 
@@ -656,7 +944,7 @@ ${JSON.stringify(groundTruth)}
 
       if (!normalized) {
         throw new Error(
-          `Gemini output field is empty: ${fieldName}`
+          `OpenAI output field is empty: ${fieldName}`
         );
       }
 
@@ -668,39 +956,22 @@ ${JSON.stringify(groundTruth)}
       fieldName: string,
       expectedLength = 4
     ): string[] => {
-      let parsedValue = value;
-
-      // Gemini may occasionally return:
-      // "[\"item 1\", \"item 2\", ...]"
-      //
-      // Convert that JSON string into an actual array.
-      if (typeof parsedValue === "string") {
-        try {
-          parsedValue = JSON.parse(parsedValue);
-        } catch (_error) {
-          throw new Error(
-            `Gemini output field is not a valid JSON array: ${fieldName}`
-          );
-        }
-      }
-
-      if (!Array.isArray(parsedValue)) {
+      if (!Array.isArray(value)) {
         throw new Error(
-          `Gemini output field must be an array: ${fieldName}`
+          `OpenAI output field must be an array: ${fieldName}`
         );
       }
 
-      if (parsedValue.length !== expectedLength) {
+      if (value.length !== expectedLength) {
         throw new Error(
-          `Gemini output field ${fieldName} must contain exactly ` +
-          `${expectedLength} items. Received ${parsedValue.length}.`
+          `OpenAI output field ${fieldName} must contain exactly ${expectedLength} items. Received ${value.length}.`
         );
       }
 
-      const normalized = parsedValue.map((item, index) => {
+      return value.map((item, index) => {
         if (typeof item !== "string") {
           throw new Error(
-            `Gemini output field ${fieldName}[${index}] must be a string.`
+            `OpenAI output field ${fieldName}[${index}] must be a string.`
           );
         }
 
@@ -708,20 +979,17 @@ ${JSON.stringify(groundTruth)}
 
         if (!text) {
           throw new Error(
-            `Gemini output field ${fieldName}[${index}] is empty.`
+            `OpenAI output field ${fieldName}[${index}] is empty.`
           );
         }
 
         return text;
       });
-
-      return normalized;
     };
 
     // ------------------------------------------------------------
-    // 12. Validate required string fields
+    // 13. Validate required fields
     // ------------------------------------------------------------
-
     const overallSummary = normalizeString(
       insights?.overall_summary,
       "overall_summary"
@@ -732,19 +1000,15 @@ ${JSON.stringify(groundTruth)}
       "cognitive_analysis"
     );
 
-    // ------------------------------------------------------------
-    // 13. Validate and normalize array fields
-    // ------------------------------------------------------------
+    const aiCognitiveInsights = normalizeStringArray(
+      insights?.ai_cognitive_insights,
+      "ai_cognitive_insights",
+      4
+    );
 
     const feedback = normalizeStringArray(
       insights?.feedback,
       "feedback",
-      4
-    );
-
-    const aiCognitiveInsights = normalizeStringArray(
-      insights?.ai_cognitive_insights,
-      "ai_cognitive_insights",
       4
     );
 
@@ -766,9 +1030,18 @@ ${JSON.stringify(groundTruth)}
       4
     );
 
-    // ------------------------------------------------------------
-    // 14. Make sure Gemini did not return unexpected fields
-    // ------------------------------------------------------------
+    const assessorStrengths = normalizeStringArray(
+      insights?.assessor_strengths,
+      "assessor_strengths",
+      4
+    );
+
+    const assessorAreasForImprovement =
+      normalizeStringArray(
+        insights?.assessor_areas_for_improvement,
+        "assessor_areas_for_improvement",
+        4
+      );
 
     const allowedFields = new Set([
       "overall_summary",
@@ -778,27 +1051,28 @@ ${JSON.stringify(groundTruth)}
       "recommendations",
       "strengths",
       "areas_for_improvement",
+      "assessor_strengths",
+      "assessor_areas_for_improvement",
     ]);
 
-    const returnedFields = Object.keys(insights || {});
-
-    const unexpectedFields = returnedFields.filter(
+    const unexpectedFields = Object.keys(
+      insights || {}
+    ).filter(
       (field) => !allowedFields.has(field)
     );
 
     if (unexpectedFields.length > 0) {
       throw new Error(
-        `Gemini returned unexpected fields: ${unexpectedFields.join(", ")}`
+        `OpenAI returned unexpected fields: ${unexpectedFields.join(", ")}`
       );
     }
 
     // ------------------------------------------------------------
-    // 15. Determine trainee ID
+    // 14. Determine trainee ID
     // ------------------------------------------------------------
-
     const finalTraineeId =
       traineeId ||
-      groundTruth?.submission?.trainee_id ||
+      normalizedGroundTruth?.submission?.trainee_id ||
       null;
 
     if (!finalTraineeId) {
@@ -808,54 +1082,77 @@ ${JSON.stringify(groundTruth)}
     }
 
     // ------------------------------------------------------------
-    // 16. Save AI insights
-    //
-    // IMPORTANT:
-    // feedback / strengths / areas_for_improvement are JSONB arrays.
-    // ai_cognitive_insights / recommendations are PostgreSQL text[].
+    // 15. Save AI insights
     // ------------------------------------------------------------
+    const insightPayload = {
+      submission_id: submissionId,
+      trainee_id: finalTraineeId,
 
-    const { error: insertError } = await supabaseAdmin
+      confidence_score: confidenceScore,
+
+      overall_summary: overallSummary,
+      feedback: feedback,
+      cognitive_analysis: cognitiveAnalysis,
+
+      // Used by the Evaluation Summary page. This remains separate
+      // from the Assessor Performance Patterns fields below.
+      ai_cognitive_insights: aiCognitiveInsights,
+
+      recommendations: recommendations,
+      strengths: strengths,
+      areas_for_improvement: areasForImprovement,
+
+      // NEW: assessor-only versions of strengths/improvements.
+      assessor_strengths: assessorStrengths,
+      assessor_areas_for_improvement:
+        assessorAreasForImprovement,
+
+      generated_at: new Date().toISOString(),
+    };
+
+    const {
+      data: updatedRows,
+      error: updateError,
+    } = await supabaseAdmin
       .from("ai_assessment_insights")
-      .insert({
-        submission_id: submissionId,
-        trainee_id: finalTraineeId,
+      .update(insightPayload)
+      .eq("submission_id", submissionId)
+      .select("id, submission_id, confidence_score")
+      .limit(1);
 
-        overall_summary: overallSummary,
-
-        // JSONB array
-        feedback: feedback,
-
-        cognitive_analysis: cognitiveAnalysis,
-
-        // PostgreSQL text[]
-        ai_cognitive_insights: aiCognitiveInsights,
-
-        // PostgreSQL text[]
-        recommendations: recommendations,
-
-        // JSONB arrays
-        strengths: strengths,
-        areas_for_improvement: areasForImprovement,
-
-        generated_at: new Date().toISOString(),
-      });
-
-    if (insertError) {
+    if (updateError) {
       throw new Error(
-        `DB Insert Error: ${insertError.message}`
+        `DB Update Error: ${updateError.message}`
       );
     }
 
-    // ------------------------------------------------------------
-    // 17. Success response
-    // ------------------------------------------------------------
+    if (!updatedRows || updatedRows.length === 0) {
+      const { error: insertError } =
+        await supabaseAdmin
+          .from("ai_assessment_insights")
+          .insert(insightPayload);
 
+      if (insertError) {
+        throw new Error(
+          `DB Insert Error: ${insertError.message}`
+        );
+      }
+    }
+
+    console.log("=== AI INSIGHT SAVED ===");
+    console.log("submission_id:", submissionId);
+    console.log("confidence_score:", confidenceScore);
+
+    // ------------------------------------------------------------
+    // 16. Success response
+    // ------------------------------------------------------------
     return new Response(
       JSON.stringify({
         success: true,
         submission_id: submissionId,
-        message: "AI assessment insights generated successfully.",
+        confidence_score: confidenceScore,
+        message:
+          "AI assessment insights generated successfully.",
       }),
       {
         status: 200,

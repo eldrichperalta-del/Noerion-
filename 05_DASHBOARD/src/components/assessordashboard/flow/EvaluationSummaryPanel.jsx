@@ -8,17 +8,23 @@ export default function EvaluationSummaryPanel({
   evaluationSummary,
   onViewAIAnalysis,
 }) {
-
-
   return (
     <div className="space-y-6">
-      {/* Trainee Information */}
+
+      {/* ==========================================================
+          TRAINEE INFORMATION
+          ========================================================== */}
 
       <TraineeInformationCard
         trainee={evaluationSummary.trainee}
       />
 
-      {/* Written Assessment & Overall Result */}
+
+      {/* ==========================================================
+          WRITTEN ASSESSMENT & OVERALL RESULT
+          
+          KEEPING THE EXISTING 210px HEIGHT
+          ========================================================== */}
 
       <div
         className="
@@ -49,7 +55,18 @@ export default function EvaluationSummaryPanel({
 
       </div>
 
-      {/* AI Insight Summary & View AI Analysis */}
+
+      {/* ==========================================================
+          AI INSIGHT SUMMARY & VIEW AI ANALYSIS
+          
+          IMPORTANT:
+          The AI Insight Summary is NO LONGER forced to 210px.
+          
+          Its height will now follow the bullet content.
+          
+          The View AI Analysis button keeps its existing
+          210px height/design.
+          ========================================================== */}
 
       <div
         className="
@@ -57,16 +74,33 @@ export default function EvaluationSummaryPanel({
           grid-cols-1
           gap-5
           lg:grid-cols-3
-          items-stretch
+          items-start
         "
       >
 
-        <div className="h-[210px] lg:col-span-2">
+        {/* ========================================================
+            AI INSIGHT SUMMARY
+
+            NO FIXED HEIGHT HERE.
+
+            The card grows naturally according to the number
+            and length of AI-generated bullet insights.
+            ======================================================== */}
+
+        <div className="lg:col-span-2">
           <AIInsightSummaryCard
-            insights={evaluationSummary.aiInsights}
+            insights={
+              evaluationSummary.aiInsights
+            }
           />
         </div>
 
+
+        {/* ========================================================
+            VIEW AI ANALYSIS
+
+            DO NOT CHANGE THE BUTTON SIZE OR DESIGN.
+            ======================================================== */}
 
         <div className="h-[210px]">
           <ViewAIAnalysisButton
@@ -75,6 +109,7 @@ export default function EvaluationSummaryPanel({
         </div>
 
       </div>
+
     </div>
   );
 }

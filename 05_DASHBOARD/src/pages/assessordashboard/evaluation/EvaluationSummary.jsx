@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import {
   useLocation,
@@ -519,6 +518,36 @@ export default function EvaluationSummary() {
 
 
         // ====================================================================
+        // FETCH AI COGNITIVE INSIGHTS FROM DATABASE
+        // ====================================================================
+
+        let aiInsights = [];
+
+        if (submissionId) {
+          const {
+            data: aiData,
+            error: aiError,
+          } = await supabase
+            .from("ai_assessment_insights")
+            .select("ai_cognitive_insights")
+            .eq("submission_id", submissionId)
+            .maybeSingle();
+
+          if (aiError) {
+            console.warn(
+              "Unable to load AI cognitive insights:",
+              aiError
+            );
+          } else if (aiData?.ai_cognitive_insights) {
+            aiInsights =
+              typeof aiData.ai_cognitive_insights === "string"
+                ? JSON.parse(aiData.ai_cognitive_insights)
+                : aiData.ai_cognitive_insights;
+          }
+        }
+
+
+        // ====================================================================
         // 9. BUILD SUMMARY
         //
         // This matches what EvaluationSummaryPanel expects:
@@ -608,12 +637,9 @@ export default function EvaluationSummary() {
 
 
           /*
-           * AI analysis has not been generated yet.
-           *
-           * Keeping this as an array prevents the AI insight card from
-           * receiving undefined.
+           * Extracted from ai_assessment_insights table
            */
-          aiInsights: [],
+          aiInsights,
 
 
           /*
@@ -946,4 +972,3 @@ export default function EvaluationSummary() {
 
   );
 }
-
