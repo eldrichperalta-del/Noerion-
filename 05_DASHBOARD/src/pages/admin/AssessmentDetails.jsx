@@ -138,45 +138,158 @@ function normalizeQuestionType(value) {
    ============================================================ */
 
 function parseMatchingPairs(value) {
-  if (!value) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return [];
+  }
+
+  /*
+   * If the value is already an array,
+   * use it directly.
+   */
+  if (Array.isArray(value)) {
+    return value
+      .map((pair, index) => ({
+        item:
+          pair?.item ??
+          pair?.left ??
+          "",
+
+        match:
+          pair?.match ??
+          pair?.right ??
+          "",
+
+        itemLabel:
+          pair?.itemLabel ||
+          `Item ${index + 1}`,
+
+        matchLabel:
+          pair?.matchLabel ||
+          `Match ${index + 1}`,
+      }))
+      .filter(
+        (pair) =>
+          pair.item &&
+          pair.match
+      );
+  }
+
+  /*
+   * Convert the value to a string.
+   */
+  const text =
+    String(value).trim();
+
+  if (!text) {
+    return [];
+  }
+
+  /*
+   * Older Matching Type records may contain
+   * a simple answer such as:
+   *
+   * A
+   * B
+   * C
+   * D
+   *
+   * These are NOT JSON, so do not call JSON.parse()
+   * on them.
+   */
+  const looksLikeJson =
+    text.startsWith("[") ||
+    text.startsWith("{");
+
+  if (!looksLikeJson) {
     return [];
   }
 
   try {
     const parsed =
-      typeof value === "string"
-        ? JSON.parse(value)
-        : value;
+      JSON.parse(text);
 
-    if (!Array.isArray(parsed)) {
-      return [];
+    /*
+     * Matching pairs should normally be
+     * stored as an array.
+     */
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((pair, index) => ({
+          item:
+            pair?.item ??
+            pair?.left ??
+            "",
+
+          match:
+            pair?.match ??
+            pair?.right ??
+            "",
+
+          itemLabel:
+            pair?.itemLabel ||
+            `Item ${index + 1}`,
+
+          matchLabel:
+            pair?.matchLabel ||
+            `Match ${index + 1}`,
+        }))
+        .filter(
+          (pair) =>
+            pair.item &&
+            pair.match
+        );
     }
 
-    return parsed.map((pair, index) => ({
-      item:
-        pair?.item ??
-        pair?.left ??
-        "",
+    /*
+     * Also support a single pair object
+     * in case an older record was stored that way.
+     */
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      (
+        parsed.item ||
+        parsed.left
+      ) &&
+      (
+        parsed.match ||
+        parsed.right
+      )
+    ) {
+      return [
+        {
+          item:
+            parsed.item ??
+            parsed.left ??
+            "",
 
-      match:
-        pair?.match ??
-        pair?.right ??
-        "",
+          match:
+            parsed.match ??
+            parsed.right ??
+            "",
 
-      itemLabel:
-        pair?.itemLabel ||
-        `Item ${index + 1}`,
+          itemLabel:
+            parsed.itemLabel ||
+            "Item 1",
 
-      matchLabel:
-        pair?.matchLabel ||
-        `Match ${index + 1}`,
-    }));
+          matchLabel:
+            parsed.matchLabel ||
+            "Match 1",
+        },
+      ];
+    }
+
+    return [];
   } catch (error) {
-    console.warn(
-      "Unable to parse matching pairs:",
-      error
-    );
-
+    /*
+     * If an old/non-JSON value somehow starts with
+     * "[" or "{", simply ignore it instead of
+     * flooding the console with parsing errors.
+     */
     return [];
   }
 }
