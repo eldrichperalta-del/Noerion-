@@ -956,7 +956,7 @@ export default function FinalizeEvaluation() {
 
               const rawCorrectKey =
                 answerKeysMap[
-                question.id
+                  question.id
                 ] ??
                 "N/A";
 
@@ -967,7 +967,7 @@ export default function FinalizeEvaluation() {
 
               const questionOptions =
                 optionsByQuestion[
-                question.id
+                  question.id
                 ] ??
                 [];
 
@@ -1380,9 +1380,10 @@ export default function FinalizeEvaluation() {
 
     };
 
+
   /* ============================================================
- TEMPORARY NOTIFICATION TEST
- ============================================================ */
+  TEMPORARY NOTIFICATION TEST
+  ============================================================ */
 
   const handleTestNotification =
     async () => {
@@ -1615,7 +1616,7 @@ export default function FinalizeEvaluation() {
 
         /* ======================================================
            VALIDATE OVERRIDE
-           
+
            Justification is required ONLY when overriding.
            Remarks are OPTIONAL.
            ====================================================== */
@@ -1670,13 +1671,15 @@ export default function FinalizeEvaluation() {
 
         /* ======================================================
            SAVE FINAL EVALUATION
-           
+
            IMPORTANT:
            - status becomes "evaluated"
            - overall_result becomes the actual final result
            - total_score remains the original system score
              unless an override is being used
            - remarks are optional
+           - submitted_at is intentionally NOT changed
+             because it represents the trainee's submission time
            ====================================================== */
 
         const updatePayload = {
@@ -1684,8 +1687,17 @@ export default function FinalizeEvaluation() {
           status:
             "evaluated",
 
-          submitted_at:
-            now,
+          /*
+           * IMPORTANT:
+           * Do NOT update submitted_at here.
+           *
+           * submitted_at represents the time when the
+           * TRAINEE submitted the assessment.
+           *
+           * The assessor evaluating the assessment later
+           * must not change that timestamp, otherwise the
+           * assessment duration/time-taken becomes incorrect.
+           */
 
           passed:
             isPassed,
@@ -1795,7 +1807,7 @@ export default function FinalizeEvaluation() {
 
         /* ======================================================
            CREATE CERTIFICATE
-           
+
            The Edge Function should handle duplicates.
            ====================================================== */
 
@@ -1815,12 +1827,13 @@ export default function FinalizeEvaluation() {
 
         }
 
+
         /* ======================================================
-   NOTIFY TRAINEE OF FINAL RESULT
-   
-   Notification failure must NOT rollback
-   the successfully finalized evaluation.
-   ====================================================== */
+           NOTIFY TRAINEE OF FINAL RESULT
+
+           Notification failure must NOT rollback
+           the successfully finalized evaluation.
+           ====================================================== */
 
         try {
 
@@ -1843,8 +1856,10 @@ export default function FinalizeEvaluation() {
             }
           );
 
+
           const notificationResult =
             await notifyTraineeResult({
+
               traineeId:
                 selectedTrainee.id,
 
@@ -1858,7 +1873,9 @@ export default function FinalizeEvaluation() {
 
               result:
                 displayResult,
+
             });
+
 
           console.log(
             "Trainee result notification:",
@@ -2126,7 +2143,11 @@ export default function FinalizeEvaluation() {
           },
 
 
-          "Finalize Evaluation",
+          {
+            label:
+              "Finalize Evaluation",
+
+          },
 
         ]}
 
