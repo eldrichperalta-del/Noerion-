@@ -1,2385 +1,545 @@
-import {
-  useEffect,
-  useState,
-} from "react";
-
-import {
-  useLocation,
-} from "react-router-dom";
-
-import { supabase } from "../../../supabaseClient";
-import { notifyTraineeResult } from "../../../services/notificationService";
+import { useEffect, useLayoutEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { supabase } from "../../../supabaseClient.js";
+import { notifyTraineeResult } from "../../../services/notificationService.js";
+import { 
+  ShieldCheck, 
+  CheckCircle2, 
+  AlertCircle, 
+  ChevronDown, 
+  ChevronUp, 
+  FileText, 
+  Clock, 
+  ArrowLeft,
+  BarChart3,
+  XCircle,
+  Sparkles,
+  UserRound,
+  GraduationCap,
+  IdCard,
+  Calendar
+} from "lucide-react";
 
 import AssessorBreadcrumbs from "../../../components/assessordashboard/flow/AssessorBreadcrumbs";
-import ConfirmationModal from "../../../components/assessordashboard/flow/ConfirmationModal";
-import FinalizeEvaluationPanel from "../../../components/assessordashboard/flow/FinalizeEvaluationPanel";
 import AssessorPageHeader from "../../../components/assessordashboard/shared/AssessorPageHeader";
-
+import ConfirmationModal from "../../../components/assessordashboard/flow/ConfirmationModal";
 
 export default function FinalizeEvaluation() {
-
+  const navigate = useNavigate();
   const { state } = useLocation();
 
+  // Instant scroll-to-top BEFORE browser paint
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    const scrollContainers = document.querySelectorAll("main, #main-content, .overflow-y-auto");
+    scrollContainers.forEach((container) => {
+      container.scrollTop = 0;
+    });
+  }, []);
 
-  /* ============================================================
-     NAVIGATION DATA
-     ============================================================ */
-
-  const selectedCourse =
-    state?.selectedCourse ?? null;
+  const selectedCourse = state?.selectedCourse ?? null;
+  const rawTrainee = state?.selectedTrainee ?? null;
+  const evaluationSummary = state?.evaluationSummary ?? null;
 
   const courseLabel =
     selectedCourse?.qualificationName ??
     selectedCourse?.name ??
-    selectedCourse?.courseName ??
-    selectedCourse ??
-    "Chosen Course";
+    "Computer Systems Servicing";
 
-  const rawTrainee =
-    state?.selectedTrainee ?? null;
+  const assessmentId = state?.assessmentId ?? rawTrainee?.assessmentId ?? null;
+  const submissionId = state?.submissionId ?? rawTrainee?.submissionId ?? rawTrainee?.submission?.id ?? null;
 
-  const evaluationSummary =
-    state?.evaluationSummary ?? null;
+  const [questions, setQuestions] = useState([]);
+  const [showAllResponses, setShowAllResponses] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  const aiAnalysis =
-    state?.aiAnalysis ?? null;
+  const [decisionMode, setDecisionMode] = useState("confirm");
+  const [overrideResult, setOverrideResult] = useState("Not Yet Competent");
+  const [justification, setJustification] = useState("");
+  const [remarks, setRemarks] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const evaluationId =
-    state?.evaluationId ?? null;
+  const [submissionRecord, setSubmissionRecord] = useState(null);
 
-  const batchId =
-    state?.batchId ??
-    rawTrainee?.batchId ??
-    rawTrainee?.batch_id ??
-    null;
-
-  const batchCode =
-    state?.batchCode ??
-    rawTrainee?.batchCode ??
-    rawTrainee?.batch_code ??
-    null;
-
-  const assignmentId =
-    state?.assignmentId ??
-    rawTrainee?.assignmentId ??
-    rawTrainee?.assignment_id ??
-    null;
-
-  const assessment =
-    state?.assessment ??
-    evaluationSummary?.assessment ??
-    null;
-
-  const assessmentId =
-    state?.assessmentId ??
-    assessment?.id ??
-    evaluationSummary?.assessmentId ??
-    rawTrainee?.assessmentId ??
-    rawTrainee?.assessment_id ??
-    null;
-
-
-  /* ============================================================
-     NORMALIZE TRAINEE
-     ============================================================ */
-
-  const selectedTrainee = {
-
-    id:
-      rawTrainee?.id ??
-      rawTrainee?.trainee_id ??
-      rawTrainee?.user_id ??
-      null,
-
-    fullName:
-      rawTrainee?.fullName ??
-      rawTrainee?.name ??
-      rawTrainee?.fullname ??
-      "Unknown Trainee",
-
-    traineeId:
-      rawTrainee?.traineeId ??
-      rawTrainee?.trainee_id ??
-      rawTrainee?.id ??
-      "-",
-
-    status:
-      rawTrainee?.status ??
-      "Completed",
-
+  const traineeObj = {
+    name: rawTrainee?.fullName ?? rawTrainee?.name ?? "Eldrich Justin",
+    id: rawTrainee?.traineeId ?? rawTrainee?.id ?? "43292147-823d-4920-9c38-03029cfbe0bb",
+    course: courseLabel,
   };
 
-
-  /* ============================================================
-     STATE
-     ============================================================ */
-
-  const [
-    submissionId,
-    setSubmissionId,
-  ] = useState(
-    state?.submissionId ??
-    rawTrainee?.submissionId ??
-    rawTrainee?.submission_id ??
-    null
-  );
-
-  const [
-    questionsData,
-    setQuestionsData,
-  ] = useState([]);
-
-  const [
-    isLoading,
-    setIsLoading,
-  ] = useState(true);
-
-  const [
-    isSubmitting,
-    setIsSubmitting,
-  ] = useState(false);
-
-  const [
-    isFinalized,
-    setIsFinalized,
-  ] = useState(false);
-
-  const [
-    showConfirmModal,
-    setShowConfirmModal,
-  ] = useState(false);
-
-
-  /* ============================================================
-     OVERRIDE RESULT STATE
-     ============================================================ */
-
-  const [
-    decision,
-    setDecision,
-  ] = useState("");
-
-  const [
-    newScore,
-    setNewScore,
-  ] = useState("");
-
-  const [
-    justification,
-    setJustification,
-  ] = useState("");
-
-  const [
-    remarks,
-    setRemarks,
-  ] = useState("");
-
-
-  /* ============================================================
-     CERTIFICATE STATE
-     ============================================================ */
-
-  const [
-    certificate,
-    setCertificate,
-  ] = useState(null);
-
-
-  /* ============================================================
-     METRICS
-     ============================================================ */
-
-  const [
-    metrics,
-    setMetrics,
-  ] = useState({
-
-    totalScore: 0,
-
-    totalItems: 0,
-
-    percentage: 0,
-
-    result: "In Evaluation",
-
-  });
-
-
-  /* ============================================================
-     LOAD ASSESSMENT DATA
-     ============================================================ */
-
   useEffect(() => {
+    async function loadData() {
+      if (!assessmentId || !submissionId) return;
 
-    async function loadFinalizeEvaluationData() {
+      const { data: sub } = await supabase
+        .from("assessment_submissions")
+        .select("id, status, overall_result, total_score, passed, submitted_at, updated_at, justification, remarks")
+        .eq("id", submissionId)
+        .maybeSingle();
 
-      if (
-        !rawTrainee ||
-        !selectedCourse ||
-        !assessmentId
-      ) {
-
-        console.warn(
-          "FinalizeEvaluation: Missing required navigation data."
-        );
-
-        setIsLoading(false);
-
-        return;
-
+      if (sub) {
+        setSubmissionRecord(sub);
+        if (sub.remarks) setRemarks(sub.remarks);
+        if (sub.justification) setJustification(sub.justification);
       }
 
-
-      setIsLoading(true);
-
-
-      try {
-
-        let currentSubId =
-          submissionId;
-
-        let dbTotalScore =
-          null;
-
-        let dbStatus =
-          "in_progress";
-
-        let dbResult =
-          null;
-
-        let dbOverrideScore =
-          null;
-
-        let dbOverrideResult =
-          null;
-
-        let dbOverrideApplied =
-          false;
-
-        let dbRemarks =
-          "";
-
-        let dbJustification =
-          "";
-
-
-        /* ======================================================
-           1. FIND SUBMISSION
-           ====================================================== */
-
-        if (!currentSubId) {
-
-          const uuidRegex =
-            /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-
-
-          const candidateUuids = [
-
-            rawTrainee?.user_id,
-
-            rawTrainee?.userId,
-
-            rawTrainee?.profile_id,
-
-            rawTrainee?.id,
-
-          ].filter(
-
-            (value) =>
-              value &&
-              typeof value === "string" &&
-              uuidRegex.test(value)
-
-          );
-
-
-          for (
-            const uid of candidateUuids
-          ) {
-
-            const {
-              data: subData,
-              error: subError,
-            } = await supabase
-
-              .from(
-                "assessment_submissions"
-              )
-
-              .select(`
-                id,
-                status,
-                total_score,
-                overall_result,
-                passed,
-                override_score,
-                override_result,
-                override_applied,
-                remarks,
-                justification
-              `)
-
-              .eq(
-                "assessment_id",
-                assessmentId
-              )
-
-              .eq(
-                "trainee_id",
-                uid
-              )
-
-              .maybeSingle();
-
-
-            if (subError) {
-
-              console.error(
-                "Error finding submission:",
-                subError
-              );
-
-            }
-
-
-            if (subData) {
-
-              currentSubId =
-                subData.id;
-
-              setSubmissionId(
-                currentSubId
-              );
-
-              dbStatus =
-                subData.status;
-
-              dbResult =
-                subData.overall_result;
-
-              dbOverrideScore =
-                subData.override_score;
-
-              dbOverrideResult =
-                subData.override_result;
-
-              dbOverrideApplied =
-                Boolean(
-                  subData.override_applied
-                );
-
-              dbRemarks =
-                subData.remarks ?? "";
-
-              dbJustification =
-                subData.justification ?? "";
-
-
-              if (
-                subData.total_score !== null &&
-                subData.total_score !== undefined
-              ) {
-
-                dbTotalScore =
-                  Number(
-                    subData.total_score
-                  );
-
-              }
-
-              break;
-
-            }
-
-          }
-
-
-          /* ====================================================
-             FALLBACK SUBMISSION
-             ==================================================== */
-
-          if (!currentSubId) {
-
-            const {
-              data: fallbackSub,
-              error: fallbackError,
-            } = await supabase
-
-              .from(
-                "assessment_submissions"
-              )
-
-              .select(`
-                id,
-                status,
-                total_score,
-                overall_result,
-                passed,
-                override_score,
-                override_result,
-                override_applied,
-                remarks,
-                justification
-              `)
-
-              .eq(
-                "assessment_id",
-                assessmentId
-              )
-
-              .order(
-                "created_at",
-                {
-                  ascending: false,
-                }
-              )
-
-              .limit(1)
-
-              .maybeSingle();
-
-
-            if (fallbackError) {
-
-              console.error(
-                "Error finding fallback submission:",
-                fallbackError
-              );
-
-            }
-
-
-            if (fallbackSub) {
-
-              currentSubId =
-                fallbackSub.id;
-
-              setSubmissionId(
-                currentSubId
-              );
-
-              dbStatus =
-                fallbackSub.status;
-
-              dbResult =
-                fallbackSub.overall_result;
-
-              dbOverrideScore =
-                fallbackSub.override_score;
-
-              dbOverrideResult =
-                fallbackSub.override_result;
-
-              dbOverrideApplied =
-                Boolean(
-                  fallbackSub.override_applied
-                );
-
-              dbRemarks =
-                fallbackSub.remarks ?? "";
-
-              dbJustification =
-                fallbackSub.justification ?? "";
-
-
-              if (
-                fallbackSub.total_score !== null &&
-                fallbackSub.total_score !== undefined
-              ) {
-
-                dbTotalScore =
-                  Number(
-                    fallbackSub.total_score
-                  );
-
-              }
-
-            }
-
-          }
-
-        }
-
-        else {
-
-          /* ====================================================
-             EXISTING SUBMISSION
-             ==================================================== */
-
-          const {
-            data: subData,
-            error: subError,
-          } = await supabase
-
-            .from(
-              "assessment_submissions"
-            )
-
-            .select(`
-              status,
-              total_score,
-              overall_result,
-              passed,
-              override_score,
-              override_result,
-              override_applied,
-              remarks,
-              justification
-            `)
-
-            .eq(
-              "id",
-              currentSubId
-            )
-
-            .maybeSingle();
-
-
-          if (subError) {
-
-            console.error(
-              "Error loading submission:",
-              subError
-            );
-
-          }
-
-
-          if (subData) {
-
-            dbStatus =
-              subData.status;
-
-            dbResult =
-              subData.overall_result;
-
-            dbOverrideScore =
-              subData.override_score;
-
-            dbOverrideResult =
-              subData.override_result;
-
-            dbOverrideApplied =
-              Boolean(
-                subData.override_applied
-              );
-
-            dbRemarks =
-              subData.remarks ?? "";
-
-            dbJustification =
-              subData.justification ?? "";
-
-
-            if (
-              subData.total_score !== null &&
-              subData.total_score !== undefined
-            ) {
-
-              dbTotalScore =
-                Number(
-                  subData.total_score
-                );
-
-            }
-
-          }
-
-        }
-
-
-        /* ======================================================
-           RESTORE SAVED OVERRIDE DATA
-           ====================================================== */
-
-        if (
-          dbOverrideApplied
-        ) {
-
-          setDecision(
-            "override"
-          );
-
-          setNewScore(
-            dbOverrideScore !== null &&
-              dbOverrideScore !== undefined
-              ? String(
-                dbOverrideScore
-              )
-              : ""
-          );
-
-          setJustification(
-            dbJustification
-          );
-
-        }
-
-
-        setRemarks(
-          dbRemarks
-        );
-
-
-        /* ======================================================
-           2. FETCH QUESTIONS
-           ====================================================== */
-
-        const {
-          data: questionsList,
-          error: questionsError,
-        } = await supabase
-
-          .from(
-            "questions"
-          )
-
-          .select(`
-            id,
-            item_number,
-            question_text,
-            question_type
-          `)
-
-          .eq(
-            "assessment_id",
-            assessmentId
-          )
-
-          .order(
-            "item_number",
-            {
-              ascending: true,
-            }
-          );
-
-
-        if (questionsError) {
-
-          throw questionsError;
-
-        }
-
-
-        const questionIds =
-          questionsList?.map(
-            (question) =>
-              question.id
-          ) ?? [];
-
-
-        /* ======================================================
-           3. FETCH ANSWER KEYS + OPTIONS
-           ====================================================== */
-
-        const answerKeysMap = {};
-
-        const optionsByQuestion = {};
-
-        const optionsMap = {};
-
-
-        if (
-          questionIds.length > 0
-        ) {
-
-          const [
-            {
-              data: keysData,
-              error: keysError,
-            },
-            {
-              data: optionsData,
-              error: optionsError,
-            },
-          ] = await Promise.all([
-
-            supabase
-              .from("answer_keys")
-              .select(
-                "question_id, correct_answer"
-              )
-              .in(
-                "question_id",
-                questionIds
-              ),
-
-            supabase
-              .from("question_options")
-              .select(`
-                id,
-                question_id,
-                option_letter,
-                option_text
-              `)
-              .in(
-                "question_id",
-                questionIds
-              ),
-
-          ]);
-
-
-          if (keysError) {
-
-            throw keysError;
-
-          }
-
-
-          if (optionsError) {
-
-            throw optionsError;
-
-          }
-
-
-          if (keysData) {
-
-            keysData.forEach(
-              (key) => {
-
-                answerKeysMap[
-                  key.question_id
-                ] =
-                  key.correct_answer;
-
-              }
-            );
-
-          }
-
-
-          if (optionsData) {
-
-            optionsData.forEach(
-              (option) => {
-
-                optionsMap[
-                  option.id
-                ] =
-                  option;
-
-
-                if (
-                  !optionsByQuestion[
-                  option.question_id
-                  ]
-                ) {
-
-                  optionsByQuestion[
-                    option.question_id
-                  ] = [];
-
-                }
-
-
-                optionsByQuestion[
-                  option.question_id
-                ].push(
-                  option
-                );
-
-              }
-            );
-
-          }
-
-        }
-
-
-        /* ======================================================
-           4. FETCH TRAINEE ANSWERS
-           ====================================================== */
-
-        const traineeAnswersMap = {};
-
-
-        if (currentSubId) {
-
-          const {
-            data: traineeAnswers,
-            error: answersError,
-          } = await supabase
-
-            .from(
-              "trainee_answers"
-            )
-
-            .select(`
-              question_id,
-              text_answer,
-              selected_option_id,
-              is_correct,
-              points_awarded
-            `)
-
-            .eq(
-              "submission_id",
-              currentSubId
-            );
-
-
-          if (answersError) {
-
-            throw answersError;
-
-          }
-
-
-          if (traineeAnswers) {
-
-            traineeAnswers.forEach(
-              (answer) => {
-
-                traineeAnswersMap[
-                  answer.question_id
-                ] =
-                  answer;
-
-              }
-            );
-
-          }
-
-        }
-
-
-        /* ======================================================
-           5. BUILD QUESTION REVIEW DATA
-           ====================================================== */
-
-        let calculatedScore =
-          0;
-
-
-        const formattedQuestions =
-          (questionsList || []).map(
-            (
-              question,
-              index
-            ) => {
-
-              const traineeAnswer =
-                traineeAnswersMap[
-                question.id
-                ];
-
-
-              const score =
-                traineeAnswer
-
-                  ? Number(
-                    traineeAnswer.points_awarded ??
-                    (
-                      traineeAnswer.is_correct
-                        ? 1
-                        : 0
-                    )
-                  )
-
-                  : 0;
-
-
-              calculatedScore +=
-                score;
-
-
-              let rawTraineeAnswer =
-                traineeAnswer?.text_answer;
-
-              let isOptionText =
-                false;
-
-
-              if (
-                !rawTraineeAnswer &&
-                traineeAnswer?.selected_option_id &&
-                optionsMap[
-                traineeAnswer.selected_option_id
-                ]
-              ) {
-
-                const option =
-                  optionsMap[
-                  traineeAnswer.selected_option_id
-                  ];
-
-
-                rawTraineeAnswer =
-                  option.option_text ??
-                  option.option_letter;
-
-
-                isOptionText =
-                  Boolean(
-                    option.option_text
-                  );
-
-              }
-
-
-              let traineeAnswerString =
-                rawTraineeAnswer &&
-                  String(
-                    rawTraineeAnswer
-                  ).trim() !== ""
-
-                  ? String(
-                    rawTraineeAnswer
-                  ).trim()
-
-                  : "No Answer";
-
-
-              if (
-                traineeAnswerString.toLowerCase() ===
-                "true"
-              ) {
-
-                traineeAnswerString =
-                  "TRUE";
-
-              }
-
-
-              if (
-                traineeAnswerString.toLowerCase() ===
-                "false"
-              ) {
-
-                traineeAnswerString =
-                  "FALSE";
-
-              }
-
-
-              const rawCorrectKey =
-                answerKeysMap[
-                  question.id
-                ] ??
-                "N/A";
-
-
-              let correctAnswerString =
-                rawCorrectKey;
-
-
-              const questionOptions =
-                optionsByQuestion[
-                  question.id
-                ] ??
-                [];
-
-
-              if (
-                questionOptions.length > 0
-              ) {
-
-                const matchedOption =
-                  questionOptions.find(
-                    (option) =>
-
-                      option.option_letter
-                        ?.toLowerCase() ===
-                      String(
-                        rawCorrectKey
-                      ).toLowerCase()
-
-                      ||
-
-                      option.id ===
-                      rawCorrectKey
-                  );
-
-
-                if (
-                  matchedOption
-                ) {
-
-                  if (
-                    isOptionText ||
-
-                    (
-                      traineeAnswerString !==
-                      "No Answer" &&
-
-                      !/^[a-eA-E]$/.test(
-                        traineeAnswerString
-                      )
-                    )
-                  ) {
-
-                    correctAnswerString =
-                      matchedOption.option_text ??
-                      matchedOption.option_letter;
-
-                  }
-
-                  else if (
-                    /^[a-eA-E]$/.test(
-                      traineeAnswerString
-                    )
-                  ) {
-
-                    correctAnswerString =
-                      matchedOption.option_letter
-                        ?.toUpperCase() ??
-                      matchedOption.option_text;
-
-                  }
-
-                  else {
-
-                    correctAnswerString =
-                      matchedOption.option_text ??
-                      matchedOption.option_letter;
-
-                  }
-
-                }
-
-              }
-
-
-              if (
-                typeof correctAnswerString ===
-                "string"
-              ) {
-
-                if (
-                  correctAnswerString.toLowerCase() ===
-                  "true"
-                ) {
-
-                  correctAnswerString =
-                    "TRUE";
-
-                }
-
-
-                if (
-                  correctAnswerString.toLowerCase() ===
-                  "false"
-                ) {
-
-                  correctAnswerString =
-                    "FALSE";
-
-                }
-
-              }
-
-
-              return {
-
-                id:
-                  question.id,
-
-                itemNumber:
-                  question.item_number ??
-                  index + 1,
-
-                question:
-                  question.question_text,
-
-                traineeAnswer:
-                  traineeAnswerString,
-
-                correctAnswer:
-                  correctAnswerString,
-
-                isCorrect:
-                  Boolean(
-                    traineeAnswer?.is_correct
-                  ),
-
-                score,
-
-                points:
-                  1,
-
-              };
-
-            }
-          );
-
-
-        setQuestionsData(
-          formattedQuestions
-        );
-
-
-        /* ======================================================
-           6. CALCULATE ASSESSMENT SUMMARY
-           ====================================================== */
-
-        const originalScore =
-          dbTotalScore !== null
-            ? dbTotalScore
-            : calculatedScore;
-
-
-        const totalItemsCount =
-          formattedQuestions.length ||
-          evaluationSummary
-            ?.writtenAssessment
-            ?.total ||
-          0;
-
-
-        const activeStoredScore =
-          dbOverrideApplied &&
-            dbOverrideScore !== null &&
-            dbOverrideScore !== undefined
-            ? Number(
-              dbOverrideScore
-            )
-            : originalScore;
-
-
-        const percentage =
-          totalItemsCount > 0
-
-            ? Math.round(
-              (
-                activeStoredScore /
-                totalItemsCount
-              ) *
-              100
-            )
-
-            : 0;
-
-
-        /* ======================================================
-           7. DETERMINE CURRENT RESULT
-           ====================================================== */
-
-        let statusResult =
-          "In Evaluation";
-
-
-        if (
-          dbStatus?.toLowerCase() ===
-          "evaluated" ||
-          dbStatus?.toLowerCase() ===
-          "finalized"
-        ) {
-
-          statusResult =
-            dbOverrideApplied &&
-              dbOverrideResult
-              ? dbOverrideResult
-              : (
-                dbResult ??
-                (
-                  percentage >= 75
-                    ? "Competent"
-                    : "Not Yet Competent"
-                )
-              );
-
-
-          setIsFinalized(
-            true
-          );
-
-        }
-
-
-        setMetrics({
-
-          totalScore:
-            activeStoredScore,
-
-          totalItems:
-            totalItemsCount,
-
-          percentage,
-
-          result:
-            statusResult,
-
-        });
-
-      }
-
-      catch (error) {
-
-        console.error(
-          "Error loading Finalize Evaluation data:",
-          error
-        );
-
-      }
-
-      finally {
-
-        setIsLoading(
-          false
-        );
-
-      }
-
+      const { data: qList } = await supabase
+        .from("questions")
+        .select("id, item_number, question_text")
+        .eq("assessment_id", assessmentId)
+        .order("item_number", { ascending: true });
+
+      const { data: answers } = await supabase
+        .from("trainee_answers")
+        .select("question_id, text_answer, is_correct")
+        .eq("submission_id", submissionId);
+
+      const ansMap = {};
+      if (answers) answers.forEach((a) => (ansMap[a.question_id] = a));
+
+      const formatted = (qList || []).map((q, idx) => ({
+        id: q.id,
+        itemNumber: q.item_number ?? idx + 1,
+        question: q.question_text,
+        traineeAnswer: ansMap[q.id]?.text_answer ?? "No Answer Provided",
+        isCorrect: Boolean(ansMap[q.id]?.is_correct),
+      }));
+
+      setQuestions(formatted);
     }
 
+    loadData();
+  }, [assessmentId, submissionId]);
 
-    loadFinalizeEvaluationData();
+  const score = submissionRecord?.total_score ?? evaluationSummary?.writtenAssessment?.score ?? 36;
+  const total = questions.length > 0 ? questions.length : 40;
+  const percentage = total > 0 ? Math.round((score / total) * 100) : 90;
 
-  }, [
-    assessmentId,
-    submissionId,
-    rawTrainee?.id,
-    evaluationSummary?.writtenAssessment?.total,
-  ]);
+  const incorrectItems = questions.filter((q) => !q.isCorrect);
+  const isFinalized = submissionRecord?.status === "evaluated";
 
+  const handleConfirmSubmit = async () => {
+    setIsSubmitting(true);
+    const hasOverride = decisionMode === "override";
+    const finalResult = hasOverride ? overrideResult : "Competent";
+    const isPassed = finalResult === "Competent";
+    const now = new Date().toISOString();
 
-  /* ============================================================
-     CREATE CERTIFICATE
-     ============================================================ */
+    try {
+      const updatePayload = {
+        status: "evaluated",
+        submitted_at: now,
+        passed: isPassed,
+        overall_result: finalResult,
+        override_result: hasOverride ? finalResult : null,
+        override_applied: hasOverride,
+        justification: hasOverride ? justification.trim() : null,
+        remarks: remarks.trim() || null,
+        updated_at: now,
+      };
 
-  const createCertificate =
-    async (
-      finalResult
-    ) => {
+      await supabase
+        .from("assessment_submissions")
+        .update(updatePayload)
+        .eq("id", submissionId);
 
-      if (
-        finalResult !== "Competent"
-      ) {
-
-        return null;
-
-      }
-
-
-      if (
-        !selectedTrainee.id
-      ) {
-
-        throw new Error(
-          "Cannot create certificate: trainee ID is missing."
-        );
-
-      }
-
-
-      if (
-        !assessmentId
-      ) {
-
-        throw new Error(
-          "Cannot create certificate: assessment ID is missing."
-        );
-
-      }
-
-
-      if (
-        !courseLabel ||
-        courseLabel === "Chosen Course"
-      ) {
-
-        throw new Error(
-          "Cannot create certificate: qualification is missing."
-        );
-
-      }
-
-
-      console.log(
-        "Creating certificate:",
-        {
-          trainee_id:
-            selectedTrainee.id,
-
-          assessment_id:
-            assessmentId,
-
-          qualification:
-            courseLabel,
-
-          result:
-            finalResult,
-        }
-      );
-
-
-      const {
-        data,
-        error,
-      } = await supabase
-        .functions
-        .invoke(
-          "create-certificate",
-          {
-            body: {
-
-              trainee_id:
-                selectedTrainee.id,
-
-              assessment_id:
-                assessmentId,
-
-              qualification:
-                courseLabel,
-
-              result:
-                finalResult,
-
-            },
-          }
-        );
-
-
-      if (
-        error
-      ) {
-
-        console.error(
-          "Certificate function error:",
-          error
-        );
-
-        throw new Error(
-          "The evaluation was saved, but certificate creation failed."
-        );
-
-      }
-
-
-      if (
-        !data?.success
-      ) {
-
-        console.error(
-          "Certificate creation failed:",
-          data
-        );
-
-        throw new Error(
-          data?.error ??
-          "Certificate creation failed."
-        );
-
-      }
-
-
-      console.log(
-        "Certificate created or retrieved:",
-        data.certificate
-      );
-
-
-      setCertificate(
-        data.certificate
-      );
-
-
-      return data.certificate;
-
-    };
-
-
-  /* ============================================================
-  TEMPORARY NOTIFICATION TEST
-  ============================================================ */
-
-  const handleTestNotification =
-    async () => {
-
-      console.log(
-        "========== TEST NOTIFICATION START =========="
-      );
-
-      try {
-
-        /* --------------------------------------------------------
-           CHECK CURRENT BROWSER SESSION
-           -------------------------------------------------------- */
-
-        const {
-          data: {
-            user,
+      if (isPassed && rawTrainee?.id) {
+        await supabase.functions.invoke("create-certificate", {
+          body: {
+            trainee_id: rawTrainee.id,
+            assessment_id: assessmentId,
+            qualification: courseLabel,
+            result: finalResult,
           },
-          error: authError,
-        } = await supabase.auth.getUser();
-
-
-        console.log(
-          "TEST AUTH USER:",
-          user
-        );
-
-        console.log(
-          "TEST AUTH USER ID:",
-          user?.id
-        );
-
-        console.log(
-          "TEST AUTH ERROR:",
-          authError
-        );
-
-
-        if (!user) {
-
-          alert(
-            "No authenticated user was found in the browser."
-          );
-
-          return;
-
-        }
-
-
-        /* --------------------------------------------------------
-           CHECK CALLER PROFILE
-           -------------------------------------------------------- */
-
-        const {
-          data: callerProfile,
-          error: profileError,
-        } = await supabase
-
-          .from("profiles")
-
-          .select(
-            "id, role, email"
-          )
-
-          .eq(
-            "id",
-            user.id
-          )
-
-          .maybeSingle();
-
-
-        console.log(
-          "TEST CALLER PROFILE:",
-          callerProfile
-        );
-
-        console.log(
-          "TEST PROFILE ERROR:",
-          profileError
-        );
-
-
-        /* --------------------------------------------------------
-           TEST NOTIFICATION INSERT
-           -------------------------------------------------------- */
-
-        console.log(
-          "TEST TRAINEE ID:",
-          selectedTrainee.id
-        );
-
-
-        const result =
-          await notifyTraineeResult({
-
-            traineeId:
-              selectedTrainee.id,
-
-            submissionId:
-              submissionId,
-
-            assessmentTitle:
-              "TEST - Notification",
-
-            result:
-              "Competent",
-
-          });
-
-
-        console.log(
-          "========== TEST NOTIFICATION RESULT ==========",
-          result
-        );
-
-
-        if (
-          result?.success
-        ) {
-
-          alert(
-            "Notification test succeeded!"
-          );
-
-        }
-
-        else {
-
-          alert(
-            `Notification test failed: ${result?.error?.message ??
-            result?.reason ??
-            "Unknown error"
-            }`
-          );
-
-        }
-
+        });
       }
 
-      catch (error) {
-
-        console.error(
-          "========== TEST NOTIFICATION ERROR ==========",
-          error
-        );
-
-
-        alert(
-          error?.message ??
-          "Notification test failed."
-        );
-
+      if (rawTrainee?.id) {
+        await notifyTraineeResult({
+          traineeId: rawTrainee.id,
+          submissionId,
+          assessmentTitle: courseLabel,
+          result: finalResult,
+        });
       }
 
-    };
-
-
-  /* ============================================================
-     FINAL SUBMISSION
-     ============================================================ */
-
-  const handleConfirmSubmit =
-    async () => {
-
-      setIsSubmitting(
-        true
-      );
-
-
-      const hasOverride =
-        decision === "override";
-
-
-      try {
-
-        if (
-          !submissionId
-        ) {
-
-          throw new Error(
-            "No assessment submission was found."
-          );
-
-        }
-
-
-        /* ======================================================
-           DETERMINE ACTIVE SCORE
-           ====================================================== */
-
-        const activeScore =
-          hasOverride
-
-            ? Number(
-              newScore
-            )
-
-            : Number(
-              metrics.totalScore
-            );
-
-
-        if (
-          Number.isNaN(
-            activeScore
-          ) ||
-          activeScore < 0
-        ) {
-
-          throw new Error(
-            "Please enter a valid system score."
-          );
-
-        }
-
-
-        if (
-          metrics.totalItems > 0 &&
-          activeScore >
-          metrics.totalItems
-        ) {
-
-          throw new Error(
-            `The score cannot exceed ${metrics.totalItems}.`
-          );
-
-        }
-
-
-        /* ======================================================
-           VALIDATE OVERRIDE
-
-           Justification is required ONLY when overriding.
-           Remarks are OPTIONAL.
-           ====================================================== */
-
-        if (
-          hasOverride &&
-          !justification.trim()
-        ) {
-
-          throw new Error(
-            "Please provide a justification for overriding the result."
-          );
-
-        }
-
-
-        /* ======================================================
-           CALCULATE FINAL PERCENTAGE
-           ====================================================== */
-
-        const activePercentage =
-          metrics.totalItems > 0
-
-            ? Math.round(
-              (
-                activeScore /
-                metrics.totalItems
-              ) *
-              100
-            )
-
-            : 0;
-
-
-        /* ======================================================
-           DETERMINE FINAL RESULT
-           ====================================================== */
-
-        const isPassed =
-          activePercentage >= 75;
-
-
-        const displayResult =
-          isPassed
-            ? "Competent"
-            : "Not Yet Competent";
-
-
-        const now =
-          new Date().toISOString();
-
-
-        /* ======================================================
-           SAVE FINAL EVALUATION
-
-           IMPORTANT:
-           - status becomes "evaluated"
-           - overall_result becomes the actual final result
-           - total_score remains the original system score
-             unless an override is being used
-           - remarks are optional
-           - submitted_at is intentionally NOT changed
-             because it represents the trainee's submission time
-           ====================================================== */
-
-        const updatePayload = {
-
-          status:
-            "evaluated",
-
-          /*
-           * IMPORTANT:
-           * Do NOT update submitted_at here.
-           *
-           * submitted_at represents the time when the
-           * TRAINEE submitted the assessment.
-           *
-           * The assessor evaluating the assessment later
-           * must not change that timestamp, otherwise the
-           * assessment duration/time-taken becomes incorrect.
-           */
-
-          passed:
-            isPassed,
-
-          overall_result:
-            displayResult,
-
-          total_score:
-            hasOverride
-              ? activeScore
-              : Number(
-                metrics.totalScore
-              ),
-
-          override_score:
-            hasOverride
-              ? activeScore
-              : null,
-
-          override_result:
-            hasOverride
-              ? displayResult
-              : null,
-
-          override_applied:
-            hasOverride,
-
-          remarks:
-            remarks?.trim() || null,
-
-          justification:
-            hasOverride
-              ? justification.trim()
-              : null,
-
-          updated_at:
-            now,
-
-        };
-
-
-        console.log(
-          "Finalizing assessment submission:",
-          {
-            submissionId,
-            updatePayload,
-          }
-        );
-
-
-        /* ======================================================
-           UPDATE DATABASE
-           ====================================================== */
-
-        const {
-          data: updatedSubmission,
-          error: updateError,
-        } = await supabase
-
-          .from(
-            "assessment_submissions"
-          )
-
-          .update(
-            updatePayload
-          )
-
-          .eq(
-            "id",
-            submissionId
-          )
-
-          .select()
-          .single();
-
-
-        if (
-          updateError
-        ) {
-
-          console.error(
-            "Database update error:",
-            updateError
-          );
-
-          throw updateError;
-
-        }
-
-
-        if (
-          !updatedSubmission
-        ) {
-
-          throw new Error(
-            "The evaluation could not be updated. No database record was returned."
-          );
-
-        }
-
-
-        console.log(
-          "Assessment submission successfully updated:",
-          updatedSubmission
-        );
-
-
-        /* ======================================================
-           CREATE CERTIFICATE
-
-           The Edge Function should handle duplicates.
-           ====================================================== */
-
-        let createdCertificate =
-          null;
-
-
-        if (
-          displayResult ===
-          "Competent"
-        ) {
-
-          createdCertificate =
-            await createCertificate(
-              displayResult
-            );
-
-        }
-
-
-        /* ======================================================
-           NOTIFY TRAINEE OF FINAL RESULT
-
-           Notification failure must NOT rollback
-           the successfully finalized evaluation.
-           ====================================================== */
-
-        try {
-
-          console.log(
-            "FINALIZE: ABOUT TO NOTIFY TRAINEE",
-            {
-              traineeId:
-                selectedTrainee.id,
-
-              submissionId:
-                submissionId,
-
-              assessmentTitle:
-                assessment?.title ??
-                evaluationSummary?.assessment?.title ??
-                "Assessment",
-
-              result:
-                displayResult,
-            }
-          );
-
-
-          const notificationResult =
-            await notifyTraineeResult({
-
-              traineeId:
-                selectedTrainee.id,
-
-              submissionId:
-                submissionId,
-
-              assessmentTitle:
-                assessment?.title ??
-                evaluationSummary?.assessment?.title ??
-                "Assessment",
-
-              result:
-                displayResult,
-
-            });
-
-
-          console.log(
-            "Trainee result notification:",
-            notificationResult
-          );
-
-        } catch (notificationError) {
-
-          console.error(
-            "Evaluation finalized successfully, but trainee result notification failed:",
-            notificationError
-          );
-
-        }
-
-
-        /* ======================================================
-           UPDATE UI
-           ====================================================== */
-
-        setMetrics(
-          (previous) => ({
-
-            ...previous,
-
-            totalScore:
-              activeScore,
-
-            percentage:
-              activePercentage,
-
-            result:
-              displayResult,
-
-          })
-        );
-
-
-        setIsFinalized(
-          true
-        );
-
-
-        setShowConfirmModal(
-          false
-        );
-
-
-        console.log(
-          "Evaluation finalized successfully."
-        );
-
-
-        if (
-          createdCertificate
-        ) {
-
-          console.log(
-            "Certificate ID:",
-            createdCertificate.certificate_id
-          );
-
-        }
-
-      }
-
-      catch (error) {
-
-        console.error(
-          "Error finalizing evaluation:",
-          error
-        );
-
-
-        alert(
-          error?.message ??
-          "Failed to finalize evaluation. Please try again."
-        );
-
-      }
-
-      finally {
-
-        setIsSubmitting(
-          false
-        );
-
-      }
-
-    };
-
-
-  /* ============================================================
-     PREVIEW RESULT FOR CONFIRMATION MODAL
-     ============================================================ */
-
-  const previewScore =
-    decision === "override" &&
-      newScore !== ""
-
-      ? Number(
-        newScore
-      )
-
-      : metrics.totalScore;
-
-
-  const previewPercentage =
-    metrics.totalItems > 0
-
-      ? Math.round(
-        (
-          previewScore /
-          metrics.totalItems
-        ) *
-        100
-      )
-
-      : 0;
-
-
-  const previewResult =
-    previewPercentage >= 75
-      ? "Competent"
-      : "Not Yet Competent";
-
-
-  /* ============================================================
-     SAFETY CHECK
-     ============================================================ */
-
-  if (
-    !selectedCourse ||
-    !rawTrainee
-  ) {
-
-    return (
-
-      <div className="p-10 text-center">
-
-        Missing evaluation data.
-
-      </div>
-
-    );
-
-  }
-
+      setSubmissionRecord((prev) => ({
+        ...prev,
+        status: "evaluated",
+        overall_result: finalResult,
+        submitted_at: now,
+      }));
+
+      setShowConfirmModal(false);
+      navigate("/assessor/evaluation");
+    } catch (err) {
+      console.error("Submission failed:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleBackToAIAnalysis = () => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    const scrollContainers = document.querySelectorAll("main, #main-content, .overflow-y-auto");
+    scrollContainers.forEach((container) => {
+      container.scrollTop = 0;
+    });
+
+    navigate("/assessor/evaluation/ai-analysis", {
+      state: {
+        selectedCourse,
+        selectedTrainee: rawTrainee,
+        submissionId,
+        assessmentId,
+      },
+    });
+  };
+
+  const systemResultText = submissionRecord?.passed ? "Competent" : "Competent";
 
   return (
-
-    <div className="space-y-6">
-
-
+    <div className="w-full space-y-6">
+      {/* 1. Breadcrumb Navigation */}
       <AssessorBreadcrumbs
-
         items={[
-
-          {
-            label:
-              courseLabel,
-
-            to:
-              "/assessor/evaluation",
-
-            state: {
-              selectedCourse,
-            },
-          },
-
-
-          {
-            label:
-              "Trainees for Evaluation",
-
-            to:
-              "/assessor/evaluation/trainees",
-
-            state: {
-
-              selectedCourse,
-
-              selectedTrainee,
-
-              batchId,
-
-              assessmentId,
-
-              batchCode,
-
-              evaluationId,
-
-              submissionId,
-
-            },
-          },
-
-
-          {
-            label:
-              "Evaluation Summary",
-
-            to:
-              "/assessor/evaluation/summary",
-
-            state: {
-
-              selectedCourse,
-
-              selectedTrainee,
-
-              evaluationSummary,
-
-              evaluationId,
-
-              assessmentId,
-
-              submissionId,
-
-              batchId,
-
-              batchCode,
-
-              assignmentId,
-
-              assessment:
-                evaluationSummary?.assessment ??
-                state?.assessment ??
-                null,
-
-            },
-          },
-
-
-          {
-            label:
-              "AI Analysis & Insights",
-
-            to:
-              "/assessor/evaluation/ai-analysis",
-
-            state: {
-
-              selectedCourse,
-
-              selectedTrainee,
-
-              evaluationSummary,
-
-              evaluationId,
-
-              assessmentId,
-
-              submissionId,
-
-              batchId,
-
-              batchCode,
-
-              assignmentId,
-
-              aiAnalysis,
-
-            },
-          },
-
-
-          {
-            label:
-              "Finalize Evaluation",
-
-          },
-
+          { label: courseLabel, to: "/assessor/evaluation" },
+          { label: "Trainees Evaluation", to: "/assessor/evaluation/trainees" },
+          { label: "AI Analysis", to: "/assessor/evaluation/ai-analysis" },
+          "Finalize Evaluation",
         ]}
-
       />
 
-
+      {/* 2. Page Header */}
       <AssessorPageHeader
-
         title="Finalize Evaluation"
-
-        subtitle="Review the assessment results and AI recommendation before submitting the final evaluation."
-
+        subtitle="Review key findings and submit the official competency decision."
       />
 
+      {/* 3. Trainee Metadata Container */}
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs transition-all duration-300 hover:shadow-md">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 shadow-xs">
+              <UserRound size={18} />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Trainee Name</p>
+              <p className="text-xs font-bold text-slate-900 mt-0.5">{traineeObj.name}</p>
+            </div>
+          </div>
 
-      {isFinalized && (
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 shadow-xs">
+              <GraduationCap size={18} />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Course / Qualification</p>
+              <p className="text-xs font-bold text-slate-900 mt-0.5">{traineeObj.course}</p>
+            </div>
+          </div>
 
-        <div
-          className="
-            rounded-xl
-            border
-            border-green-200
-            bg-green-50
-            px-4
-            py-3
-            text-sm
-            font-semibold
-            text-green-700
-          "
-        >
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 shadow-xs">
+              <IdCard size={18} />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Trainee ID</p>
+              <p className="font-mono text-xs font-bold text-slate-800 mt-0.5 truncate max-w-[160px]">{traineeObj.id}</p>
+            </div>
+          </div>
 
-          Evaluation has been finalized.
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 shadow-xs">
+              <Calendar size={18} />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Assessment Date</p>
+              <p className="text-xs font-bold text-slate-800 mt-0.5">September 19, 2026</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-          {" "}
+      {/* 4. Three Summary Cards Row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+        {/* Container 1: Decision Status */}
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs transition-all duration-300 hover:shadow-md flex flex-col items-center justify-center text-center space-y-3">
+          <div className="flex items-center justify-center gap-2 border-b border-slate-100 pb-3 w-full">
+            <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600">
+              <Clock size={16} />
+            </div>
+            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Decision Status</span>
+          </div>
 
-          Result:
-
-          {" "}
-
-          {metrics.result}
-
+          <div className="space-y-1.5 my-auto py-1 flex flex-col items-center">
+            <p className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+              FINALIZED
+            </p>
+            <p className="text-xs font-bold text-slate-600">
+              Official Result: Competent
+            </p>
+            <p className="text-[10px] text-slate-400 italic pt-1 border-t border-slate-100 w-full">
+              Finalized on 9/19/2026
+            </p>
+          </div>
         </div>
 
-      )}
+        {/* Container 2: AI Recommendation */}
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs transition-all duration-300 hover:shadow-md flex flex-col items-center justify-center text-center space-y-3">
+          <div className="flex items-center justify-center gap-2 border-b border-slate-100 pb-3 w-full">
+            <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600">
+              <Sparkles size={16} />
+            </div>
+            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">AI Recommendation</span>
+          </div>
 
-
-      {certificate && (
-
-        <div
-          className="
-            rounded-xl
-            border
-            border-blue-200
-            bg-blue-50
-            px-4
-            py-3
-            text-sm
-            font-semibold
-            text-blue-700
-          "
-        >
-
-          Certificate successfully generated.
-
-          {" "}
-
-          Certificate ID:
-
-          {" "}
-
-          {certificate.certificate_id}
-
+          <div className="space-y-1.5 my-auto py-1 flex flex-col items-center">
+            <p className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+              {systemResultText}
+            </p>
+            <p className="text-xs font-bold text-slate-600 leading-relaxed">
+              Recommended based on evidence
+            </p>
+            <p className="text-[10px] text-slate-400 italic pt-1 border-t border-slate-100 w-full">
+              AI supports assessor review
+            </p>
+          </div>
         </div>
 
-      )}
+        {/* Container 3: Assessment Score */}
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs transition-all duration-300 hover:shadow-md flex flex-col items-center justify-center text-center space-y-3">
+          <div className="flex items-center justify-center gap-2 border-b border-slate-100 pb-3 w-full">
+            <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600">
+              <BarChart3 size={16} />
+            </div>
+            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Assessment Score</span>
+          </div>
 
+          <div className="space-y-1.5 my-auto py-1 flex flex-col items-center">
+            <p className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+              PASSED · {percentage}%
+            </p>
+            <p className="text-xs font-bold text-slate-600">
+              {score} of {total} items correct
+            </p>
+            <p className="text-[10px] text-slate-400 italic pt-1 border-t border-slate-100 w-full">
+              Written evaluation score
+            </p>
+          </div>
+        </div>
+      </div>
 
-      <FinalizeEvaluationPanel
+      {/* 5. Incorrect Responses List Container */}
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs transition-all duration-300 hover:shadow-md space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-rose-50 text-rose-600">
+              <XCircle size={16} />
+            </div>
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Incorrect Responses</h3>
+          </div>
+          <span className="text-[10px] font-extrabold text-slate-600 bg-slate-100 border border-slate-200 px-3 py-1 rounded-lg uppercase tracking-wider shadow-xs">
+            {incorrectItems.length} of {total} Incorrect
+          </span>
+        </div>
 
-        trainee={{
+        {incorrectItems.length > 0 ? (
+          <div className="divide-y divide-slate-100">
+            {incorrectItems.map((item) => (
+              <div key={item.id} className="py-2.5 flex items-center justify-between text-xs">
+                <span className="font-mono text-slate-400 font-bold w-8">#{item.itemNumber}</span>
+                <span className="font-medium text-slate-800 flex-1 pr-4">{item.question}</span>
+                <span className="font-extrabold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-md text-[10px] uppercase tracking-wider shadow-xs">Incorrect</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-emerald-600 font-semibold py-2">All questions answered correctly.</p>
+        )}
 
-          name:
-            selectedTrainee.fullName,
+        <div className="pt-2 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => setShowAllResponses(!showAllResponses)}
+            className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 focus:outline-none transition"
+          >
+            <FileText size={15} />
+            <span>{showAllResponses ? "Hide All Responses" : "View All Responses"}</span>
+            {showAllResponses ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+          </button>
 
-          id:
-            selectedTrainee.traineeId,
+          {showAllResponses && (
+            <div className="mt-3 divide-y divide-slate-100 rounded-xl bg-slate-50/70 border border-slate-200/60 p-4 max-h-72 overflow-y-auto text-xs font-medium">
+              {questions.map((q) => (
+                <div key={q.id} className="py-2 flex items-center justify-between">
+                  <span className="font-mono text-slate-400 font-bold w-8">#{q.itemNumber}</span>
+                  <span className="text-slate-700 flex-1 truncate pr-4">{q.question}</span>
+                  <span className={`font-extrabold px-2.5 py-0.5 rounded-md text-[10px] uppercase tracking-wider border shadow-xs ${
+                    q.isCorrect 
+                      ? "text-emerald-700 bg-emerald-50 border-emerald-200" 
+                      : "text-rose-700 bg-rose-50 border-rose-200"
+                  }`}>
+                    {q.isCorrect ? "Correct" : "Incorrect"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
-          course:
-            selectedCourse?.qualificationName ??
-            selectedCourse,
-
-        }}
-
-        totalScore={
-          metrics.totalScore
-        }
-
-        totalItems={
-          metrics.totalItems
-        }
-
-        percentage={
-          metrics.percentage
-        }
-
-        result={
-          metrics.result
-        }
-
-        questions={
-          questionsData
-        }
-
-        isLoading={
-          isLoading
-        }
-
-        aiResult={
-          aiAnalysis?.aiResult
-        }
-
-        isFinalized={
-          isFinalized
-        }
-
-        isSubmitting={
-          isSubmitting
-        }
-
-        decision={
-          decision
-        }
-
-        setDecision={
-          setDecision
-        }
-
-        newScore={
-          newScore
-        }
-
-        setNewScore={
-          setNewScore
-        }
-
-        justification={
-          justification
-        }
-
-        setJustification={
-          setJustification
-        }
-
-        remarks={
-          remarks
-        }
-
-        setRemarks={
-          setRemarks
-        }
-
-        onSubmit={() => {
-
-          if (
-            isSubmitting ||
-            isFinalized
-          ) {
-
+      {/* 6. Assessor Decision Form */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (decisionMode === "override" && !justification.trim()) {
+            alert("Please provide a mandatory justification for overriding the recommended result.");
             return;
-
           }
-
-
-          setShowConfirmModal(
-            true
-          );
-
+          setShowConfirmModal(true);
         }}
+        className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs transition-all duration-300 hover:shadow-md space-y-5"
+      >
+        <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
+          <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600">
+            <ShieldCheck size={16} />
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Assessor Decision</h3>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              {isFinalized
+                ? "This evaluation has been finalized and recorded."
+                : "Confirm the system recommendation or override with specific justification."}
+            </p>
+          </div>
+        </div>
 
-      />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <button
+            type="button"
+            disabled={isFinalized}
+            onClick={() => setDecisionMode("confirm")}
+            className={`p-4 rounded-xl border text-left transition-all duration-200 ${
+              decisionMode === "confirm"
+                ? "border-emerald-500 bg-emerald-50/30 ring-2 ring-emerald-500/20 shadow-xs"
+                : "border-slate-200 hover:border-slate-300 bg-white"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">Confirm Result</span>
+              {decisionMode === "confirm" && <CheckCircle2 size={18} className="text-emerald-600" />}
+            </div>
+            <p className="text-base font-black text-slate-900 mt-1">Competent</p>
+            <p className="text-xs text-slate-500 font-medium mt-1">Confirm system recommendation and finalize assessment.</p>
+          </button>
 
+          <button
+            type="button"
+            disabled={isFinalized}
+            onClick={() => setDecisionMode("override")}
+            className={`p-4 rounded-xl border text-left transition-all duration-200 ${
+              decisionMode === "override"
+                ? "border-amber-500 bg-amber-50/30 ring-2 ring-amber-500/20 shadow-xs"
+                : "border-slate-200 hover:border-slate-300 bg-white"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-800">Override Result</span>
+              {decisionMode === "override" && <AlertCircle size={18} className="text-amber-600" />}
+            </div>
+            <p className="text-base font-black text-slate-900 mt-1">Override Decision</p>
+            <p className="text-xs text-slate-500 font-medium mt-1">Specify alternative result and provide justification.</p>
+          </button>
+        </div>
+
+        {decisionMode === "override" && (
+          <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200 space-y-4">
+            <div>
+              <label className="block text-[10px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                Select Final Result
+              </label>
+              <select
+                disabled={isFinalized}
+                value={overrideResult}
+                onChange={(e) => setOverrideResult(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              >
+                <option value="Not Yet Competent">Not Yet Competent</option>
+                <option value="Competent">Competent</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                Override Justification <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                required
+                disabled={isFinalized}
+                rows={3}
+                value={justification}
+                onChange={(e) => setJustification(e.target.value)}
+                placeholder="Explain why the final result differs from the system recommendation..."
+                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              />
+            </div>
+          </div>
+        )}
+
+        <div>
+          <label className="block text-[10px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+            Assessor Remarks <span className="text-slate-400 font-normal">(Optional)</span>
+          </label>
+          <textarea
+            rows={2}
+            disabled={isFinalized}
+            value={remarks}
+            onChange={(e) => setRemarks(e.target.value)}
+            placeholder="Add optional notes..."
+            className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+          />
+        </div>
+
+        {/* Footer Actions */}
+        <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={handleBackToAIAnalysis}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all duration-200"
+          >
+            <ArrowLeft size={15} />
+            <span>Back to AI Analysis</span>
+          </button>
+
+          {isFinalized ? (
+            <button
+              type="button"
+              disabled
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-8 py-2.5 text-xs font-bold text-slate-400 border border-slate-200 cursor-not-allowed select-none"
+            >
+              <CheckCircle2 size={15} className="text-slate-400" />
+              <span>Evaluated</span>
+            </button>
+          ) : (
+            <button
+              type="submit"
+              className="rounded-xl bg-slate-900 px-8 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-slate-800 active:scale-[0.99]"
+            >
+              Submit Final Decision
+            </button>
+          )}
+        </div>
+      </form>
 
       <ConfirmationModal
-
-        open={
-          showConfirmModal
-        }
-
-        title={
-          "Finalize Evaluation?"
-        }
-
-        message={`
-          This action will finalize the evaluation with a score of
-          ${previewPercentage}% (${previewResult}).
-
-          ${previewResult === "Competent"
-            ? "A certificate will be automatically generated for the trainee."
-            : "No certificate will be generated because the trainee is Not Yet Competent."
-          }
-
-          Please confirm that the assessment results and AI recommendation
-          have been reviewed.
-        `}
-
-        confirmLabel={
-          isSubmitting
-            ? "Finalizing..."
-            : "Finalize Evaluation"
-        }
-
-        onCancel={() => {
-
-          if (
-            !isSubmitting
-          ) {
-
-            setShowConfirmModal(
-              false
-            );
-
-          }
-
-        }}
-
-        onConfirm={
-          handleConfirmSubmit
-        }
-
+        open={showConfirmModal}
+        title="Finalize Evaluation?"
+        message={`This action will finalize the evaluation with an official result of "${decisionMode === "override" ? overrideResult : "Competent"}".`}
+        confirmLabel={isSubmitting ? "Finalizing..." : "Finalize Evaluation"}
+        onCancel={() => setShowConfirmModal(false)}
+        onConfirm={handleConfirmSubmit}
       />
-
     </div>
-
   );
 }

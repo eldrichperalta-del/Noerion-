@@ -1,6 +1,6 @@
-export default function WrittenAssessmentCard({
-  writtenAssessment = {},
-}) {
+import React from "react";
+
+export default function WrittenAssessmentCard({ writtenAssessment = {} }) {
   const {
     score = 0,
     total = 0,
@@ -9,69 +9,57 @@ export default function WrittenAssessmentCard({
   } = writtenAssessment;
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-
+    <div className="h-full rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs flex flex-col justify-between">
       <div className="flex items-start justify-between">
-
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">
+          <h2 className="text-base font-bold text-slate-900">
             Written Assessment
           </h2>
-
-          <p className="mt-1 text-sm text-gray-500">
-            Summary of the trainee's written assessment performance.
+          <p className="mt-0.5 text-xs text-slate-500">
+            Objective assessment score and completion record.
           </p>
         </div>
 
-        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-          {status}
+        <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+          {status.replace("WRITTEN - ", "")}
         </span>
-
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-
+      <div className="grid grid-cols-3 gap-3 text-center">
         {/* Score */}
-        <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-
-          <p className="text-sm text-gray-500">
+        <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             Score
           </p>
-
-          <p className="mt-2 text-2xl font-bold text-gray-900">
+          <p className="mt-1 text-xl font-extrabold text-slate-900">
             {score} / {total}
           </p>
-
         </div>
 
         {/* Percentage */}
-        <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-
-          <p className="text-sm text-gray-500">
+        <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             Percentage
           </p>
-
-          <p className="mt-2 text-2xl font-bold text-gray-900">
-            {percentage}%
+          <p className="mt-1 text-xl font-extrabold text-slate-900">
+            {percentage !== null ? `${percentage}%` : "-"}
           </p>
-
         </div>
 
-        {/* Status */}
-        <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-
-          <p className="text-sm text-gray-500">
-            Assessment Status
+        {/* Result Benchmark */}
+        <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            Result
           </p>
-
-          <p className="mt-2 text-sm font-semibold text-gray-900">
-            {status}
+          <p
+            className={`mt-1 text-xl font-extrabold ${
+              percentage >= 75 ? "text-emerald-600" : "text-amber-600"
+            }`}
+          >
+            {percentage >= 75 ? "Passed" : "Review"}
           </p>
-
         </div>
-
       </div>
-
     </div>
   );
 }

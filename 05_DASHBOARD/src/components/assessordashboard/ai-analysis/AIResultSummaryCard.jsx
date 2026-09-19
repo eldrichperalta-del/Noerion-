@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-
+import { CheckCircle2, ShieldCheck, AlertCircle } from "lucide-react";
 import aiIcon from "../../../assets/ai.svg";
 
 export default function AIResultSummaryCard({ result }) {
@@ -9,7 +9,7 @@ export default function AIResultSummaryCard({ result }) {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      const numericConfidence = Number(result?.confidenceScore);
+      const numericConfidence = Number(result?.confidenceScore ?? result?.confidence);
       setProgress(
         Number.isFinite(numericConfidence)
           ? Math.max(0, Math.min(100, numericConfidence))
@@ -18,86 +18,65 @@ export default function AIResultSummaryCard({ result }) {
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [result?.confidenceScore]);
+  }, [result?.confidenceScore, result?.confidence]);
 
-  const radius = 45;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (progress / 100) * circumference;
   const competent = result.suggestedResult === "Competent";
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div className="flex items-center gap-3 px-6 py-4">
-        <img src={aiIcon} alt="AI" className="h-5 w-5 opacity-80" />
-        <h2 className="text-lg font-semibold text-gray-900">
-          AI Result Summary
-        </h2>
-      </div>
-
-      <div className="px-6 py-6">
-        <div className="flex items-center justify-center gap-8">
-          <div className="flex flex-col justify-center gap-6">
-            <div>
-              <p className="text-sm font-semibold text-gray-600">
-                AI Suggested Result
-              </p>
-              <div className="mt-3">
-                <span
-                  className={`inline-flex rounded-md px-4 py-1.5 text-sm font-semibold text-white ${
-                    competent ? "bg-green-600" : "bg-red-600"
-                  }`}
-                >
-                  {result.suggestedResult}
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <p className="text-sm font-semibold text-gray-600">
-                Confidence Level
-              </p>
-              <p className="mt-2 text-lg font-bold text-gray-900">
-                {progress}%
-              </p>
-            </div>
+    <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs flex flex-col justify-between space-y-4 h-full">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <img src={aiIcon} alt="AI" className="h-5 w-5 opacity-80" />
+            <h2 className="text-base font-bold text-slate-900">
+              System Recommendation
+            </h2>
           </div>
-
-          <div className="relative flex h-28 w-28 items-center justify-center">
-            <svg viewBox="0 0 112 112" className="h-28 w-28 -rotate-90">
-              <circle
-                cx="56" cy="56" r={radius}
-                stroke="#E5E7EB" strokeWidth="8" fill="none"
-              />
-              <circle
-                cx="56" cy="56" r={radius}
-                stroke="#2563EB" strokeWidth="8" fill="none"
-                strokeLinecap="round"
-                strokeDasharray={circumference}
-                strokeDashoffset={offset}
-                className="transition-all duration-1000 ease-out"
-              />
-            </svg>
-
-            <div className="absolute text-center">
-              <p className="text-xl font-bold text-blue-700">
-                {progress}%
-              </p>
-              <p className="text-xs text-gray-500">Confidence</p>
-            </div>
-          </div>
+          <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase bg-slate-100 px-2.5 py-1 rounded-md">
+            AI-SUPPORTED
+          </span>
         </div>
 
-        {result.overallSummary && (
-          <div className="mt-6 border-t border-gray-100 pt-5">
-            <p className="text-sm font-semibold text-gray-600">
-              AI Overall Summary
-            </p>
-            <p className="mt-2 text-sm leading-6 text-gray-600">
-              {result.overallSummary}
-            </p>
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Suggested Assessment Result
+            </span>
+            <div className="flex items-center gap-2 mt-1">
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-bold ${
+                  competent
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    : "bg-rose-50 text-rose-700 border border-rose-200"
+                }`}
+              >
+                {competent ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+                {result.suggestedResult}
+              </span>
+            </div>
           </div>
-        )}
+
+          {progress > 0 && (
+            <div className="text-right">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Confidence Match
+              </span>
+              <p className="text-lg font-extrabold text-slate-800 mt-0.5">
+                {progress}%
+              </p>
+            </div>
+          )}
+        </div>
+
+        <p className="text-xs text-slate-600 leading-relaxed pt-1">
+          {result.overallSummary ||
+            "The AI recommendation is consistent with the trainee's written assessment result. It evaluates item responses, timing patterns, and supplementary data."}
+        </p>
       </div>
+
+      <p className="text-[11px] text-slate-400 border-t border-slate-100 pt-3 leading-relaxed">
+        AI analysis supports assessor review. The final competency decision remains strictly with the human assessor.
+      </p>
     </div>
   );
 }

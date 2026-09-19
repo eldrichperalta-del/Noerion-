@@ -2,97 +2,39 @@ import eegIcon from "../../../assets/eeg.svg";
 import EEGMetricItem from "./EEGMetricItem";
 
 export default function EEGInsightsCard({ eeg }) {
-  /* ==========================================================
-     EEG INSIGHTS
-
-     The values supplied by AIAnalysisInsights.jsx are already
-     calculated from all active EEG segments.
-
-     Example:
-
-     Attention:
-       active average = 2.51
-       baseline       = 1.74
-       change         = +43.83%
-
-     Engagement:
-       active average = 0.81
-       baseline       = 0.37
-       change         = +121.19%
-
-     Cognitive Load:
-       active average = 3.59
-       baseline       = 3.76
-       change         = -4.54%
-
-     The UI displays the CHANGE FROM BASELINE as the main
-     cognitive metric.
-     ========================================================== */
-
   if (!eeg) {
-    return null;
+    return (
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs flex items-center justify-center h-full">
+        <p className="text-xs text-slate-400 italic">
+          No supplementary EEG reading recorded for this assessment.
+        </p>
+      </div>
+    );
   }
 
-  /* ==========================================================
-     CHANGE VALUES
-     ========================================================== */
-
-  const attentionChange =
-    Number(eeg?.attention?.change) || 0;
-
-  const engagementChange =
-    Number(eeg?.engagement?.change) || 0;
-
-  const cognitiveLoadChange =
-    Number(eeg?.cognitiveLoad?.change) || 0;
-
-  /* ==========================================================
-     EEG CARD
-     ========================================================== */
+  const attentionChange = Number(eeg?.attention?.change) || 0;
+  const engagementChange = Number(eeg?.engagement?.change) || 0;
+  const cognitiveLoadChange = Number(eeg?.cognitiveLoad?.change) || 0;
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-
-      {/* ======================================================
-          HEADER
-          ====================================================== */}
-
-      <div className="flex items-center gap-3 px-6 py-4">
-
-        <img
-          src={eegIcon}
-          alt="EEG"
-          className="h-6 w-6"
-        />
-
-        <h2 className="text-lg font-semibold text-gray-900">
-          EEG Insights
-        </h2>
-
+    <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs flex flex-col justify-between space-y-4 h-full">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="flex items-center gap-2">
+          <img src={eegIcon} alt="EEG" className="h-5 w-5 opacity-80" />
+          <h2 className="text-base font-bold text-slate-900">
+            EEG-Supported Evidence
+          </h2>
+        </div>
+        <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase bg-slate-100 px-2.5 py-1 rounded-md">
+          {eeg.segmentCount ? `${eeg.segmentCount} Segments` : "Supplementary"}
+        </span>
       </div>
 
-      {/* ======================================================
-          EEG METRICS
+      <p className="text-xs text-slate-500 leading-relaxed">
+        Question-level EEG observations provide supplementary context alongside response timing and accuracy. They are not treated as direct measures of competency.
+      </p>
 
-          Each chart receives the percentage change from
-          baseline.
-
-          Attention:
-            +43.83%
-
-          Engagement:
-            +121.19%
-
-          Cognitive Load:
-            -4.54%
-          ====================================================== */}
-
-      <div className="grid grid-cols-1 gap-6 px-6 pb-6 md:grid-cols-3">
-
-        {/* ====================================================
-            ATTENTION
-            ==================================================== */}
-
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 pt-1">
         <EEGMetricItem
           title="Attention"
           type="gauge"
@@ -100,10 +42,6 @@ export default function EEGInsightsCard({ eeg }) {
           activeAverage={eeg?.attention?.activeAverage}
           baseline={eeg?.attention?.baseline}
         />
-
-        {/* ====================================================
-            ENGAGEMENT
-            ==================================================== */}
 
         <EEGMetricItem
           title="Engagement"
@@ -113,10 +51,6 @@ export default function EEGInsightsCard({ eeg }) {
           baseline={eeg?.engagement?.baseline}
         />
 
-        {/* ====================================================
-            COGNITIVE LOAD
-            ==================================================== */}
-
         <EEGMetricItem
           title="Cognitive Load"
           type="bar"
@@ -124,9 +58,7 @@ export default function EEGInsightsCard({ eeg }) {
           activeAverage={eeg?.cognitiveLoad?.activeAverage}
           baseline={eeg?.cognitiveLoad?.baseline}
         />
-
       </div>
-
     </div>
   );
 }
