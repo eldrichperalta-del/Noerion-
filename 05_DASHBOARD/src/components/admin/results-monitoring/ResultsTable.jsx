@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import {
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  FileText,
+  Hash,
+  User,
+  X,
+} from "lucide-react";
 
 export default function ResultsTable({
   results = [],
@@ -333,7 +342,7 @@ export default function ResultsTable({
                         </td>
 
                         {/* ======================================
-                                  DATE COMPLETED
+                            DATE COMPLETED
                         ======================================= */}
 
                         <td className="px-5 py-4 text-sm text-gray-600">
@@ -421,6 +430,7 @@ export default function ResultsTable({
 
         {/* ======================================================
             PAGINATION
+            UNCHANGED
         ======================================================= */}
 
         <div className="flex flex-col gap-3 border-t border-gray-200 px-5 py-4 text-sm sm:flex-row sm:items-center sm:justify-between">
@@ -499,165 +509,448 @@ export default function ResultsTable({
 
       {/* ========================================================
           VIEW RESULT MODAL
+          SCHEDULE ASSESSMENT STYLE
       ========================================================= */}
 
       {selectedResult && (
 
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
           onClick={closePopup}
         >
 
           <div
-            className="w-full max-w-md rounded-2xl bg-white shadow-2xl"
+            className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white shadow-2xl"
             onClick={(event) =>
               event.stopPropagation()
             }
           >
 
-            {/* ================================================
+            {/* ==================================================
                 MODAL HEADER
-            ================================================= */}
+            =================================================== */}
 
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+            <div className="sticky top-0 z-10 flex items-center justify-between bg-[#15294b] px-6 py-4 text-white">
 
-              <div>
+              <div className="flex items-center gap-3">
 
-                <h2 className="text-lg font-bold text-gray-900">
-                  Assessment Result
-                </h2>
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
 
-                <p className="mt-0.5 text-sm text-gray-500">
-                  Final result details
-                </p>
+                  <ClipboardList
+                    size={20}
+                    strokeWidth={2}
+                  />
+
+                </div>
+
+                <div>
+
+                  <h2 className="text-base font-semibold">
+                    Assessment Result Details
+                  </h2>
+
+                  <p className="mt-0.5 text-xs text-white/70">
+                    Review the trainee's assessment result
+                  </p>
+
+                </div>
 
               </div>
 
               <button
                 type="button"
                 onClick={closePopup}
-                className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                className="rounded-lg p-2 text-white/80 transition hover:bg-white/10 hover:text-red-400"
                 aria-label="Close"
               >
 
-                <X size={18} />
+                <X
+                  size={20}
+                  strokeWidth={2}
+                />
 
               </button>
 
             </div>
 
-            {/* ================================================
-                  MODAL CONTENT
-            ================================================= */}
+            {/* ==================================================
+                MODAL CONTENT
+            =================================================== */}
 
-            <div className="space-y-6 px-6 py-6">
-
-              {/* ==================================================
-                  TRAINEE NAME
-              =================================================== */}
-
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                  Trainee Name
-                </p>
-
-                <p className="mt-1 font-semibold text-gray-900">
-                  {selectedResult?.traineeName ||
-                    selectedResult?.trainee_name ||
-                    "-"}
-                </p>
-              </div>
-
+            <div className="space-y-8 px-6 py-6">
 
               {/* ==================================================
-                    TRAINEE ID
+                  TRAINEE INFORMATION
               =================================================== */}
 
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                  Trainee ID
-                </p>
+              <section>
 
-                <p className="mt-1 font-semibold text-gray-900">
-                  {selectedResult?.traineeId ||
-                    selectedResult?.trainee_id ||
-                    "-"}
-                </p>
-              </div>
+                <div className="mb-4 flex items-center gap-2">
+
+                  <User
+                    size={17}
+                    className="text-gray-400"
+                  />
+
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Trainee Information
+                  </h3>
+
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+
+                  {/* TRAINEE NAME */}
+
+                  <div>
+
+                    <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-gray-500">
+
+                      <User
+                        size={13}
+                        className="text-gray-400"
+                      />
+
+                      Trainee Name
+
+                    </p>
+
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-medium text-gray-900">
+
+                      {selectedResult?.traineeName ||
+                        selectedResult?.trainee_name ||
+                        "-"}
+
+                    </div>
+
+                  </div>
+
+                  {/* TRAINEE ID */}
+
+                  <div>
+
+                    <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-gray-500">
+
+                      <Hash
+                        size={13}
+                        className="text-gray-400"
+                      />
+
+                      Trainee ID
+
+                    </p>
+
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-medium text-gray-900">
+
+                      {selectedResult?.traineeId ||
+                        selectedResult?.trainee_id ||
+                        "-"}
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </section>
 
 
               {/* ==================================================
-                    WRITTEN SCORE
+                  ASSESSMENT INFORMATION
               =================================================== */}
 
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                  Written Score
-                </p>
+              <section>
 
-                <p className="mt-1 font-semibold text-gray-900">
-                  {selectedResult?.writtenScore !== null &&
-                    selectedResult?.writtenScore !== undefined
-                    ? selectedResult.writtenScore
-                    : "-"}
-                </p>
-              </div>
+                <div className="mb-4 flex items-center gap-2">
+
+                  <FileText
+                    size={17}
+                    className="text-gray-400"
+                  />
+
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Assessment Information
+                  </h3>
+
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+
+                  {/* COURSE */}
+
+                  <div>
+
+                    <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-gray-500">
+
+                      <FileText
+                        size={13}
+                        className="text-gray-400"
+                      />
+
+                      Course
+
+                    </p>
+
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-medium text-gray-900">
+
+                      {selectedResult?.course ||
+                        "-"}
+
+                    </div>
+
+                  </div>
+
+                  {/* ASSESSMENT ID */}
+
+                  <div>
+
+                    <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-gray-500">
+
+                      <Hash
+                        size={13}
+                        className="text-gray-400"
+                      />
+
+                      Assessment ID
+
+                    </p>
+
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-medium text-gray-900">
+
+                      {selectedResult?.assessmentId ||
+                        selectedResult?.assessment_id ||
+                        "-"}
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </section>
+
+
+              {/* ==================================================
+                  ASSESSMENT RESULT
+              =================================================== */}
+
+              <section>
+
+                <div className="mb-4 flex items-center gap-2">
+
+                  <ClipboardList
+                    size={17}
+                    className="text-gray-400"
+                  />
+
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Assessment Result
+                  </h3>
+
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+
+                  {/* WRITTEN SCORE */}
+
+                  <div>
+
+                    <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-gray-500">
+                      Written Score
+                    </p>
+
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-medium text-gray-900">
+
+                      {selectedResult?.writtenScore !==
+                        null &&
+                      selectedResult?.writtenScore !==
+                        undefined
+                        ? selectedResult.writtenScore
+                        : "-"}
+
+                    </div>
+
+                  </div>
+
+                  {/* TOTAL ITEMS */}
+
+                  <div>
+
+                    <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-gray-500">
+                      Total Items
+                    </p>
+
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-medium text-gray-900">
+
+                      {selectedResult?.totalItems !==
+                        null &&
+                      selectedResult?.totalItems !==
+                        undefined
+                        ? selectedResult.totalItems
+                        : "-"}
+
+                    </div>
+
+                  </div>
+
+                  {/* FINAL RESULT */}
+
+                  <div>
+
+                    <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-gray-500">
+                      Final Result
+                    </p>
+
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+
+                      <span
+                        className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${getResultBadgeClass(
+                          getResultLabel(
+                            selectedResult
+                          )
+                        )}`}
+                      >
+
+                        {getResultLabel(
+                          selectedResult
+                        )}
+
+                      </span>
+
+                    </div>
+
+                  </div>
+
+                  {/* STATUS */}
+
+                  <div>
+
+                    <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-gray-500">
+                      Assessment Status
+                    </p>
+
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-medium capitalize text-gray-900">
+
+                      {selectedResult?.status ||
+                        "N/A"}
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </section>
 
 
               {/* ==================================================
                   AI EVALUATION SUMMARY
               =================================================== */}
 
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                  AI Evaluation Summary
-                </p>
+              <section>
 
-                {/* Empty AI Summary Container */}
-                <div className="mt-2 min-h-[120px] rounded-xl border border-gray-200 bg-gray-50 p-4">
-                  {/* AI Evaluation Summary will be displayed here later */}
+                <div className="mb-4 flex items-center gap-2">
+
+                  <FileText
+                    size={17}
+                    className="text-gray-400"
+                  />
+
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    AI Evaluation Summary
+                  </h3>
+
                 </div>
-              </div>
 
+                <div className="min-h-[120px] rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm leading-6 text-gray-700">
 
-              {/* ==================================================
-                    FINAL RESULT
-              =================================================== */}
+                  {selectedResult?.aiSummary ||
+                    selectedResult?.ai_summary ? (
 
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                  Final Result
-                </p>
+                    selectedResult?.aiSummary ||
+                    selectedResult?.ai_summary
 
-                <div className="mt-2">
-                  <span
-                    className={`inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-semibold ${getResultBadgeClass(
-                      getResultLabel(selectedResult)
-                    )}`}
-                  >
-                    {getResultLabel(selectedResult)}
-                  </span>
-                </div>
-              </div>
+                  ) : (
 
+                    <span className="text-gray-400">
+                      No AI evaluation summary available.
+                    </span>
 
-              {/* ==================================================
-                    DATE COMPLETED
-              =================================================== */}
-
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                  Date Completed
-                </p>
-
-                <p className="mt-1 font-medium text-gray-700">
-                  {formatDate(
-                    selectedResult?.dateCompleted ||
-                    selectedResult?.updated_at ||
-                    selectedResult?.submitted_at ||
-                    selectedResult?.created_at
                   )}
-                </p>
+
+                </div>
+
+              </section>
+
+
+              {/* ==================================================
+                  COMPLETION INFORMATION
+              =================================================== */}
+
+              <section>
+
+                <div className="mb-4 flex items-center gap-2">
+
+                  <Calendar
+                    size={17}
+                    className="text-gray-400"
+                  />
+
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Completion Information
+                  </h3>
+
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+
+                  {/* DATE COMPLETED */}
+
+                  <div>
+
+                    <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-gray-500">
+
+                      <Calendar
+                        size={13}
+                        className="text-gray-400"
+                      />
+
+                      Date Completed
+
+                    </p>
+
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-medium text-gray-900">
+
+                      {formatDate(
+                        selectedResult?.dateCompleted ||
+                        selectedResult?.updated_at ||
+                        selectedResult?.submitted_at ||
+                        selectedResult?.created_at
+                      )}
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </section>
+
+
+              {/* ==================================================
+                  FOOTER
+              =================================================== */}
+
+              <div className="flex items-center justify-end border-t border-gray-200 pt-6">
+
+                <button
+                  type="button"
+                  onClick={closePopup}
+                  className="rounded-lg bg-[#15294b] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#0f1f3b]"
+                >
+                  Close
+                </button>
+
               </div>
 
             </div>
@@ -671,3 +964,4 @@ export default function ResultsTable({
     </>
   );
 }
+

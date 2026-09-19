@@ -518,7 +518,59 @@ id,
             passRate,
         };
     }, [results]);
+    // ============================================================
+    // COMPLETION RATE CHART DATA
+    //
+    // Uses ONLY the existing results array.
+    // No fake months, dates, or placeholder activity.
+    //
+    // One result = one chart data point.
+    // Two results = two chart data points.
+    // No results = empty chart.
+    // ============================================================
 
+    const completionRateData = useMemo(() => {
+        return [...results]
+            .filter((result) => result?.dateCompleted)
+            .sort(
+                (a, b) =>
+                    new Date(a.dateCompleted).getTime() -
+                    new Date(b.dateCompleted).getTime()
+            )
+            .map((result, index) => {
+                const date = new Date(
+                    result.dateCompleted
+                );
+
+                return {
+                    date: date.toLocaleDateString(
+                        "en-US",
+                        {
+                            month: "short",
+                            day: "numeric",
+                        }
+                    ),
+
+                    rate:
+                        result.finalResult === "Pass"
+                            ? 100
+                            : result.finalResult === "Fail"
+                                ? 0
+                                : null,
+
+                    result: result.finalResult,
+
+                    trainee:
+                        result.traineeName ||
+                        `Result ${index + 1}`,
+                };
+            })
+            .filter(
+                (item) => item.rate !== null
+            );
+    }, [results]);
+
+    
     // ============================================================
     // CLEAR FILTERS
     // ============================================================
@@ -582,6 +634,7 @@ id,
 
             <ResultsOverviewCards
                 stats={overviewData}
+                completionRateData={completionRateData}
                 loading={loading}
             />
 
