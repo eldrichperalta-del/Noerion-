@@ -67,24 +67,87 @@ function ReviewConfirm({
   };
 
   const parseTime = (t) => {
-    if (!t) return 0;
-    const match = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
-    if (!match) return 0;
-    let [, h, m, period] = match;
-    h = Number(h);
-    m = Number(m);
-    if (period.toUpperCase() === "PM" && h !== 12) h += 12;
-    if (period.toUpperCase() === "AM" && h === 12) h = 0;
-    return h * 60 + m;
+    if (!t) return null;
+
+    // Handle values such as:
+    // "1:00 PM"
+    // "01:00 PM"
+    // "13:00"
+    // "13:00:00"
+    const value = String(t).trim();
+
+    const amPmMatch = value.match(
+      /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i
+    );
+
+    if (amPmMatch) {
+      let hours = Number(amPmMatch[1]);
+      const minutes = Number(amPmMatch[2]);
+      const period = amPmMatch[3].toUpperCase();
+
+      if (period === "PM" && hours !== 12) {
+        hours += 12;
+      }
+
+      if (period === "AM" && hours === 12) {
+        hours = 0;
+      }
+
+      return hours * 60 + minutes;
+    }
+
+    const twentyFourHourMatch = value.match(
+      /^(\d{1,2}):(\d{2})(?::\d{2})?$/
+    );
+
+    if (twentyFourHourMatch) {
+      const hours = Number(twentyFourHourMatch[1]);
+      const minutes = Number(twentyFourHourMatch[2]);
+
+      return hours * 60 + minutes;
+    }
+
+    return null;
   };
 
+
   const duration = (() => {
-    const startTimeVal = schedule?.startTime || schedule?.start_time;
-    const endTimeVal = schedule?.endTime || schedule?.end_time;
+    const startTimeVal =
+      schedule?.startTime ||
+      schedule?.start_time;
+
+    const endTimeVal =
+      schedule?.endTime ||
+      schedule?.end_time;
+
     const start = parseTime(startTimeVal);
     const end = parseTime(endTimeVal);
-    if (!start || !end || end <= start) return schedule?.duration || "N/A";
-    return `${(end - start) / 60} Hour(s)`;
+
+    // Only calculate the duration from Start Time and End Time.
+    // Do NOT use schedule.duration here because it may contain
+    // the old decimal format such as "1.9 Hour(s)".
+    if (
+      start === null ||
+      end === null ||
+      end <= start
+    ) {
+      return "N/A";
+    }
+
+    const totalMinutes = end - start;
+
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    if (hours > 0 && minutes > 0) {
+      return `${hours} hour${hours !== 1 ? "s" : ""} ${minutes} minute${minutes !== 1 ? "s" : ""}`;
+    }
+
+    if (hours > 0) {
+      return `${hours} hour${hours !== 1 ? "s" : ""}`;
+    }
+
+    return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
   })();
 
   const handleCreateAssessment = async () => {

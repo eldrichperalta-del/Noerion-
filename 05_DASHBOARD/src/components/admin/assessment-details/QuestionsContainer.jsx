@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Plus, X, Trash2 } from "lucide-react";
+import { ChevronDown, Plus, X, Trash2, ListChecks, HelpCircle, CheckCircle2, Award, ClipboardList, FileQuestion } from "lucide-react";
 
 /* ============================================================
    HELPERS
@@ -86,6 +86,13 @@ function normalizeQuestionType(value) {
 
     return "Multiple Choice";
 }
+
+/* ============================================================
+   TYPES THAT USE A CHOICES + CORRECT-ANSWER DROPDOWN UI
+   (Multiple Choice and Situational share this UI)
+   ============================================================ */
+
+const CHOICE_BASED_TYPES = ["Multiple Choice", "Situational"];
 
 /* ============================================================
    EMPTY FORM
@@ -215,8 +222,7 @@ function QuestionModal({
         }
 
         if (
-            questionType ===
-            "Multiple Choice" &&
+            CHOICE_BASED_TYPES.includes(questionType) &&
             loadedChoices.length < 2
         ) {
             loadedChoices = [
@@ -228,8 +234,7 @@ function QuestionModal({
         }
 
         if (
-            questionType !==
-            "Multiple Choice" &&
+            !CHOICE_BASED_TYPES.includes(questionType) &&
             loadedChoices.length === 0
         ) {
             loadedChoices = [
@@ -401,7 +406,7 @@ function QuestionModal({
     };
 
     /* ==========================================================
-       MULTIPLE CHOICE
+       MULTIPLE CHOICE / SITUATIONAL (CHOICE-BASED)
        ========================================================== */
 
     const updateChoice = (
@@ -633,12 +638,11 @@ function QuestionModal({
         }
 
         /* --------------------------------------------------------
-           MULTIPLE CHOICE
+           MULTIPLE CHOICE / SITUATIONAL (CHOICE-BASED)
            -------------------------------------------------------- */
 
         if (
-            type ===
-            "Multiple Choice"
+            CHOICE_BASED_TYPES.includes(type)
         ) {
             const validChoices =
                 (
@@ -742,24 +746,6 @@ function QuestionModal({
         if (
             type ===
             "Identification"
-        ) {
-            if (
-                !String(
-                    form.correct_answer ||
-                    ""
-                ).trim()
-            ) {
-                return "Please enter the correct answer.";
-            }
-        }
-
-        /* --------------------------------------------------------
-           SITUATIONAL
-           -------------------------------------------------------- */
-
-        if (
-            type ===
-            "Situational"
         ) {
             if (
                 !String(
@@ -929,33 +915,41 @@ function QuestionModal({
                 }
             }}
         >
-            <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-xl">
+            <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
 
                 {/* ====================================================
             HEADER
         ==================================================== */}
 
-                <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                <div className="flex shrink-0 items-center justify-between bg-[#16213e] px-6 py-4">
 
-                    <div>
-                        <h2 className="text-lg font-bold text-gray-900">
-                            {isEditMode
-                                ? "Edit Question"
-                                : "Add Question"}
-                        </h2>
+                    <div className="flex items-center gap-3">
 
-                        <p className="mt-1 text-sm text-gray-500">
-                            {isEditMode
-                                ? "Update the question and its answer details."
-                                : "Create a new assessment question."}
-                        </p>
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white">
+                            <FileQuestion size={22} />
+                        </div>
+
+                        <div>
+                            <h2 className="text-lg font-bold text-white">
+                                {isEditMode
+                                    ? "Edit Question"
+                                    : "Add Question"}
+                            </h2>
+
+                            <p className="mt-0.5 text-sm text-slate-300">
+                                {isEditMode
+                                    ? "Update the question and its answer details."
+                                    : "Create a new assessment question."}
+                            </p>
+                        </div>
+
                     </div>
 
                     <button
                         type="button"
                         onClick={onClose}
                         disabled={saving}
-                        className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50"
+                        className="rounded-lg p-2 text-slate-300 hover:bg-white/10 hover:text-white disabled:opacity-50"
                     >
                         <X size={20} />
                     </button>
@@ -970,9 +964,10 @@ function QuestionModal({
                     onSubmit={
                         handleSubmit
                     }
+                    className="flex min-h-0 flex-1 flex-col"
                 >
 
-                    <div className="space-y-6 px-6 py-6">
+                    <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-6">
 
                         {/* ==================================================
                 ERROR
@@ -984,6 +979,12 @@ function QuestionModal({
                             </div>
                         )}
 
+                        <div className="border-b border-gray-200 pb-2">
+                            <h3 className="text-base font-bold text-gray-900">
+                                Question Details
+                            </h3>
+                        </div>
+
                         {/* ==================================================
                 QUESTION TYPE
 
@@ -994,7 +995,8 @@ function QuestionModal({
 
                         {!isEditMode && (
                             <div>
-                                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                                <label className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-gray-500">
+                                    <ListChecks size={13} className="text-gray-400" />
                                     Question Type
                                 </label>
 
@@ -1008,7 +1010,7 @@ function QuestionModal({
                                                 .value
                                         )
                                     }
-                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-gray-500"
+                                    className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-[#16213e] focus:bg-white focus:ring-2 focus:ring-[#16213e]/10"
                                 >
                                     <option value="Multiple Choice">
                                         Multiple Choice
@@ -1038,7 +1040,8 @@ function QuestionModal({
             ================================================== */}
 
                         <div>
-                            <label className="mb-2 block text-sm font-semibold text-gray-700">
+                            <label className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-gray-500">
+                                <HelpCircle size={13} className="text-gray-400" />
                                 Question
                             </label>
 
@@ -1054,196 +1057,131 @@ function QuestionModal({
                                 }
                                 rows={4}
                                 required
-                                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-gray-500"
+                                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-[#16213e] focus:bg-white focus:ring-2 focus:ring-[#16213e]/10"
                                 placeholder="Enter the question..."
                             />
                         </div>
 
+                        <div className="border-b border-gray-200 pb-2 pt-2">
+                            <h3 className="text-base font-bold text-gray-900">
+                                Answer Options
+                            </h3>
+                        </div>
+
                         {/* ==================================================
-                MULTIPLE CHOICE
+                MULTIPLE CHOICE / SITUATIONAL
+                (SAME CHOICES + CORRECT-ANSWER UI)
             ================================================== */}
 
-                        {form.test_section ===
-                            "Multiple Choice" && (
-                                <div className="space-y-6">
+                        {CHOICE_BASED_TYPES.includes(form.test_section) && (
+                            <div className="space-y-6">
 
-                                    <div>
+                                <div>
 
-                                        <div className="mb-3 flex items-center justify-between">
+                                    <div className="mb-3 flex items-center justify-between">
 
-                                            <label className="block text-sm font-semibold text-gray-700">
-                                                Choices
-                                            </label>
+                                        <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-gray-500">
+                                            <ListChecks size={13} className="text-gray-400" />
+                                            Choices
+                                        </label>
 
-                                            <button
-                                                type="button"
-                                                onClick={
-                                                    addChoice
-                                                }
-                                                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                                            >
-                                                <Plus
-                                                    size={15}
-                                                />
+                                        <button
+                                            type="button"
+                                            onClick={
+                                                addChoice
+                                            }
+                                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                                        >
+                                            <Plus
+                                                size={15}
+                                            />
 
-                                                Add Choice
-                                            </button>
-
-                                        </div>
-
-                                        <div className="space-y-3">
-
-                                            {(
-                                                form.choices ||
-                                                []
-                                            ).map(
-                                                (
-                                                    choice,
-                                                    index
-                                                ) => (
-                                                    <div
-                                                        key={
-                                                            index
-                                                        }
-                                                        className="flex items-center gap-2"
-                                                    >
-
-                                                        <span className="w-7 shrink-0 text-sm font-semibold text-gray-500">
-                                                            {String.fromCharCode(
-                                                                65 +
-                                                                index
-                                                            )}
-                                                            .
-                                                        </span>
-
-                                                        <input
-                                                            type="text"
-                                                            value={
-                                                                choice
-                                                            }
-                                                            onChange={(
-                                                                event
-                                                            ) =>
-                                                                updateChoice(
-                                                                    index,
-                                                                    event
-                                                                        .target
-                                                                        .value
-                                                                )
-                                                            }
-                                                            required
-                                                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-gray-500"
-                                                            placeholder={`Choice ${index +
-                                                                1
-                                                                }`}
-                                                        />
-
-                                                        {form
-                                                            .choices
-                                                            .length >
-                                                            2 && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() =>
-                                                                        removeChoice(
-                                                                            index
-                                                                        )
-                                                                    }
-                                                                    className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-500"
-                                                                    title="Remove choice"
-                                                                >
-                                                                    <Trash2
-                                                                        size={
-                                                                            17
-                                                                        }
-                                                                    />
-                                                                </button>
-                                                            )}
-
-                                                    </div>
-                                                )
-                                            )}
-
-                                        </div>
+                                            Add Choice
+                                        </button>
 
                                     </div>
 
-                                    <div>
+                                    <div className="space-y-3">
 
-                                        <label className="mb-2 block text-sm font-semibold text-gray-700">
-                                            Correct Answer
-                                        </label>
+                                        {(
+                                            form.choices ||
+                                            []
+                                        ).map(
+                                            (
+                                                choice,
+                                                index
+                                            ) => (
+                                                <div
+                                                    key={
+                                                        index
+                                                    }
+                                                    className="flex items-center gap-2"
+                                                >
 
-                                        <select
-                                            value={
-                                                form.correct_answer
-                                            }
-                                            onChange={(event) =>
-                                                updateField(
-                                                    "correct_answer",
-                                                    event.target
-                                                        .value
-                                                )
-                                            }
-                                            required
-                                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-gray-500"
-                                        >
-
-                                            <option value="">
-                                                Select correct choice
-                                            </option>
-
-                                            {(
-                                                form.choices ||
-                                                []
-                                            ).map(
-                                                (
-                                                    choice,
-                                                    index
-                                                ) => (
-                                                    <option
-                                                        key={
-                                                            index
-                                                        }
-                                                        value={
-                                                            choice
-                                                        }
-                                                        disabled={
-                                                            !String(
-                                                                choice ||
-                                                                ""
-                                                            ).trim()
-                                                        }
-                                                    >
+                                                    <span className="w-7 shrink-0 text-sm font-semibold text-gray-500">
                                                         {String.fromCharCode(
                                                             65 +
                                                             index
                                                         )}
-                                                        .{" "}
-                                                        {choice ||
-                                                            `Choice ${index +
+                                                        .
+                                                    </span>
+
+                                                    <input
+                                                        type="text"
+                                                        value={
+                                                            choice
+                                                        }
+                                                        onChange={(
+                                                            event
+                                                        ) =>
+                                                            updateChoice(
+                                                                index,
+                                                                event
+                                                                    .target
+                                                                    .value
+                                                            )
+                                                        }
+                                                        required
+                                                        className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-[#16213e] focus:bg-white focus:ring-2 focus:ring-[#16213e]/10"
+                                                        placeholder={`Choice ${index +
                                                             1
                                                             }`}
-                                                    </option>
-                                                )
-                                            )}
+                                                    />
 
-                                        </select>
+                                                    {form
+                                                        .choices
+                                                        .length >
+                                                        2 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    removeChoice(
+                                                                        index
+                                                                    )
+                                                                }
+                                                                className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-500"
+                                                                title="Remove choice"
+                                                            >
+                                                                <Trash2
+                                                                    size={
+                                                                        17
+                                                                    }
+                                                                />
+                                                            </button>
+                                                        )}
+
+                                                </div>
+                                            )
+                                        )}
 
                                     </div>
 
                                 </div>
-                            )}
 
-                        {/* ==================================================
-                TRUE / FALSE
-            ================================================== */}
-
-                        {form.test_section ===
-                            "True/False" && (
                                 <div>
 
-                                    <label className="mb-2 block text-sm font-semibold text-gray-700">
+                                    <label className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-gray-500">
+                                        <CheckCircle2 size={13} className="text-gray-400" />
                                         Correct Answer
                                     </label>
 
@@ -1259,7 +1197,81 @@ function QuestionModal({
                                             )
                                         }
                                         required
-                                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-gray-500"
+                                        className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-[#16213e] focus:bg-white focus:ring-2 focus:ring-[#16213e]/10"
+                                    >
+
+                                        <option value="">
+                                            Select correct choice
+                                        </option>
+
+                                        {(
+                                            form.choices ||
+                                            []
+                                        ).map(
+                                            (
+                                                choice,
+                                                index
+                                            ) => (
+                                                <option
+                                                    key={
+                                                        index
+                                                    }
+                                                    value={
+                                                        choice
+                                                    }
+                                                    disabled={
+                                                        !String(
+                                                            choice ||
+                                                            ""
+                                                        ).trim()
+                                                    }
+                                                >
+                                                    {String.fromCharCode(
+                                                        65 +
+                                                        index
+                                                    )}
+                                                    .{" "}
+                                                    {choice ||
+                                                        `Choice ${index +
+                                                        1
+                                                        }`}
+                                                </option>
+                                            )
+                                        )}
+
+                                    </select>
+
+                                </div>
+
+                            </div>
+                        )}
+
+                        {/* ==================================================
+                TRUE / FALSE
+            ================================================== */}
+
+                        {form.test_section ===
+                            "True/False" && (
+                                <div>
+
+                                    <label className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-gray-500">
+                                        <CheckCircle2 size={13} className="text-gray-400" />
+                                        Correct Answer
+                                    </label>
+
+                                    <select
+                                        value={
+                                            form.correct_answer
+                                        }
+                                        onChange={(event) =>
+                                            updateField(
+                                                "correct_answer",
+                                                event.target
+                                                    .value
+                                            )
+                                        }
+                                        required
+                                        className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-[#16213e] focus:bg-white focus:ring-2 focus:ring-[#16213e]/10"
                                     >
 
                                         <option value="">
@@ -1386,7 +1398,7 @@ function QuestionModal({
                                                                     )
                                                                 }
                                                                 required
-                                                                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-gray-500"
+                                                                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-[#16213e] focus:bg-white focus:ring-2 focus:ring-[#16213e]/10"
                                                                 placeholder="Enter match"
                                                             />
 
@@ -1447,7 +1459,8 @@ function QuestionModal({
                             "Identification" && (
                                 <div>
 
-                                    <label className="mb-2 block text-sm font-semibold text-gray-700">
+                                    <label className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-gray-500">
+                                        <CheckCircle2 size={13} className="text-gray-400" />
                                         Correct Answer
                                     </label>
 
@@ -1463,39 +1476,8 @@ function QuestionModal({
                                             )
                                         }
                                         required
-                                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-gray-500"
+                                        className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-[#16213e] focus:bg-white focus:ring-2 focus:ring-[#16213e]/10"
                                         placeholder="Enter the correct answer..."
-                                    />
-
-                                </div>
-                            )}
-
-                        {/* ==================================================
-                SITUATIONAL
-            ================================================== */}
-
-                        {form.test_section ===
-                            "Situational" && (
-                                <div>
-
-                                    <label className="mb-2 block text-sm font-semibold text-gray-700">
-                                        Correct Answer
-                                    </label>
-
-                                    <textarea
-                                        value={
-                                            form.correct_answer
-                                        }
-                                        onChange={(event) =>
-                                            updateField(
-                                                "correct_answer",
-                                                event.target.value
-                                            )
-                                        }
-                                        rows={5}
-                                        required
-                                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-gray-500"
-                                        placeholder="Enter the expected answer..."
                                     />
 
                                 </div>
@@ -1507,7 +1489,8 @@ function QuestionModal({
 
                         <div>
 
-                            <label className="mb-2 block text-sm font-semibold text-gray-700">
+                            <label className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-gray-500">
+                                <Award size={13} className="text-gray-400" />
                                 Points
                             </label>
 
@@ -1526,7 +1509,7 @@ function QuestionModal({
                                     )
                                 }
                                 required
-                                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-gray-500"
+                                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-[#16213e] focus:bg-white focus:ring-2 focus:ring-[#16213e]/10"
                             />
 
                         </div>
@@ -1537,7 +1520,7 @@ function QuestionModal({
               FOOTER
           ================================================== */}
 
-                    <div className="flex justify-end gap-3 border-t border-gray-200 px-6 py-4">
+                    <div className="flex shrink-0 justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4">
 
                         <button
                             type="button"
@@ -1547,7 +1530,7 @@ function QuestionModal({
                             disabled={
                                 saving
                             }
-                            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50"
                         >
                             Cancel
                         </button>
@@ -1557,7 +1540,7 @@ function QuestionModal({
                             disabled={
                                 saving
                             }
-                            className="rounded-lg bg-gray-900 px-5 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="rounded-lg bg-[#16213e] px-5 py-2 text-sm font-semibold text-white hover:bg-[#0f1729] disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {saving
                                 ? "Saving..."
@@ -1690,27 +1673,33 @@ export default function QuestionsContainer({
 
     return (
         <>
-            <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
 
                 {/* ====================================================
             HEADER
         ==================================================== */}
 
-                <div className="flex flex-col gap-4 border-b border-gray-200 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-4 bg-gray-100 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
 
-                    <div>
+                    <div className="flex items-center gap-3">
 
-                        <h2 className="text-base font-bold text-gray-900">
-                            Questions
-                        </h2>
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 ">
+                            <ClipboardList size={22} />
+                        </div>
 
-                        <p className="mt-1 text-sm text-gray-500">
-                            {questions.length} question
-                            {questions.length ===
-                                1
-                                ? ""
-                                : "s"} in this assessment.
-                        </p>
+                        <div>
+                            <h2 className="text-base font-semibold">
+                                Questions
+                            </h2>
+
+                            <p className="mt-0.5 text-sm font-semibold">
+                                {questions.length} question
+                                {questions.length ===
+                                    1
+                                    ? ""
+                                    : "s"} in this assessment.
+                            </p>
+                        </div>
 
                     </div>
 
@@ -1719,7 +1708,7 @@ export default function QuestionsContainer({
                         onClick={
                             handleAdd
                         }
-                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800"
+                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#002f86] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#001f5b]"
                     >
                         <Plus
                             size={17}
@@ -1783,7 +1772,7 @@ export default function QuestionsContainer({
                                                         section
                                                     )
                                                 }
-                                                className="flex w-full items-center justify-between bg-gray-50 px-4 py-3 text-left hover:bg-gray-100"
+                                                className="flex w-full items-center justify-between border-l-4 border-l-[#16213e] bg-gray-50 px-4 py-3 text-left hover:bg-gray-100"
                                             >
 
                                                 <div>
@@ -1870,11 +1859,11 @@ export default function QuestionsContainer({
                                                                                         1}
                                                                                 </span>
 
-                                                                                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
+                                                                                <span className="rounded-full bg-[#16213e]/5 px-2.5 py-1 text-xs font-semibold text-[#16213e]">
                                                                                     {type}
                                                                                 </span>
 
-                                                                                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
+                                                                                <span className="rounded-full bg-[#16213e]/5 px-2.5 py-1 text-xs font-semibold text-[#16213e]">
                                                                                     {question.points ??
                                                                                         1}{" "}
                                                                                     pt
@@ -1896,11 +1885,10 @@ export default function QuestionsContainer({
                                                                             </p>
 
                                                                             {/* =================================
-                                          MULTIPLE CHOICE DISPLAY
+                                          MULTIPLE CHOICE / SITUATIONAL DISPLAY
                                       ================================= */}
 
-                                                                            {type ===
-                                                                                "Multiple Choice" &&
+                                                                            {CHOICE_BASED_TYPES.includes(type) &&
                                                                                 Array.isArray(
                                                                                     question.choices
                                                                                 ) &&
@@ -1938,26 +1926,29 @@ export default function QuestionsContainer({
                                                                                                         key={
                                                                                                             choiceIndex
                                                                                                         }
-                                                                                                        className={`rounded-lg border px-3 py-2 text-sm ${isCorrect
+                                                                                                        className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm ${isCorrect
                                                                                                             ? "border-green-200 bg-green-50 font-semibold text-green-700"
-                                                                                                            : "border-gray-200 bg-white text-gray-700"
+                                                                                                            : "border-gray-200 bg-gray-50 text-gray-700"
                                                                                                             }`}
                                                                                                     >
 
-                                                                                                        <span className="mr-2 font-bold text-gray-500">
-                                                                                                            {String.fromCharCode(
-                                                                                                                65 +
-                                                                                                                choiceIndex
-                                                                                                            )}
-                                                                                                            .
+                                                                                                        <span>
+                                                                                                            <span className="mr-2 font-bold text-gray-500">
+                                                                                                                {String.fromCharCode(
+                                                                                                                    65 +
+                                                                                                                    choiceIndex
+                                                                                                                )}
+                                                                                                                .
+                                                                                                            </span>
+
+                                                                                                            {
+                                                                                                                choiceText
+                                                                                                            }
                                                                                                         </span>
 
-                                                                                                        {
-                                                                                                            choiceText
-                                                                                                        }
-
                                                                                                         {isCorrect && (
-                                                                                                            <span className="ml-2 text-xs font-bold uppercase">
+                                                                                                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-bold text-green-700">
+                                                                                                                <CheckCircle2 size={12} />
                                                                                                                 Correct
                                                                                                             </span>
                                                                                                         )}
@@ -1991,15 +1982,11 @@ export default function QuestionsContainer({
                                                                                 )}
 
                                                                             {/* =================================
-                                          IDENTIFICATION / SITUATIONAL
+                                          IDENTIFICATION DISPLAY
                                       ================================= */}
 
-                                                                            {(
-                                                                                type ===
-                                                                                "Identification" ||
-                                                                                type ===
-                                                                                "Situational"
-                                                                            ) && (
+                                                                            {type ===
+                                                                                "Identification" && (
                                                                                     <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
 
                                                                                         <span className="font-bold text-gray-500">
@@ -2090,7 +2077,7 @@ export default function QuestionsContainer({
                                                                                 saving ||
                                                                                 !question?.id
                                                                             }
-                                                                            className="shrink-0 rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                                                            className="shrink-0 rounded-lg border border-[#16213e]/20 px-3 py-2 text-xs font-semibold text-[#16213e] hover:bg-[#16213e]/5 disabled:cursor-not-allowed disabled:opacity-50"
                                                                         >
                                                                             Edit
                                                                         </button>

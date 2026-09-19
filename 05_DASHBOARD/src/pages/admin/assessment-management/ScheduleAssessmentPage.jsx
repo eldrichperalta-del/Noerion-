@@ -5,11 +5,18 @@ import {
 } from "react";
 
 import {
-  ChevronLeft,
-  ChevronRight,
+  BookOpen,
+  Calendar,
+  ClipboardList,
+  Clock,
+  FileText,
+  Mail,
   MoreVertical,
   Plus,
+  School,
   Search,
+  User,
+  Users,
   X,
 } from "lucide-react";
 
@@ -69,14 +76,12 @@ function getScheduleStatus(batch) {
   const now = new Date();
 
   const start = new Date(
-    `${batch.assessment_date}T${
-      batch.start_time || "00:00:00"
+    `${batch.assessment_date}T${batch.start_time || "00:00:00"
     }`
   );
 
   const end = new Date(
-    `${batch.assessment_date}T${
-      batch.end_time || "23:59:59"
+    `${batch.assessment_date}T${batch.end_time || "23:59:59"
     }`
   );
 
@@ -99,219 +104,529 @@ function getScheduleStatus(batch) {
 // VIEW DETAILS MODAL
 // =========================================================
 
+
 function DetailsModal({
   batch,
   onClose,
 }) {
+  const traineeCount =
+    batch.assignments?.length || 0;
+
+  const assessorName =
+    batch.assessor_profile
+      ? `${batch.assessor_profile.first_name || ""} ${batch.assessor_profile.last_name || ""
+        }`.trim()
+      : "N/A";
+
+  const assessorEmail =
+    batch.assessor_profile?.email || "N/A";
+
+  const scheduleStatus =
+    getScheduleStatus(batch);
+
+  const statusStyles = {
+    Pending:
+      "bg-yellow-100 text-yellow-700",
+
+    Ongoing:
+      "bg-blue-100 text-blue-700",
+
+    Completed:
+      "bg-green-100 text-green-700",
+  };
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
-      <section className="flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
 
-        {/* HEADER */}
-        <header className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
+      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white shadow-xl">
 
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">
+        {/* =====================================================
+            HEADER
+        ===================================================== */}
+
+        <header className="sticky top-0 z-10 flex items-center justify-between gap-4 bg-[#15294b] px-6 py-4 text-white">
+
+          <div className="flex items-center gap-2">
+
+            <Calendar
+              size={18}
+              className="text-white"
+            />
+
+            <h2 className="text-lg font-semibold">
               Scheduled Assessment Details
             </h2>
 
-            <p className="mt-0.5 text-xs text-gray-500">
-              {batch.assessment_name}
-            </p>
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-gray-400 hover:bg-gray-100"
+            className="text-white transition hover:text-red-400"
+            aria-label="Close"
           >
-            <X size={18} />
+            <X size={20} />
           </button>
 
         </header>
 
 
-        {/* CONTENT */}
-        <div className="space-y-6 overflow-y-auto p-6 text-sm">
+        {/* =====================================================
+            CONTENT
+        ===================================================== */}
 
-          {/* ASSESSMENT INFORMATION */}
-          <div>
-            <h3 className="mb-3 font-bold text-gray-900">
+        <div className="p-6">
+
+          {/* ===================================================
+              ASSESSMENT SUMMARY
+          =================================================== */}
+
+          <div className="mb-8 border-b border-[#e5e7eb] pb-6">
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+
+              <div>
+
+                <h2 className="text-2xl font-bold text-[#111827]">
+                  {batch.assessment_name || "N/A"}
+                </h2>
+
+                <p className="mt-1 text-sm text-[#6b7280]">
+                  Scheduled assessment details
+                </p>
+
+              </div>
+
+              <span
+                className={`w-fit rounded-lg px-4 py-2 text-sm font-semibold ${statusStyles[scheduleStatus]
+                  }`}
+              >
+                {scheduleStatus}
+              </span>
+
+            </div>
+
+          </div>
+
+
+          {/* ===================================================
+              ASSESSMENT INFORMATION
+          =================================================== */}
+
+          <section>
+
+            <h3 className="mb-6 text-xl font-bold text-[#111827]">
               Assessment Information
             </h3>
 
-            <div className="grid grid-cols-2 gap-4">
+            <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
 
-              <div>
-                <span className="text-xs font-medium text-gray-400">
+              {/* COURSE */}
+
+              <div className="flex flex-col gap-1">
+
+                <dt className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-[#6b7280]">
+
+                  <BookOpen
+                    size={14}
+                    className="text-[#9ca3af]"
+                  />
+
                   Course
-                </span>
 
-                <p className="font-semibold text-gray-800">
-                  {batch.assessment_name}
-                </p>
+                </dt>
+
+                <dd className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm text-[#111827]">
+
+                  {batch.assessment_name || "Not provided"}
+
+                </dd>
+
               </div>
 
 
-              <div>
-                <span className="text-xs font-medium text-gray-400">
+              {/* QUALIFICATION */}
+
+              <div className="flex flex-col gap-1">
+
+                <dt className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-[#6b7280]">
+
+                  <School
+                    size={14}
+                    className="text-[#9ca3af]"
+                  />
+
                   Qualification
-                </span>
 
-                <p className="font-semibold text-gray-800">
-                  {batch.qualification || "N/A"}
-                </p>
+                </dt>
+
+                <dd className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm text-[#111827]">
+
+                  {batch.qualification || "Not provided"}
+
+                </dd>
+
               </div>
 
 
-              <div>
-                <span className="text-xs font-medium text-gray-400">
+              {/* ASSESSMENT TYPE */}
+
+              <div className="flex flex-col gap-1">
+
+                <dt className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-[#6b7280]">
+
+                  <ClipboardList
+                    size={14}
+                    className="text-[#9ca3af]"
+                  />
+
                   Assessment Type
-                </span>
 
-                <p className="font-semibold text-gray-800">
+                </dt>
+
+                <dd className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm text-[#111827]">
+
                   {batch.assessment_type || "Written"}
-                </p>
+
+                </dd>
+
               </div>
 
 
-              <div>
-                <span className="text-xs font-medium text-gray-400">
-                  Instructions
-                </span>
+              {/* NUMBER OF TRAINEES */}
 
-                <p className="text-xs leading-relaxed text-gray-600">
-                  {batch.instructions || "N/A"}
-                </p>
+              <div className="flex flex-col gap-1">
+
+                <dt className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-[#6b7280]">
+
+                  <Users
+                    size={14}
+                    className="text-[#9ca3af]"
+                  />
+
+                  Selected Trainees
+
+                </dt>
+
+                <dd className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm text-[#111827]">
+
+                  {traineeCount}{" "}
+                  {traineeCount === 1
+                    ? "Trainee"
+                    : "Trainees"}
+
+                </dd>
+
               </div>
 
-            </div>
-          </div>
+            </dl>
 
 
-          {/* SELECTED TRAINEES */}
-          <div>
+            {/* INSTRUCTIONS */}
 
-            <h3 className="mb-3 font-bold text-gray-900">
-              Selected Trainees{" "}
+            <div className="mt-4 flex flex-col gap-1">
 
-              <span className="text-xs font-normal text-gray-500">
-                ({batch.assignments?.length || 0})
-              </span>
-            </h3>
+              <dt className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-[#6b7280]">
 
+                <FileText
+                  size={14}
+                  className="text-[#9ca3af]"
+                />
 
-            <div className="max-h-40 space-y-2 overflow-y-auto pr-1">
+                Instructions
 
-              {batch.assignments &&
-              batch.assignments.length > 0 ? (
+              </dt>
 
-                batch.assignments.map(
-                  (item, idx) => (
-                    <div
-                      key={idx}
-                      className="rounded-xl border border-gray-100 bg-gray-50/50 p-3"
-                    >
+              <dd className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm leading-relaxed text-[#111827]">
 
-                      <p className="font-semibold text-gray-900">
-                        {item.trainee_profile
-                          ? `${item.trainee_profile.first_name} ${item.trainee_profile.last_name}`
-                          : "Unknown Trainee"}
-                      </p>
+                {batch.instructions || "Not provided"}
 
-                      <p className="text-xs text-gray-500">
-                        {item.trainee_profile?.email}
-                      </p>
-
-                    </div>
-                  )
-                )
-
-              ) : (
-
-                <p className="text-xs italic text-gray-400">
-                  No trainees assigned.
-                </p>
-
-              )}
+              </dd>
 
             </div>
-          </div>
+
+          </section>
 
 
-          {/* ASSESSOR */}
-          <div>
+          {/* ===================================================
+              SCHEDULE INFORMATION
+          =================================================== */}
 
-            <h3 className="mb-3 font-bold text-gray-900">
-              Assigned Assessor
-            </h3>
+          <section className="mt-10">
 
-            <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-3">
-
-              <p className="font-semibold text-gray-900">
-                {batch.assessor_profile
-                  ? `${batch.assessor_profile.first_name} ${batch.assessor_profile.last_name}`
-                  : "N/A"}
-              </p>
-
-              <p className="text-xs text-gray-500">
-                {batch.assessor_profile?.email}
-              </p>
-
-            </div>
-          </div>
-
-
-          {/* SCHEDULE */}
-          <div>
-
-            <h3 className="mb-3 font-bold text-gray-900">
+            <h3 className="mb-6 text-xl font-bold text-[#111827]">
               Schedule &amp; Duration
             </h3>
 
-            <div className="grid grid-cols-3 gap-4 rounded-xl border border-gray-100 bg-gray-50/50 p-3">
+            <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-3">
 
-              <div>
-                <span className="text-xs text-gray-400">
+              {/* DATE */}
+
+              <div className="flex flex-col gap-1">
+
+                <dt className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-[#6b7280]">
+
+                  <Calendar
+                    size={14}
+                    className="text-[#9ca3af]"
+                  />
+
                   Schedule Date
-                </span>
 
-                <p className="font-semibold text-gray-800">
-                  {batch.assessment_date}
-                </p>
+                </dt>
+
+                <dd className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm text-[#111827]">
+
+                  {batch.assessment_date
+                    ? new Date(
+                      `${batch.assessment_date}T00:00:00`
+                    ).toLocaleDateString(
+                      "en-US",
+                      {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      }
+                    )
+                    : "Not provided"}
+
+                </dd>
+
               </div>
 
 
-              <div>
-                <span className="text-xs text-gray-400">
-                  Start Time
-                </span>
+              {/* START TIME */}
 
-                <p className="font-semibold text-gray-800">
+              <div className="flex flex-col gap-1">
+
+                <dt className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-[#6b7280]">
+
+                  <Clock
+                    size={14}
+                    className="text-[#9ca3af]"
+                  />
+
+                  Start Time
+
+                </dt>
+
+                <dd className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm text-[#111827]">
+
                   {formatTime12Hour(
                     batch.start_time
                   )}
-                </p>
+
+                </dd>
+
               </div>
 
 
-              <div>
-                <span className="text-xs text-gray-400">
-                  End Time
-                </span>
+              {/* END TIME */}
 
-                <p className="font-semibold text-gray-800">
+              <div className="flex flex-col gap-1">
+
+                <dt className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-[#6b7280]">
+
+                  <Clock
+                    size={14}
+                    className="text-[#9ca3af]"
+                  />
+
+                  End Time
+
+                </dt>
+
+                <dd className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm text-[#111827]">
+
                   {formatTime12Hour(
                     batch.end_time
                   )}
-                </p>
+
+                </dd>
+
               </div>
 
+            </dl>
+
+          </section>
+
+
+          {/* ===================================================
+              ASSIGNED ASSESSOR
+          =================================================== */}
+
+          <section className="mt-10">
+
+            <h3 className="mb-6 text-xl font-bold text-[#111827]">
+              Assigned Assessor
+            </h3>
+
+            <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+
+              {/* NAME */}
+
+              <div className="flex flex-col gap-1">
+
+                <dt className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-[#6b7280]">
+
+                  <User
+                    size={14}
+                    className="text-[#9ca3af]"
+                  />
+
+                  Assessor Name
+
+                </dt>
+
+                <dd className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm text-[#111827]">
+
+                  {assessorName}
+
+                </dd>
+
+              </div>
+
+
+              {/* EMAIL */}
+
+              <div className="flex flex-col gap-1">
+
+                <dt className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-[#6b7280]">
+
+                  <Mail
+                    size={14}
+                    className="text-[#9ca3af]"
+                  />
+
+                  Email Address
+
+                </dt>
+
+                <dd className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm text-[#111827]">
+
+                  {assessorEmail}
+
+                </dd>
+
+              </div>
+
+            </dl>
+
+          </section>
+
+
+          {/* ===================================================
+              SELECTED TRAINEES
+          =================================================== */}
+
+          <section className="mt-10">
+
+            <div className="mb-6 flex items-center justify-between gap-4">
+
+              <h3 className="text-xl font-bold text-[#111827]">
+                Selected Trainees
+              </h3>
+
+              <span className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700">
+                {traineeCount}{" "}
+                {traineeCount === 1
+                  ? "Trainee"
+                  : "Trainees"}
+              </span>
+
             </div>
-          </div>
+
+
+            {batch.assignments &&
+              batch.assignments.length > 0 ? (
+
+              <div className="grid gap-4 sm:grid-cols-2">
+
+                {batch.assignments.map(
+                  (item, idx) => {
+
+                    const traineeName =
+                      item.trainee_profile
+                        ? `${item.trainee_profile.first_name || ""} ${item.trainee_profile.last_name || ""
+                          }`.trim()
+                        : "Unknown Trainee";
+
+                    const traineeEmail =
+                      item.trainee_profile?.email ||
+                      "Not provided";
+
+                    return (
+
+                      <div
+                        key={
+                          item.id ||
+                          idx
+                        }
+                        className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-4"
+                      >
+
+                        <div className="flex items-start gap-3">
+
+                          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-sm font-bold text-[#15294b] shadow-sm">
+
+                            {idx + 1}
+
+                          </div>
+
+                          <div className="min-w-0">
+
+                            <p className="truncate text-sm font-semibold text-[#111827]">
+                              {traineeName}
+                            </p>
+
+                            <p className="mt-1 truncate text-xs text-[#6b7280]">
+                              {traineeEmail}
+                            </p>
+
+                          </div>
+
+                        </div>
+
+                      </div>
+
+                    );
+
+                  }
+                )}
+
+              </div>
+
+            ) : (
+
+              <div className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-4 text-sm text-[#6b7280]">
+                No trainees assigned.
+              </div>
+
+            )}
+
+          </section>
+
+
+          {/* ===================================================
+              FOOTER
+          =================================================== */}
+
+          <footer className="mt-12 flex items-center justify-end gap-4 border-t border-[#e5e7eb] pt-6">
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg bg-[#15294b] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f1f3b]"
+            >
+              Close
+            </button>
+
+          </footer>
 
         </div>
-      </section>
+
+      </div>
+
     </div>
   );
 }
@@ -453,21 +768,20 @@ export default function ScheduleAssessmentPage() {
         const scheduleDate =
           item.assessment_date
             ? new Date(
-                `${item.assessment_date}T00:00:00`
-              ).toLocaleDateString(
-                "en-US",
-                {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                }
-              )
+              `${item.assessment_date}T00:00:00`
+            ).toLocaleDateString(
+              "en-US",
+              {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              }
+            )
             : "";
 
 
-        return `${item.assessment_name || ""} ${
-          item.qualification || ""
-        } ${scheduleDate}`
+        return `${item.assessment_name || ""} ${item.qualification || ""
+          } ${scheduleDate}`
           .toLowerCase()
           .includes(searchTerm);
 
@@ -498,7 +812,7 @@ export default function ScheduleAssessmentPage() {
   const totalPages =
     Math.ceil(
       filtered.length /
-        ITEMS_PER_PAGE
+      ITEMS_PER_PAGE
     );
 
 
@@ -528,18 +842,18 @@ export default function ScheduleAssessmentPage() {
     filtered.length === 0
       ? 0
       : (currentPage - 1) *
-          ITEMS_PER_PAGE +
-        1;
+      ITEMS_PER_PAGE +
+      1;
 
 
   const showingEnd =
     filtered.length === 0
       ? 0
       : Math.min(
-          currentPage *
-            ITEMS_PER_PAGE,
-          filtered.length
-        );
+        currentPage *
+        ITEMS_PER_PAGE,
+        filtered.length
+      );
 
 
   // =======================================================
@@ -576,7 +890,7 @@ export default function ScheduleAssessmentPage() {
         <div>
 
           <h1 className="text-3xl font-bold text-gray-900">
-            Schedule Assessment
+            Assessment Scheduling
           </h1>
 
           <p className="mt-1 text-sm text-gray-600">
@@ -630,7 +944,7 @@ export default function ScheduleAssessmentPage() {
 
           <Plus size={18} />
 
-          Name Schedule Assessment
+          Schedule Assessment
 
         </button>
 
@@ -732,15 +1046,15 @@ export default function ScheduleAssessmentPage() {
 
                         {batch.assessment_date
                           ? new Date(
-                              `${batch.assessment_date}T00:00:00`
-                            ).toLocaleDateString(
-                              "en-US",
-                              {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                              }
-                            )
+                            `${batch.assessment_date}T00:00:00`
+                          ).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            }
+                          )
                           : "N/A"}
 
                       </td>
@@ -774,11 +1088,10 @@ export default function ScheduleAssessmentPage() {
                           return (
 
                             <span
-                              className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${
-                                statusStyles[
-                                  status
-                                ]
-                              }`}
+                              className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles[
+                                status
+                              ]
+                                }`}
                             >
                               {status}
                             </span>
@@ -814,29 +1127,29 @@ export default function ScheduleAssessmentPage() {
                         {openMenu ===
                           batch.id && (
 
-                          <div className="absolute right-6 top-12 z-20 w-36 rounded-xl border bg-white py-1 text-left shadow-lg">
+                            <div className="absolute right-6 top-12 z-20 w-36 rounded-xl border bg-white py-1 text-left shadow-lg">
 
-                            <button
-                              type="button"
-                              onClick={() => {
+                              <button
+                                type="button"
+                                onClick={() => {
 
-                                setSelectedDetails(
-                                  batch
-                                );
+                                  setSelectedDetails(
+                                    batch
+                                  );
 
-                                setOpenMenu(
-                                  null
-                                );
+                                  setOpenMenu(
+                                    null
+                                  );
 
-                              }}
-                              className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                            >
-                              View details
-                            </button>
+                                }}
+                                className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                              >
+                                View details
+                              </button>
 
-                          </div>
+                            </div>
 
-                        )}
+                          )}
 
                       </td>
 
@@ -874,109 +1187,108 @@ export default function ScheduleAssessmentPage() {
 
         {!loading &&
           filtered.length >=
-            ITEMS_PER_PAGE && (
+          ITEMS_PER_PAGE && (
 
-          <div className="mt-4 flex items-center justify-end px-2 py-2 text-sm">
+            <div className="mt-4 flex items-center justify-end px-2 py-2 text-sm">
 
-            <div className="flex items-center gap-3 text-gray-600">
+              <div className="flex items-center gap-3 text-gray-600">
 
-              {/* SHOWING COUNT */}
-              <span>
+                {/* SHOWING COUNT */}
+                <span>
 
-                Showing{" "}
+                  Showing{" "}
 
-                {showingStart}
+                  {showingStart}
 
-                -
+                  -
 
-                {showingEnd}
+                  {showingEnd}
 
-                {" "}of{" "}
+                  {" "}of{" "}
 
-                {filtered.length}
+                  {filtered.length}
 
-                {" "}schedules
+                  {" "}schedules
 
-              </span>
-
-
-              {/* PREVIOUS */}
-              <button
-                type="button"
-                onClick={() =>
-                  setCurrentPage(
-                    (prev) =>
-                      Math.max(
-                        prev - 1,
-                        1
-                      )
-                  )
-                }
-                disabled={
-                  currentPage === 1
-                }
-                className="rounded-md border border-gray-300 px-3 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                ‹
-              </button>
+                </span>
 
 
-              {/* PAGE NUMBERS */}
-              {Array.from(
-                {
-                  length:
-                    totalPages,
-                },
-                (_, index) =>
-                  index + 1
-              ).map(
-                (page) => (
+                {/* PREVIOUS */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage(
+                      (prev) =>
+                        Math.max(
+                          prev - 1,
+                          1
+                        )
+                    )
+                  }
+                  disabled={
+                    currentPage === 1
+                  }
+                  className="rounded-md border border-gray-300 px-3 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  ‹
+                </button>
 
-                  <button
-                    key={page}
-                    type="button"
-                    onClick={() =>
-                      goToPage(page)
-                    }
-                    className={`rounded-md border px-3 py-1 font-medium ${
-                      currentPage === page
+
+                {/* PAGE NUMBERS */}
+                {Array.from(
+                  {
+                    length:
+                      totalPages,
+                  },
+                  (_, index) =>
+                    index + 1
+                ).map(
+                  (page) => (
+
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() =>
+                        goToPage(page)
+                      }
+                      className={`rounded-md border px-3 py-1 font-medium ${currentPage === page
                         ? "border-gray-300 bg-gray-100"
                         : "border-gray-300 hover:bg-gray-50"
-                    }`}
-                  >
-                    {page}
-                  </button>
+                        }`}
+                    >
+                      {page}
+                    </button>
 
-                )
-              )}
-
-
-              {/* NEXT */}
-              <button
-                type="button"
-                onClick={() =>
-                  setCurrentPage(
-                    (prev) =>
-                      Math.min(
-                        prev + 1,
-                        totalPages
-                      )
                   )
-                }
-                disabled={
-                  currentPage ===
-                  totalPages
-                }
-                className="rounded-md border border-gray-300 px-3 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                ›
-              </button>
+                )}
+
+
+                {/* NEXT */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentPage(
+                      (prev) =>
+                        Math.min(
+                          prev + 1,
+                          totalPages
+                        )
+                    )
+                  }
+                  disabled={
+                    currentPage ===
+                    totalPages
+                  }
+                  className="rounded-md border border-gray-300 px-3 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  ›
+                </button>
+
+              </div>
 
             </div>
 
-          </div>
-
-        )}
+          )}
 
       </section>
 

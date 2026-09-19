@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../../../../supabaseClient";
 import QuestionsContainer from "../../../../components/admin/assessment-details/QuestionsContainer";
 
@@ -25,7 +25,6 @@ export default function CreateAssessment() {
     const [assessmentData, setAssessmentData] = useState({
         title: "",
         qualification: "",
-        instructions: "",
         questions: [],
         courseId: "",
         setType: "Set A",
@@ -576,19 +575,22 @@ export default function CreateAssessment() {
                         assessmentData.timeLimit
                     ) || 30,
 
-                is_active: false,
+                /*
+                 * SAVE = ACTIVE
+                 *
+                 * An assessment only exists in the database after
+                 * the administrator clicks Save Assessment.
+                 *
+                 * Therefore, a successfully saved assessment is Active.
+                 *
+                 * An unsaved assessment does not get inserted into
+                 * the assessments table, so it remains Draft only
+                 * while being edited and cannot appear in Course Assessment.
+                 */
+                is_active: true,
 
-                status: "Draft",
+                status: "Active",
             };
-
-
-            if (
-                assessmentData.instructions?.trim()
-            ) {
-                assessmentPayload.instructions =
-                    assessmentData.instructions.trim();
-            }
-
 
             const {
                 data: assessment,
@@ -660,30 +662,13 @@ export default function CreateAssessment() {
                     question_type:
                         questionType,
 
-                    question_number:
+                    test_section:
+                        questionType,
+
+                    item_number:
                         index + 1,
                 };
 
-
-                /*
-                 * Only add points if the question
-                 * object actually provides it.
-                 *
-                 * This avoids changing the database
-                 * structure unnecessarily.
-                 */
-
-                if (
-                    question?.points !==
-                    undefined &&
-                    question?.points !==
-                    null
-                ) {
-                    questionPayload.points =
-                        Number(
-                            question.points
-                        ) || 1;
-                }
 
 
                 const {
@@ -742,7 +727,7 @@ export default function CreateAssessment() {
                                             option
                                         ),
 
-                                    option_label:
+                                    option_letter:
                                         String.fromCharCode(
                                             65 +
                                             optionIndex
@@ -911,24 +896,25 @@ export default function CreateAssessment() {
             ======================================================== */}
 
             <div>
-                <div className="mb-2 text-sm text-gray-500">
-
-                    <Link
-                        to="/admin/assessments"
-                        className="hover:text-[#002f86]"
+                <nav className="mt-1 mb-3 flex items-center gap-2 text-sm font-semibold">
+                    <button
+                        type="button"
+                        onClick={() =>
+                            navigate("/admin/assessments")
+                        }
+                        className="text-gray-500 hover:text-[#002f86] hover:underline"
                     >
-                        Assessment Library
-                    </Link>
+                        Assessment Management
+                    </button>
 
-                    <span className="mx-2">
-                        /
+                    <span className="text-gray-400">
+                        &gt;
                     </span>
 
-                    <span className="text-gray-700">
+                    <span className="text-[#002f86]">
                         Create Assessment
                     </span>
-
-                </div>
+                </nav>
 
 
                 <h1 className="text-3xl font-bold text-gray-900">
@@ -990,7 +976,7 @@ export default function CreateAssessment() {
                        COURSE
                     ================================================== */}
 
-                    <div className="md:col-span-2">
+                    <div>
 
                         <label
                             htmlFor="course"
@@ -1190,43 +1176,6 @@ export default function CreateAssessment() {
 
                     </div>
 
-
-                    {/* ==================================================
-                       INSTRUCTIONS
-                    ================================================== */}
-
-                    <div className="md:col-span-2">
-
-                        <label
-                            htmlFor="instructions"
-                            className="mb-2 block text-sm font-semibold text-gray-700"
-                        >
-                            Instructions
-                        </label>
-
-
-                        <textarea
-                            id="instructions"
-                            rows={4}
-                            value={
-                                assessmentData.instructions
-                            }
-                            onChange={(event) =>
-                                setAssessmentData(
-                                    (current) => ({
-                                        ...current,
-                                        instructions:
-                                            event.target
-                                                .value,
-                                    })
-                                )
-                            }
-                            disabled={saving}
-                            placeholder="Enter instructions for the trainee..."
-                            className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-[#002f86] focus:ring-2 focus:ring-[#002f86]/10 disabled:bg-gray-100"
-                        />
-
-                    </div>
 
                 </div>
 

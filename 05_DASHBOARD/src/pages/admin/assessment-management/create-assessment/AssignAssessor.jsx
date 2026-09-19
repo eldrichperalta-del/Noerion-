@@ -218,7 +218,7 @@ export default function AssignAssessor({
       const matchesStatus =
         statusFilter === "All" ||
         assessor.status.toLowerCase() ===
-          statusFilter.toLowerCase();
+        statusFilter.toLowerCase();
 
       return matchesSearch && matchesStatus;
     });
@@ -420,11 +420,10 @@ export default function AssignAssessor({
                         onClick={() =>
                           selectAssessor(assessor)
                         }
-                        className={`border-b border-gray-200 transition-colors ${
-                          isAvailable
+                        className={`border-b border-gray-200 transition-colors ${isAvailable
                             ? "cursor-pointer hover:bg-gray-100"
                             : "cursor-not-allowed bg-gray-50 opacity-70"
-                        }`}
+                          }`}
                       >
                         <td className="px-4 py-3 text-center">
                           <input
@@ -456,11 +455,10 @@ export default function AssignAssessor({
 
                         <td className="px-4 py-3">
                           <span
-                            className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
-                              isAvailable
+                            className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${isAvailable
                                 ? "bg-green-100 text-green-700"
                                 : "bg-gray-200 text-gray-600"
-                            }`}
+                              }`}
                           >
                             {assessor.status}
                           </span>
@@ -494,12 +492,9 @@ export default function AssignAssessor({
 
           {/* SELECTED ASSESSOR */}
           <p className="font-medium text-gray-700">
-            Selected assessor:{" "}
-            <span className="font-bold text-[#001F5B]">
-              {selectedAssessor
-                ? selectedAssessor.fullName
-                : "None"}
-            </span>
+            {selectedAssessor
+              ? "Selected: 1 assessor"
+              : "Select 1 assessor"}
           </p>
 
           {/* RIGHT SIDE */}
@@ -521,11 +516,10 @@ export default function AssignAssessor({
                 type="button"
                 onClick={goToPreviousPage}
                 disabled={safeCurrentPage === 1}
-                className={`rounded-md border border-gray-300 px-3 py-1 ${
-                  safeCurrentPage === 1
+                className={`rounded-md border border-gray-300 px-3 py-1 ${safeCurrentPage === 1
                     ? "cursor-not-allowed text-gray-300"
                     : "hover:bg-gray-50"
-                }`}
+                  }`}
               >
                 ‹
               </button>
@@ -539,11 +533,10 @@ export default function AssignAssessor({
                   key={page}
                   type="button"
                   onClick={() => goToPage(page)}
-                  className={`rounded-md border border-gray-300 px-3 py-1 ${
-                    safeCurrentPage === page
+                  className={`rounded-md border border-gray-300 px-3 py-1 ${safeCurrentPage === page
                       ? "bg-gray-100 font-medium text-gray-900"
                       : "hover:bg-gray-50"
-                  }`}
+                    }`}
                 >
                   {page}
                 </button>
@@ -556,11 +549,10 @@ export default function AssignAssessor({
                 disabled={
                   safeCurrentPage === totalPages
                 }
-                className={`rounded-md border border-gray-300 px-3 py-1 ${
-                  safeCurrentPage === totalPages
+                className={`rounded-md border border-gray-300 px-3 py-1 ${safeCurrentPage === totalPages
                     ? "cursor-not-allowed text-gray-300"
                     : "hover:bg-gray-50"
-                }`}
+                  }`}
               >
                 ›
               </button>
@@ -584,11 +576,10 @@ export default function AssignAssessor({
                 type="button"
                 disabled={!selectedAssessor}
                 onClick={onNext}
-                className={`rounded-lg px-6 py-3 font-semibold text-white transition ${
-                  selectedAssessor
+                className={`rounded-lg px-6 py-3 font-semibold text-white transition ${selectedAssessor
                     ? "bg-[#001F5B] hover:bg-[#001746]"
                     : "cursor-not-allowed bg-gray-300"
-                }`}
+                  }`}
               >
                 Next
               </button>
@@ -644,11 +635,10 @@ export default function AssignAssessor({
 
             {/* STATUS */}
             <span
-              className={`inline-block rounded-full px-4 py-1 text-xs font-semibold ${
-                selectedAssessor.status === "Available"
+              className={`inline-block rounded-full px-4 py-1 text-xs font-semibold ${selectedAssessor.status === "Available"
                   ? "bg-green-100 text-green-700"
                   : "bg-gray-200 text-gray-600"
-              }`}
+                }`}
             >
               {selectedAssessor.status}
             </span>

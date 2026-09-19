@@ -161,19 +161,30 @@ function ScheduleAssessment({
     const end = parseTime(schedule.endTime);
 
     if (
-      start === null ||
       start === -1 ||
-      end === null ||
       end === -1
     ) {
       return "";
     }
 
-    if (end <= start) return "Invalid";
+    if (end <= start) {
+      return "Invalid";
+    }
 
-    const diff = (end - start) / 60;
+    const totalMinutes = end - start;
 
-    return `${diff} Hour(s)`;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    if (hours > 0 && minutes > 0) {
+      return `${hours} hour${hours !== 1 ? "s" : ""} ${minutes} minute${minutes !== 1 ? "s" : ""}`;
+    }
+
+    if (hours > 0) {
+      return `${hours} hour${hours !== 1 ? "s" : ""}`;
+    }
+
+    return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
   }, [schedule.startTime, schedule.endTime]);
 
   // SYNC DURATION SAFELY OUTSIDE RENDER CYCLE
@@ -202,9 +213,9 @@ function ScheduleAssessment({
   const canProceed = useMemo(() => {
     return Boolean(
       schedule?.date &&
-        schedule?.startTime &&
-        schedule?.endTime &&
-        !hasOverlapWarning
+      schedule?.startTime &&
+      schedule?.endTime &&
+      !hasOverlapWarning
     );
   }, [
     schedule.date,
@@ -386,11 +397,10 @@ function ScheduleAssessment({
                   <button
                     disabled={!canProceed}
                     onClick={onNext}
-                    className={`px-6 py-3 rounded-lg font-semibold text-white transition ${
-                      canProceed
+                    className={`px-6 py-3 rounded-lg font-semibold text-white transition ${canProceed
                         ? "bg-[#001F5B] hover:bg-[#001746]"
                         : "bg-gray-300 cursor-not-allowed"
-                    }`}
+                      }`}
                   >
                     Next
                   </button>
@@ -501,7 +511,7 @@ function ScheduleAssessment({
 
             <p className="text-sm text-gray-700 mb-4 min-h-[20px]">
               {schedule.startTime &&
-              schedule.endTime
+                schedule.endTime
                 ? `${schedule.startTime} - ${schedule.endTime}`
                 : "Select time range"}
             </p>
