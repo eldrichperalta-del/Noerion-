@@ -19,103 +19,103 @@ import tesdaLogo from "../../assets/tesda1.png";
 import certificateBorder from "../../assets/certificate-border-frame.png";
 
 export default function CertificateManagement() {
-// ==========================================
-// FILTER STATE
-// ==========================================
+  // ==========================================
+  // FILTER STATE
+  // ==========================================
 
-const [search, setSearch] = useState("");
-const [status, setStatus] = useState("All");
-const [day, setDay] = useState("");
-const [month, setMonth] = useState("");
-const [year, setYear] = useState("");
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("All");
+  const [day, setDay] = useState("");
+  const [month, setMonth] = useState("");
+  const [year, setYear] = useState("");
 
-// ==========================================
-// UI STATE
-// ==========================================
+  // ==========================================
+  // UI STATE
+  // ==========================================
 
-const [
-selectedCertificate,
-setSelectedCertificate,
-] = useState(null);
+  const [
+    selectedCertificate,
+    setSelectedCertificate,
+  ] = useState(null);
 
-const [
-selectedCertificateIndex,
-setSelectedCertificateIndex,
-] = useState(0);
+  const [
+    selectedCertificateIndex,
+    setSelectedCertificateIndex,
+  ] = useState(0);
 
-const [
-showDetailsModal,
-setShowDetailsModal,
-] = useState(false);
+  const [
+    showDetailsModal,
+    setShowDetailsModal,
+  ] = useState(false);
 
-const [
-showTrackingModal,
-setShowTrackingModal,
-] = useState(false);
+  const [
+    showTrackingModal,
+    setShowTrackingModal,
+  ] = useState(false);
 
-const [
-showRevokeModal,
-setShowRevokeModal,
-] = useState(false);
+  const [
+    showRevokeModal,
+    setShowRevokeModal,
+  ] = useState(false);
 
-const [
-openUpload,
-setOpenUpload,
-] = useState(false);
+  const [
+    openUpload,
+    setOpenUpload,
+  ] = useState(false);
 
-// ==========================================
-// DATA STATE
-// ==========================================
+  // ==========================================
+  // DATA STATE
+  // ==========================================
 
-const [
-allCertificates,
-setAllCertificates,
-] = useState([]);
+  const [
+    allCertificates,
+    setAllCertificates,
+  ] = useState([]);
 
-const [
-loading,
-setLoading,
-] = useState(false);
+  const [
+    loading,
+    setLoading,
+  ] = useState(false);
 
-const [
-error,
-setError,
-] = useState(null);
-
-// ==========================================
-// LOAD CERTIFICATES
-// ==========================================
-
-const loadCertificates = async () => {
-try {
-setLoading(true);
-setError(null);
-
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession();
-
-  if (sessionError) {
-    throw sessionError;
-  }
-
-  if (!session) {
-    throw new Error(
-      "Your Supabase session is missing. Please log in again."
-    );
-  }
+  const [
+    error,
+    setError,
+  ] = useState(null);
 
   // ==========================================
   // LOAD CERTIFICATES
   // ==========================================
 
-  const {
-    data: certificates,
-    error: certificateError,
-  } = await supabase
-    .from("certificates")
-    .select(`
+  const loadCertificates = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        throw sessionError;
+      }
+
+      if (!session) {
+        throw new Error(
+          "Your Supabase session is missing. Please log in again."
+        );
+      }
+
+      // ==========================================
+      // LOAD CERTIFICATES
+      // ==========================================
+
+      const {
+        data: certificates,
+        error: certificateError,
+      } = await supabase
+        .from("certificates")
+        .select(`
       id,
       certificate_id,
       trainee_id,
@@ -129,539 +129,588 @@ setError(null);
       status,
       created_at
     `)
-    .order("created_at", {
-      ascending: false,
-    });
+        .order("created_at", {
+          ascending: false,
+        });
 
-  if (certificateError) {
-    throw new Error(
-      certificateError.message ||
-        "Unable to load certificates from Supabase."
-    );
-  }
+      if (certificateError) {
+        throw new Error(
+          certificateError.message ||
+          "Unable to load certificates from Supabase."
+        );
+      }
 
-  // ==========================================
-  // GET TRAINEE IDS
-  // ==========================================
+      // ==========================================
+      // GET TRAINEE IDS
+      // ==========================================
 
-  const traineeIds = [
-    ...new Set(
-      (certificates || [])
-        .map(
-          (certificate) =>
-            certificate.trainee_id
-        )
-        .filter(Boolean)
-    ),
-  ];
+      const traineeIds = [
+        ...new Set(
+          (certificates || [])
+            .map(
+              (certificate) =>
+                certificate.trainee_id
+            )
+            .filter(Boolean)
+        ),
+      ];
 
-  // ==========================================
-  // LOAD TRAINEE PROFILES
-  // ==========================================
+      // ==========================================
+      // LOAD TRAINEE PROFILES
+      // ==========================================
 
-  let profiles = [];
+      let profiles = [];
 
-  if (traineeIds.length > 0) {
-    const {
-      data: profileData,
-      error: profileError,
-    } = await supabase
-      .from("profiles")
-      .select(`
+      if (traineeIds.length > 0) {
+        const {
+          data: profileData,
+          error: profileError,
+        } = await supabase
+          .from("profiles")
+          .select(`
         id,
         first_name,
         middle_name,
         last_name,
         suffix
       `)
-      .in(
-        "id",
-        traineeIds
-      );
-
-    if (profileError) {
-      console.warn(
-        "Unable to load trainee profiles:",
-        profileError
-      );
-    } else {
-      profiles =
-        profileData || [];
-    }
-  }
-
-  // ==========================================
-  // PROFILE MAP
-  // ==========================================
-
-  const profileMap =
-    new Map(
-      profiles.map(
-        (profile) => [
-          profile.id,
-          profile,
-        ]
-      )
-    );
-
-  // ==========================================
-  // FORMAT CERTIFICATES
-  // ==========================================
-
-  const formattedCertificates =
-    (certificates || []).map(
-      (certificate) => {
-        const profile =
-          profileMap.get(
-            certificate.trainee_id
+          .in(
+            "id",
+            traineeIds
           );
 
-        const traineeName = [
-          profile?.first_name,
-          profile?.middle_name,
-          profile?.last_name,
-          profile?.suffix,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .trim();
+        if (profileError) {
+          console.warn(
+            "Unable to load trainee profiles:",
+            profileError
+          );
+        } else {
+          profiles =
+            profileData || [];
+        }
+      }
 
-        return {
-          id:
-            certificate.id,
+      // ==========================================
+      // PROFILE MAP
+      // ==========================================
 
-          certificateId:
-            certificate.certificate_id,
+      const profileMap =
+        new Map(
+          profiles.map(
+            (profile) => [
+              profile.id,
+              profile,
+            ]
+          )
+        );
+      // ==========================================
+      // LOAD CERTIFICATE VERIFICATIONS
+      // ==========================================
 
-          traineeId:
-            certificate.trainee_id,
+      let verificationRecords = [];
 
-          assessmentId:
-            certificate.assessment_id,
+      const certificateIds = [
+        ...(certificates || [])
+          .map(
+            (certificate) =>
+              certificate.id
+          )
+          .filter(Boolean),
+      ];
 
-          traineeName:
-            traineeName || "—",
+      if (certificateIds.length > 0) {
+        const {
+          data: verificationData,
+          error: verificationError,
+        } = await supabase
+          .from(
+            "certificate_verifications"
+          )
+          .select(`
+            certificate_id,
+            status,
+            verified_at
+          `)
+          .in(
+            "certificate_id",
+            certificateIds
+          )
+          .order(
+            "verified_at",
+            {
+              ascending: false,
+            }
+          );
 
-          studentId:
-            certificate.trainee_id || "—",
+        if (verificationError) {
+          console.warn(
+            "Unable to load certificate verification records:",
+            verificationError
+          );
+        } else {
+          verificationRecords =
+            verificationData || [];
+        }
+      }
 
-          course:
-            certificate.qualification || "—",
+      // ==========================================
+      // LATEST VERIFICATION MAP
+      // ==========================================
 
-          qualification:
-            certificate.qualification || "—",
+      const verificationMap =
+        new Map();
 
-          skill:
-            certificate.qualification || "—",
+      verificationRecords.forEach(
+        (verification) => {
+          if (
+            !verificationMap.has(
+              verification.certificate_id
+            )
+          ) {
+            verificationMap.set(
+              verification.certificate_id,
+              verification
+            );
+          }
+        }
+      );
 
-          dateIssued:
-            certificate.issued_on,
+      // ==========================================
+      // FORMAT CERTIFICATES
+      // ==========================================
 
-          issuedOn:
-            certificate.issued_on,
+      const formattedCertificates =
+        (certificates || []).map(
+          (certificate) => {
+            const profile =
+              profileMap.get(
+                certificate.trainee_id
+              );
 
-          result:
-            certificate.result || "Passed",
+            const latestVerification =
+              verificationMap.get(
+                certificate.id
+              );
 
-          token:
-            certificate.token,
+            const traineeName = [
+              profile?.first_name,
+              profile?.middle_name,
+              profile?.last_name,
+              profile?.suffix,
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .trim();
 
-          hash:
-            certificate.hash,
+            return {
+              id:
+                certificate.id,
 
-          signature:
-            certificate.signature,
+              certificateId:
+                certificate.certificate_id,
 
-          status:
-            certificate.status || "Unknown",
+              traineeId:
+                certificate.trainee_id,
 
-          verificationStatus:
-            certificate.status === "Valid"
-              ? "Verified"
-              : certificate.status === "Revoked"
-              ? "Revoked"
-              : certificate.status ||
-                "Unknown",
+              assessmentId:
+                certificate.assessment_id,
 
-          lastVerificationDate:
-            null,
+              traineeName:
+                traineeName || "—",
 
-          createdAt:
-            certificate.created_at,
+              studentId:
+                certificate.trainee_id || "—",
 
-          qrCodeUrl:
-            "",
-        };
+              course:
+                certificate.qualification || "—",
+
+              qualification:
+                certificate.qualification || "—",
+
+              skill:
+                certificate.qualification || "—",
+
+              dateIssued:
+                certificate.issued_on,
+
+              issuedOn:
+                certificate.issued_on,
+
+              result:
+                certificate.result || "Passed",
+
+              token:
+                certificate.token,
+
+              hash:
+                certificate.hash,
+
+              signature:
+                certificate.signature,
+
+              status:
+                certificate.status || "Unknown",
+
+              verificationStatus:
+                latestVerification?.status ||
+                "Never Scanned",
+
+              lastVerificationDate:
+                latestVerification?.verified_at ||
+                null,
+
+              createdAt:
+                certificate.created_at,
+
+              qrCodeUrl:
+                "",
+            };
+          }
+        );
+
+      setAllCertificates(
+        formattedCertificates
+      );
+    } catch (err) {
+      console.error(
+        "Failed to load certificates:",
+        err
+      );
+
+      setAllCertificates([]);
+
+      setError(
+        err?.message ||
+        "Failed to load certificates."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ==========================================
+  // INITIAL LOAD
+  // ==========================================
+
+  useEffect(() => {
+    loadCertificates();
+  }, []);
+
+  // ==========================================
+  // FRONTEND FILTERING
+  // ==========================================
+
+  const filtered = useMemo(() => {
+    const normalizedSearch =
+      search.trim().toLowerCase();
+
+    return allCertificates.filter(
+      (certificate) => {
+        const traineeName =
+          certificate.traineeName || "";
+
+        const certificateId =
+          certificate.certificateId || "";
+
+        const traineeId =
+          certificate.traineeId || "";
+
+        const studentId =
+          certificate.studentId || "";
+
+        const qualification =
+          certificate.qualification ||
+          certificate.course ||
+          "";
+
+        const searchMatch =
+          !normalizedSearch ||
+          traineeName
+            .toLowerCase()
+            .includes(normalizedSearch) ||
+          certificateId
+            .toLowerCase()
+            .includes(normalizedSearch) ||
+          traineeId
+            .toLowerCase()
+            .includes(normalizedSearch) ||
+          studentId
+            .toLowerCase()
+            .includes(normalizedSearch) ||
+          qualification
+            .toLowerCase()
+            .includes(normalizedSearch);
+
+        const statusMatch =
+          status === "All" ||
+          certificate.status === status;
+
+        const dateValue =
+          certificate.dateIssued;
+
+        const date =
+          dateValue
+            ? new Date(dateValue)
+            : null;
+
+        const validDate =
+          date &&
+          !Number.isNaN(date.getTime());
+
+        const dayMatch =
+          !day ||
+          (validDate &&
+            date.getDate() === Number(day));
+
+        const monthMatch =
+          !month ||
+          (validDate &&
+            date.getMonth() + 1 ===
+            Number(month));
+
+        const yearMatch =
+          !year ||
+          (validDate &&
+            date.getFullYear() ===
+            Number(year));
+
+        return (
+          searchMatch &&
+          statusMatch &&
+          dayMatch &&
+          monthMatch &&
+          yearMatch
+        );
       }
     );
+  }, [
+    allCertificates,
+    search,
+    status,
+    day,
+    month,
+    year,
+  ]);
+  // ==========================================
+  // FILTER ACTIONS
+  // ==========================================
 
-  setAllCertificates(
-    formattedCertificates
-  );
-} catch (err) {
-  console.error(
-    "Failed to load certificates:",
-    err
-  );
+  const handleApplyFilters = () => {
+    console.log(
+      "Certificate filters applied:",
+      {
+        search,
+        status,
+        day,
+        month,
+        year,
+      }
+    );
+  };
 
-  setAllCertificates([]);
+  const handleClearFilters = () => {
+    setSearch("");
+    setStatus("All");
+    setDay("");
+    setMonth("");
+    setYear("");
+  };
 
-  setError(
-    err?.message ||
-      "Failed to load certificates."
-  );
-} finally {
-  setLoading(false);
-}
+  // ==========================================
+  // VIEW CERTIFICATE DETAILS
+  // ==========================================
 
-};
+  const handleViewCertificate = (
+    certificate
+  ) => {
+    const index =
+      filtered.findIndex(
+        (item) =>
+          item.certificateId ===
+          certificate.certificateId
+      );
 
-// ==========================================
-// INITIAL LOAD
-// ==========================================
+    setSelectedCertificate(
+      certificate
+    );
 
-useEffect(() => {
-loadCertificates();
-}, []);
+    setSelectedCertificateIndex(
+      index >= 0
+        ? index
+        : 0
+    );
 
-// ==========================================
-// FRONTEND FILTERING
-// ==========================================
+    setShowDetailsModal(true);
 
-const filtered = useMemo(() => {
-const normalizedSearch =
-search
-.trim()
-.toLowerCase();
+  };
 
-return allCertificates.filter(
-  (certificate) => {
+  // ==========================================
+  // DOWNLOAD CERTIFICATE
+  // DIRECT PRINT WINDOW - NO STACKED PREVIEW
+  // ==========================================
+
+  const handleDownloadCertificate = (
+    certificate
+  ) => {
+    if (!certificate?.certificateId) {
+      console.error(
+        "Cannot download certificate: missing certificate ID."
+      );
+
+      return;
+    }
+
+    const rawDate =
+      certificate.issuedOn ||
+      certificate.dateIssued ||
+      "";
+
+    let displayDate = "—";
+
+    if (rawDate) {
+      const parsedDate =
+        new Date(rawDate);
+
+      if (
+        !Number.isNaN(
+          parsedDate.getTime()
+        )
+      ) {
+        displayDate =
+          parsedDate.toLocaleDateString(
+            "en-US",
+            {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            }
+          );
+      }
+    }
+
     const traineeName =
-      certificate.traineeName || "";
-
-    const certificateId =
-      certificate.certificateId || "";
-
-    const traineeId =
-      certificate.traineeId || "";
-
-    const studentId =
-      certificate.studentId || "";
+      certificate.traineeName ||
+      "Trainee Name";
 
     const qualification =
       certificate.qualification ||
       certificate.course ||
-      "";
+      "Qualification";
 
-    const searchMatch =
-      !normalizedSearch ||
-      traineeName
-        .toLowerCase()
-        .includes(
-          normalizedSearch
-        ) ||
-      certificateId
-        .toLowerCase()
-        .includes(
-          normalizedSearch
-        ) ||
-      traineeId
-        .toLowerCase()
-        .includes(
-          normalizedSearch
-        ) ||
-      studentId
-        .toLowerCase()
-        .includes(
-          normalizedSearch
-        ) ||
-      qualification
-        .toLowerCase()
-        .includes(
-          normalizedSearch
-        );
+    const result =
+      certificate.result ||
+      "Passed";
 
-    const statusMatch =
-      status === "All" ||
-      certificate.status === status;
+    const certificateId =
+      String(
+        certificate.certificateId
+      ).replace(/^#/, "");
 
-    const dateValue =
-      certificate.dateIssued;
+    const verificationUrl =
+      `${globalThis.location.origin}/verify/${encodeURIComponent(
+        certificateId
+      )}`;
 
-    const date =
-      dateValue
-        ? new Date(dateValue)
-        : null;
+    // ==========================================
+    // PREVENT HTML BREAKING
+    // ==========================================
 
-    const validDate =
-      date &&
-      !Number.isNaN(
-        date.getTime()
+    const escapeHtml = (value) =>
+      String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+    const safeTraineeName =
+      escapeHtml(traineeName);
+
+    const safeQualification =
+      escapeHtml(qualification);
+
+    const safeResult =
+      escapeHtml(result);
+
+    const safeCertificateId =
+      escapeHtml(certificateId);
+
+    const safeDisplayDate =
+      escapeHtml(displayDate);
+
+    // ==========================================
+    // REMOVE OLD PRINT FRAME
+    // ==========================================
+
+    const existingFrame =
+      document.getElementById(
+        "certificate-print-frame"
       );
 
-    const dayMatch =
-      !day ||
-      (
-        validDate &&
-        date.getDate() ===
-          Number(day)
-      );
-
-    const monthMatch =
-      !month ||
-      (
-        validDate &&
-        date.getMonth() + 1 ===
-          Number(month)
-      );
-
-    const yearMatch =
-      !year ||
-      (
-        validDate &&
-        date.getFullYear() ===
-          Number(year)
-      );
-
-    return (
-      searchMatch &&
-      statusMatch &&
-      dayMatch &&
-      monthMatch &&
-      yearMatch
-    );
-  }
-);
-
-}, [
-allCertificates,
-search,
-status,
-day,
-month,
-year,
-]);
-
-// ==========================================
-// FILTER ACTIONS
-// ==========================================
-
-const handleApplyFilters = () => {
-console.log(
-"Certificate filters applied:",
-{
-search,
-status,
-day,
-month,
-year,
-}
-);
-};
-
-const handleClearFilters = () => {
-setSearch("");
-setStatus("All");
-setDay("");
-setMonth("");
-setYear("");
-};
-
-// ==========================================
-// VIEW CERTIFICATE DETAILS
-// ==========================================
-
-const handleViewCertificate = (
-certificate
-) => {
-const index =
-filtered.findIndex(
-(item) =>
-item.certificateId ===
-certificate.certificateId
-);
-
-setSelectedCertificate(
-  certificate
-);
-
-setSelectedCertificateIndex(
-  index >= 0
-    ? index
-    : 0
-);
-
-setShowDetailsModal(true);
-
-};
-
-// ==========================================
-// DOWNLOAD CERTIFICATE
-// DIRECT PRINT WINDOW - NO STACKED PREVIEW
-// ==========================================
-
-const handleDownloadCertificate = (
-  certificate
-) => {
-  if (!certificate?.certificateId) {
-    console.error(
-      "Cannot download certificate: missing certificate ID."
-    );
-
-    return;
-  }
-
-  const rawDate =
-    certificate.issuedOn ||
-    certificate.dateIssued ||
-    "";
-
-  let displayDate = "—";
-
-  if (rawDate) {
-    const parsedDate =
-      new Date(rawDate);
-
-    if (
-      !Number.isNaN(
-        parsedDate.getTime()
-      )
-    ) {
-      displayDate =
-        parsedDate.toLocaleDateString(
-          "en-US",
-          {
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-          }
-        );
+    if (existingFrame) {
+      existingFrame.remove();
     }
-  }
 
-  const traineeName =
-    certificate.traineeName ||
-    "Trainee Name";
+    // ==========================================
+    // CREATE HIDDEN PRINT FRAME
+    // ==========================================
 
-  const qualification =
-    certificate.qualification ||
-    certificate.course ||
-    "Qualification";
+    const printFrame =
+      document.createElement("iframe");
 
-  const result =
-    certificate.result ||
-    "Passed";
+    printFrame.id =
+      "certificate-print-frame";
 
-  const certificateId =
-    String(
-      certificate.certificateId
-    ).replace(/^#/, "");
-
-  const verificationUrl =
-    `${globalThis.location.origin}/verify/${encodeURIComponent(
-      certificateId
-    )}`;
-
-  // ==========================================
-  // PREVENT HTML BREAKING
-  // ==========================================
-
-  const escapeHtml = (value) =>
-    String(value ?? "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-
-  const safeTraineeName =
-    escapeHtml(traineeName);
-
-  const safeQualification =
-    escapeHtml(qualification);
-
-  const safeResult =
-    escapeHtml(result);
-
-  const safeCertificateId =
-    escapeHtml(certificateId);
-
-  const safeDisplayDate =
-    escapeHtml(displayDate);
-
-  // ==========================================
-  // REMOVE OLD PRINT FRAME
-  // ==========================================
-
-  const existingFrame =
-    document.getElementById(
-      "certificate-print-frame"
+    printFrame.setAttribute(
+      "aria-hidden",
+      "true"
     );
 
-  if (existingFrame) {
-    existingFrame.remove();
-  }
+    printFrame.style.position =
+      "fixed";
 
-  // ==========================================
-  // CREATE HIDDEN PRINT FRAME
-  // ==========================================
+    printFrame.style.width =
+      "0";
 
-  const printFrame =
-    document.createElement("iframe");
+    printFrame.style.height =
+      "0";
 
-  printFrame.id =
-    "certificate-print-frame";
+    printFrame.style.border =
+      "0";
 
-  printFrame.setAttribute(
-    "aria-hidden",
-    "true"
-  );
+    printFrame.style.opacity =
+      "0";
 
-  printFrame.style.position =
-    "fixed";
+    printFrame.style.pointerEvents =
+      "none";
 
-  printFrame.style.width =
-    "0";
+    printFrame.style.left =
+      "-9999px";
 
-  printFrame.style.height =
-    "0";
+    printFrame.style.top =
+      "-9999px";
 
-  printFrame.style.border =
-    "0";
-
-  printFrame.style.opacity =
-    "0";
-
-  printFrame.style.pointerEvents =
-    "none";
-
-  printFrame.style.left =
-    "-9999px";
-
-  printFrame.style.top =
-    "-9999px";
-
-  document.body.appendChild(
-    printFrame
-  );
-
-  const printDocument =
-    printFrame.contentDocument ||
-    printFrame.contentWindow?.document;
-
-  if (!printDocument) {
-    printFrame.remove();
-
-    setError(
-      "Unable to prepare the certificate for download."
+    document.body.appendChild(
+      printFrame
     );
 
-    return;
-  }
+    const printDocument =
+      printFrame.contentDocument ||
+      printFrame.contentWindow?.document;
 
-  printDocument.open();
+    if (!printDocument) {
+      printFrame.remove();
 
-  printDocument.write(`
+      setError(
+        "Unable to prepare the certificate for download."
+      );
+
+      return;
+    }
+
+    printDocument.open();
+
+    printDocument.write(`
     <!DOCTYPE html>
 
     <html>
@@ -676,9 +725,10 @@ const handleDownloadCertificate = (
         <style>
 
           @page {
-            size: landscape;
+            size: 1110px 730px;
             margin: 0;
           }
+
 
           * {
             box-sizing: border-box;
@@ -789,7 +839,7 @@ const handleDownloadCertificate = (
 
           .footer {
             width: 100%;
-            margin-top: auto;
+            margin-top: 5px;
             display: grid;
             grid-template-columns:
               1fr
@@ -871,19 +921,19 @@ const handleDownloadCertificate = (
 
             html,
             body {
-              width: 100%;
-              height: 100%;
+              width: 1110px;
+              height: 730px;
               margin: 0;
               padding: 0;
               overflow: hidden;
             }
 
-            .certificate {
-              width: 100vw;
-              height: 100vh;
-            }
+          .certificate {
+            width: 1110px;
+            height: 730px;
+        }
 
-          }
+}
 
         </style>
 
@@ -995,8 +1045,8 @@ const handleDownloadCertificate = (
 
                   <img
                     src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-                      verificationUrl
-                    )}"
+      verificationUrl
+    )}"
                     alt="Certificate Verification QR Code"
                   />
 
@@ -1027,412 +1077,412 @@ const handleDownloadCertificate = (
     </html>
   `);
 
-  printDocument.close();
+    printDocument.close();
 
-  // ==========================================
-  // WAIT FOR CERTIFICATE ASSETS
-  // ==========================================
+    // ==========================================
+    // WAIT FOR CERTIFICATE ASSETS
+    // ==========================================
 
-  const printImages =
-    Array.from(
-      printDocument.images
-    );
+    const printImages =
+      Array.from(
+        printDocument.images
+      );
 
-  Promise.all(
-    printImages.map(
-      (image) =>
-        new Promise(
-          (resolve) => {
-            if (
-              image.complete &&
-              image.naturalWidth > 0
-            ) {
-              resolve();
-              return;
+    Promise.all(
+      printImages.map(
+        (image) =>
+          new Promise(
+            (resolve) => {
+              if (
+                image.complete &&
+                image.naturalWidth > 0
+              ) {
+                resolve();
+                return;
+              }
+
+              image.addEventListener(
+                "load",
+                resolve,
+                {
+                  once: true,
+                }
+              );
+
+              image.addEventListener(
+                "error",
+                resolve,
+                {
+                  once: true,
+                }
+              );
             }
+          )
+      )
+    ).then(() => {
+      setTimeout(
+        () => {
+          const frameWindow =
+            printFrame.contentWindow;
 
-            image.addEventListener(
-              "load",
-              resolve,
-              {
-                once: true,
-              }
-            );
+          if (!frameWindow) {
+            printFrame.remove();
 
-            image.addEventListener(
-              "error",
-              resolve,
-              {
-                once: true,
-              }
-            );
+            return;
           }
-        )
-    )
-  ).then(() => {
-    setTimeout(
-      () => {
-        const frameWindow =
-          printFrame.contentWindow;
 
-        if (!frameWindow) {
-          printFrame.remove();
+          const removeFrame = () => {
+            setTimeout(
+              () => {
+                printFrame.remove();
+              },
+              500
+            );
+          };
 
-          return;
-        }
+          frameWindow.addEventListener(
+            "afterprint",
+            removeFrame,
+            {
+              once: true,
+            }
+          );
 
-        const removeFrame = () => {
+          frameWindow.focus();
+
+          frameWindow.print();
+
+          // Fallback cleanup.
           setTimeout(
             () => {
-              printFrame.remove();
-            },
-            500
-          );
-        };
-
-        frameWindow.addEventListener(
-          "afterprint",
-          removeFrame,
-          {
-            once: true,
-          }
-        );
-
-        frameWindow.focus();
-
-        frameWindow.print();
-
-        // Fallback cleanup.
-        setTimeout(
-          () => {
-            if (
-              document.body.contains(
-                printFrame
-              )
-            ) {
-              printFrame.remove();
-            }
-          },
-          30000
-        );
-      },
-      500
-    );
-  });
-};
-
-// ==========================================
-// PREVIOUS CERTIFICATE
-// ==========================================
-
-const handlePreviousCertificate = () => {
-if (
-selectedCertificateIndex <= 0
-) {
-return;
-}
-
-const newIndex =
-  selectedCertificateIndex - 1;
-
-setSelectedCertificateIndex(
-  newIndex
-);
-
-setSelectedCertificate(
-  filtered[newIndex]
-);
-
-};
-
-// ==========================================
-// NEXT CERTIFICATE
-// ==========================================
-
-const handleNextCertificate = () => {
-if (
-selectedCertificateIndex >=
-filtered.length - 1
-) {
-return;
-}
-
-const newIndex =
-  selectedCertificateIndex + 1;
-
-setSelectedCertificateIndex(
-  newIndex
-);
-
-setSelectedCertificate(
-  filtered[newIndex]
-);
-
-};
-
-// ==========================================
-// REVOKE CERTIFICATE
-// ==========================================
-
-const handleRevoke = async (
-certificate
-) => {
-if (
-!certificate?.certificateId
-) {
-console.error(
-"Cannot revoke certificate: missing certificate ID."
-);
-
-  return;
-}
-
-try {
-  setLoading(true);
-  setError(null);
-
-  const {
-    error: revokeError,
-  } = await supabase
-    .from("certificates")
-    .update({
-      status: "Revoked",
-    })
-    .eq(
-      "certificate_id",
-      certificate.certificateId
-    );
-
-  if (revokeError) {
-    throw new Error(
-      revokeError.message ||
-        "Failed to revoke certificate."
-    );
-  }
-
-  setAllCertificates(
-    (previous) =>
-      previous.map(
-        (item) =>
-          item.certificateId ===
-          certificate.certificateId
-            ? {
-                ...item,
-                status: "Revoked",
-                verificationStatus:
-                  "Revoked",
+              if (
+                document.body.contains(
+                  printFrame
+                )
+              ) {
+                printFrame.remove();
               }
-            : item
-      )
-  );
-} catch (err) {
-  console.error(
-    "Certificate revoke failed:",
-    err
-  );
-
-  setError(
-    err?.message ||
-      "Failed to revoke certificate."
-  );
-} finally {
-  setLoading(false);
-
-  setShowRevokeModal(false);
-
-  setSelectedCertificate(null);
-
-  setSelectedCertificateIndex(0);
-}
-
-};
-
-// ==========================================
-// CERTIFICATE SAVED
-// ==========================================
-
-const handleCertificateSaved =
-async (
-newCertificate
-) => {
-try {
-setError(null);
-
-    if (newCertificate) {
-      console.log(
-        "Certificate saved:",
-        newCertificate
+            },
+            30000
+          );
+        },
+        500
       );
+    });
+  };
+
+  // ==========================================
+  // PREVIOUS CERTIFICATE
+  // ==========================================
+
+  const handlePreviousCertificate = () => {
+    if (
+      selectedCertificateIndex <= 0
+    ) {
+      return;
     }
 
-    await loadCertificates();
+    const newIndex =
+      selectedCertificateIndex - 1;
 
-    setOpenUpload(false);
-  } catch (err) {
-    console.error(
-      "Failed to refresh certificates:",
-      err
+    setSelectedCertificateIndex(
+      newIndex
     );
 
-    setError(
-      err?.message ||
-        "Certificate was saved, but the list could not be refreshed."
+    setSelectedCertificate(
+      filtered[newIndex]
     );
-  }
-};
 
-// ==========================================
-// RENDER
-// ==========================================
+  };
 
-return ( <div className="cert-page">
+  // ==========================================
+  // NEXT CERTIFICATE
+  // ==========================================
 
-  <DashboardPageHeader
-    title="Certificate Management"
-    subtitle="Issue, monitor, and manage trainee certificates and their verification status."
-  />
-
-  <CertificateOverviewCards
-    data={allCertificates}
-  />
-
-  <CertificateFilters
-    search={search}
-    setSearch={setSearch}
-    status={status}
-    setStatus={setStatus}
-    day={day}
-    setDay={setDay}
-    month={month}
-    setMonth={setMonth}
-    year={year}
-    setYear={setYear}
-    onApply={
-      handleApplyFilters
+  const handleNextCertificate = () => {
+    if (
+      selectedCertificateIndex >=
+      filtered.length - 1
+    ) {
+      return;
     }
-    onClear={
-      handleClearFilters
+
+    const newIndex =
+      selectedCertificateIndex + 1;
+
+    setSelectedCertificateIndex(
+      newIndex
+    );
+
+    setSelectedCertificate(
+      filtered[newIndex]
+    );
+
+  };
+
+  // ==========================================
+  // REVOKE CERTIFICATE
+  // ==========================================
+
+  const handleRevoke = async (
+    certificate
+  ) => {
+    if (
+      !certificate?.certificateId
+    ) {
+      console.error(
+        "Cannot revoke certificate: missing certificate ID."
+      );
+
+      return;
     }
-  />
 
-  {error && (
-    <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+    try {
+      setLoading(true);
+      setError(null);
 
-      <p className="font-medium">
-        Certificate Management Error
-      </p>
+      const {
+        error: revokeError,
+      } = await supabase
+        .from("certificates")
+        .update({
+          status: "Revoked",
+        })
+        .eq(
+          "certificate_id",
+          certificate.certificateId
+        );
 
-      <p className="mt-1 text-sm">
-        {error}
-      </p>
-
-    </div>
-  )}
-
-  <div className="table-section">
-
-    <CertificateTable
-      certificates={filtered}
-      loading={loading}
-      error={null}
-      onView={
-        handleViewCertificate
+      if (revokeError) {
+        throw new Error(
+          revokeError.message ||
+          "Failed to revoke certificate."
+        );
       }
-      onDownload={
-        handleDownloadCertificate
-      }
-      onTrack={(item) => {
-        setSelectedCertificate(
-          item
-        );
 
-        setShowTrackingModal(
-          true
-        );
-      }}
-      onRevoke={(item) => {
-        setSelectedCertificate(
-          item
-        );
-
-        setShowRevokeModal(
-          true
-        );
-      }}
-    />
-
-  </div>
-
-  <CertificateDetailsModal
-    open={showDetailsModal}
-    certificate={
-      selectedCertificate
-    }
-    certificates={filtered}
-    currentIndex={
-      selectedCertificateIndex
-    }
-    onPrevious={
-      handlePreviousCertificate
-    }
-    onNext={
-      handleNextCertificate
-    }
-    onClose={() => {
-      setShowDetailsModal(false);
-
-      setSelectedCertificate(
-        null
+      setAllCertificates(
+        (previous) =>
+          previous.map(
+            (item) =>
+              item.certificateId ===
+                certificate.certificateId
+                ? {
+                  ...item,
+                  status: "Revoked",
+                  verificationStatus:
+                    "Revoked",
+                }
+                : item
+          )
+      );
+    } catch (err) {
+      console.error(
+        "Certificate revoke failed:",
+        err
       );
 
-      setSelectedCertificateIndex(
-        0
+      setError(
+        err?.message ||
+        "Failed to revoke certificate."
       );
-    }}
-  />
+    } finally {
+      setLoading(false);
 
-  <CertificateTrackingModal
-    open={showTrackingModal}
-    certificate={
-      selectedCertificate
-    }
-    onClose={() => {
-      setShowTrackingModal(false);
-
-      setSelectedCertificate(
-        null
-      );
-    }}
-  />
-
-  <RevokeCertificateModal
-    open={showRevokeModal}
-    certificate={
-      selectedCertificate
-    }
-    onClose={() => {
       setShowRevokeModal(false);
 
-      setSelectedCertificate(
-        null
-      );
-    }}
-    onRevoke={
-      handleRevoke
-    }
-  />
+      setSelectedCertificate(null);
 
-  {openUpload && (
-    <CertificateUploadModal
-      onClose={() =>
-        setOpenUpload(false)
+      setSelectedCertificateIndex(0);
+    }
+
+  };
+
+  // ==========================================
+  // CERTIFICATE SAVED
+  // ==========================================
+
+  const handleCertificateSaved =
+    async (
+      newCertificate
+    ) => {
+      try {
+        setError(null);
+
+        if (newCertificate) {
+          console.log(
+            "Certificate saved:",
+            newCertificate
+          );
+        }
+
+        await loadCertificates();
+
+        setOpenUpload(false);
+      } catch (err) {
+        console.error(
+          "Failed to refresh certificates:",
+          err
+        );
+
+        setError(
+          err?.message ||
+          "Certificate was saved, but the list could not be refreshed."
+        );
       }
-      onSave={
-        handleCertificateSaved
+    };
+
+  // ==========================================
+  // RENDER
+  // ==========================================
+
+  return (<div className="cert-page">
+
+    <DashboardPageHeader
+      title="Certificate Management"
+      subtitle="Issue, monitor, and manage trainee certificates and their verification status."
+    />
+
+    <CertificateOverviewCards
+      data={allCertificates}
+    />
+
+    <CertificateFilters
+      search={search}
+      setSearch={setSearch}
+      status={status}
+      setStatus={setStatus}
+      day={day}
+      setDay={setDay}
+      month={month}
+      setMonth={setMonth}
+      year={year}
+      setYear={setYear}
+      onApply={
+        handleApplyFilters
+      }
+      onClear={
+        handleClearFilters
       }
     />
-  )}
 
-</div>
-);
+    {error && (
+      <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+
+        <p className="font-medium">
+          Certificate Management Error
+        </p>
+
+        <p className="mt-1 text-sm">
+          {error}
+        </p>
+
+      </div>
+    )}
+
+    <div className="table-section">
+
+      <CertificateTable
+        certificates={filtered}
+        loading={loading}
+        error={null}
+        onView={
+          handleViewCertificate
+        }
+        onDownload={
+          handleDownloadCertificate
+        }
+        onTrack={(item) => {
+          setSelectedCertificate(
+            item
+          );
+
+          setShowTrackingModal(
+            true
+          );
+        }}
+        onRevoke={(item) => {
+          setSelectedCertificate(
+            item
+          );
+
+          setShowRevokeModal(
+            true
+          );
+        }}
+      />
+
+    </div>
+
+    <CertificateDetailsModal
+      open={showDetailsModal}
+      certificate={
+        selectedCertificate
+      }
+      certificates={filtered}
+      currentIndex={
+        selectedCertificateIndex
+      }
+      onPrevious={
+        handlePreviousCertificate
+      }
+      onNext={
+        handleNextCertificate
+      }
+      onClose={() => {
+        setShowDetailsModal(false);
+
+        setSelectedCertificate(
+          null
+        );
+
+        setSelectedCertificateIndex(
+          0
+        );
+      }}
+    />
+
+    <CertificateTrackingModal
+      open={showTrackingModal}
+      certificate={
+        selectedCertificate
+      }
+      onClose={() => {
+        setShowTrackingModal(false);
+
+        setSelectedCertificate(
+          null
+        );
+      }}
+    />
+
+    <RevokeCertificateModal
+      open={showRevokeModal}
+      certificate={
+        selectedCertificate
+      }
+      onClose={() => {
+        setShowRevokeModal(false);
+
+        setSelectedCertificate(
+          null
+        );
+      }}
+      onRevoke={
+        handleRevoke
+      }
+    />
+
+    {openUpload && (
+      <CertificateUploadModal
+        onClose={() =>
+          setOpenUpload(false)
+        }
+        onSave={
+          handleCertificateSaved
+        }
+      />
+    )}
+
+  </div>
+  );
 }

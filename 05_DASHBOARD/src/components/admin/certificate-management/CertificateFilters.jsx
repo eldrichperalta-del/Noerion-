@@ -1,7 +1,207 @@
-import { Calendar, Search } from "lucide-react";
+import {
+  Calendar,
+  Search,
+} from "lucide-react";
 
-export default function CertificateFilters({ search, setSearch, status, setStatus, day, setDay, month, setMonth, year, setYear }) {
-  const selectedDate = year && month && day ? `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}` : "";
-  const updateDate = (value) => { if (!value) { setDay(""); setMonth(""); setYear(""); return; } const [selectedYear, selectedMonth, selectedDay] = value.split("-").map(Number); setYear(selectedYear); setMonth(selectedMonth); setDay(selectedDay); };
-  return <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><label className="relative w-full lg:max-w-md"><Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by Name, ID, or Certificate ID..." className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm shadow-sm outline-none focus:border-[#002f86] focus:ring-2 focus:ring-blue-100" /></label><div className="flex flex-col gap-3 sm:flex-row lg:ml-auto"><select value={status} onChange={(event) => setStatus(event.target.value)} className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm outline-none focus:border-[#002f86] focus:ring-2 focus:ring-blue-100"><option value="All">All Status</option><option value="Issued">Issued</option><option value="Revoked">Revoked</option></select><label className="relative w-full sm:w-64"><Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" /><input type="date" value={selectedDate} onChange={(event) => updateDate(event.target.value)} className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm shadow-sm outline-none focus:border-[#002f86] focus:ring-2 focus:ring-blue-100" /></label></div></div>;
+export default function CertificateFilters({
+  search,
+  setSearch,
+  status,
+  setStatus,
+  day,
+  setDay,
+  month,
+  setMonth,
+  year,
+  setYear,
+}) {
+  // =========================
+  // SELECTED DATE
+  // =========================
+
+  const selectedDate =
+    year && month && day
+      ? `${year}-${String(month).padStart(
+          2,
+          "0"
+        )}-${String(day).padStart(2, "0")}`
+      : "";
+
+  // =========================
+  // UPDATE DATE
+  // =========================
+
+  const updateDate = (value) => {
+    if (!value) {
+      setDay("");
+      setMonth("");
+      setYear("");
+      return;
+    }
+
+    const [
+      selectedYear,
+      selectedMonth,
+      selectedDay,
+    ] = value.split("-").map(Number);
+
+    setYear(selectedYear);
+    setMonth(selectedMonth);
+    setDay(selectedDay);
+  };
+
+  return (
+    <div
+      className="
+        mb-5
+        flex
+        flex-col
+        gap-3
+        lg:flex-row
+        lg:items-center
+        lg:justify-between
+      "
+    >
+      {/* =========================
+          SEARCH
+      ========================= */}
+
+      <label
+        className="
+          relative
+          w-full
+          lg:max-w-md
+        "
+      >
+        <Search
+          size={18}
+          className="
+            absolute
+            left-4
+            top-1/2
+            -translate-y-1/2
+            text-gray-400
+          "
+        />
+
+        <input
+          value={search}
+          onChange={(event) =>
+            setSearch(event.target.value)
+          }
+          placeholder="Search by Name, ID, or Certificate ID..."
+          className="
+            w-full
+            rounded-xl
+            border
+            border-gray-200
+            bg-white
+            py-3
+            pl-11
+            pr-4
+            text-sm
+            shadow-sm
+            outline-none
+            focus:border-[#002f86]
+            focus:ring-2
+            focus:ring-blue-100
+          "
+        />
+      </label>
+
+      {/* =========================
+          FILTERS
+      ========================= */}
+
+      <div
+        className="
+          flex
+          flex-col
+          gap-3
+          sm:flex-row
+          lg:ml-auto
+        "
+      >
+        {/* STATUS FILTER */}
+
+        <select
+          value={status}
+          onChange={(event) =>
+            setStatus(event.target.value)
+          }
+          className="
+            rounded-xl
+            border
+            border-gray-200
+            bg-white
+            px-4
+            py-3
+            text-sm
+            shadow-sm
+            outline-none
+            focus:border-[#002f86]
+            focus:ring-2
+            focus:ring-blue-100
+          "
+        >
+          <option value="All">
+            All Status
+          </option>
+
+          <option value="Valid">
+            Valid
+          </option>
+
+          <option value="Revoked">
+            Revoked
+          </option>
+        </select>
+
+        {/* DATE FILTER */}
+
+        <label
+          className="
+            relative
+            w-full
+            sm:w-64
+          "
+        >
+          <Calendar
+            size={18}
+            className="
+              absolute
+              left-4
+              top-1/2
+              -translate-y-1/2
+              text-gray-400
+            "
+          />
+
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(event) =>
+              updateDate(event.target.value)
+            }
+            className="
+              w-full
+              rounded-xl
+              border
+              border-gray-200
+              bg-white
+              py-3
+              pl-11
+              pr-4
+              text-sm
+              shadow-sm
+              outline-none
+              focus:border-[#002f86]
+              focus:ring-2
+              focus:ring-blue-100
+            "
+          />
+        </label>
+      </div>
+    </div>
+  );
 }

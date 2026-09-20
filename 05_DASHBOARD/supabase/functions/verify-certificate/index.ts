@@ -421,6 +421,29 @@ Deno.serve(async (req: Request) => {
       signatureMatchesDatabase &&
       certificateStatusValid;
 
+
+    // ============================================
+    // RECORD SUCCESSFUL VERIFICATION
+    // ============================================
+
+    if (verified) {
+      const { error: verificationLogError } =
+        await supabaseAdmin
+          .from("certificate_verifications")
+          .insert({
+            certificate_id: certificate.id,
+            status: "Verified",
+          });
+
+      if (verificationLogError) {
+        console.error(
+          "Failed to record certificate verification:",
+          verificationLogError
+        );
+      }
+    }
+
+    
     // ============================================
     // RESPONSE
     // ============================================

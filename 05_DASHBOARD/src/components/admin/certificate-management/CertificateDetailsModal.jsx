@@ -224,7 +224,7 @@ export default function CertificateDetailsModal({
       {/* MODAL */}
       {/* ========================= */}
 
-      <div className="relative z-10 w-full max-w-4xl overflow-hidden rounded-xl bg-white shadow-2xl">
+      <div className="relative z-10 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
         {/* ========================= */}
         {/* HEADER */}
         {/* ========================= */}
@@ -263,7 +263,7 @@ export default function CertificateDetailsModal({
         {/* BODY */}
         {/* ========================= */}
 
-        <div className="flex gap-8 bg-[#f4f7fa] p-8">
+        <div className="flex min-h-0 flex-1 gap-8 overflow-y-auto bg-[#f4f7fa] p-8">
           {/* ========================= */}
           {/* LEFT PANEL */}
           {/* ========================= */}
@@ -353,7 +353,7 @@ export default function CertificateDetailsModal({
             {/* VALIDITY */}
             {/* ========================= */}
 
-            <div className="flex items-center justify-between pt-6">
+            <div className="-mt-2 flex items-center justify-between pt-6">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-[#73829c]">
                 Validity Confirmation
               </h3>
@@ -467,7 +467,7 @@ export default function CertificateDetailsModal({
                 href={verificationUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-8 break-all text-center text-sm font-semibold text-[#15294b] underline decoration-[#15294b] underline-offset-4 hover:text-blue-600"
+                className="mt-4 break-all text-center text-sm font-semibold text-[#15294b] underline decoration-[#15294b] underline-offset-4 hover:text-blue-600"
                 title="Open certificate verification page"
               >
                 {verificationUrl}
@@ -485,90 +485,6 @@ export default function CertificateDetailsModal({
           </div>
         </div>
 
-        {/* ========================= */}
-        {/* FOOTER */}
-        {/* ========================= */}
-
-        <div className="flex items-center justify-between border-t border-gray-200 bg-white px-8 py-5">
-          <div className="text-xs font-medium text-[#97a3b6]">
-            {currentIndex >= 0
-              ? `Showing ${currentIndex + 1}-${totalCertificates} of ${totalCertificates}`
-              : `Showing 0 of ${totalCertificates}`}
-          </div>
-
-          <div className="flex gap-2">
-            {/* PREVIOUS */}
-
-            <button
-              type="button"
-              onClick={handlePrevious}
-              disabled={!hasPrevious}
-              className={`flex items-center gap-1.5 rounded-lg border px-4 py-1.5 text-xs font-semibold transition ${
-                hasPrevious
-                  ? "border-black text-black hover:bg-gray-100"
-                  : "cursor-not-allowed border-gray-200 text-gray-300"
-              }`}
-            >
-              <svg
-                className="h-3.5 w-3.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-
-              Prev
-            </button>
-
-            {/* CURRENT PAGE */}
-
-            <button
-              type="button"
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-xs font-bold text-[#15294b]"
-            >
-              {currentIndex >= 0
-                ? currentIndex + 1
-                : 1}
-            </button>
-
-            {/* NEXT */}
-
-            <button
-              type="button"
-              onClick={handleNext}
-              disabled={!hasNext}
-              className={`flex items-center gap-1.5 rounded-lg border px-4 py-1.5 text-xs font-semibold transition ${
-                hasNext
-                  ? "border-black text-black hover:bg-gray-100"
-                  : "cursor-not-allowed border-gray-200 text-gray-300"
-              }`}
-            >
-              Next
-
-              <svg
-                className="h-3.5 w-3.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
