@@ -7,15 +7,21 @@ import AssessorBreadcrumbs from "../../../components/assessordashboard/flow/Asse
 import SelectedTraineesTable from "../../../components/assessordashboard/flow/SelectedTraineesTable.jsx";
 import AssessorPageHeader from "../../../components/assessordashboard/shared/AssessorPageHeader.jsx";
 
-
-
 export default function TraineesProgress() {
   const { state } = useLocation();
 
-  const selectedCourse = state?.selectedCourse || "Assessment Batch";
+  const selectedCourse =
+    state?.selectedCourse || "Assessment Batch";
+
   const batchId = state?.batchId;
-  const assessmentId = state?.assessmentId || state?.courseId;
-  const batchCode = state?.batchCode || state?.courseCode || "N/A";
+
+  const assessmentId =
+    state?.assessmentId || state?.courseId;
+
+  const batchCode =
+    state?.batchCode ||
+    state?.courseCode ||
+    "N/A";
 
   const assessmentCategory =
     state?.assessmentCategory || "Ongoing";
@@ -23,14 +29,15 @@ export default function TraineesProgress() {
   const [trainees, setTrainees] = useState([]);
   const [loading, setLoading] = useState(true);
 
-
   useEffect(() => {
+    let isMounted = true;
+
     async function fetchAssignedTrainees() {
       setLoading(true);
 
       try {
         // =====================================================
-        // 1. FETCH ASSIGNED TRAINEES
+        // 1. FETCH ASSIGNED TRAINEES FOR THIS BATCH
         // =====================================================
 
         let query = supabase
@@ -40,7 +47,10 @@ export default function TraineesProgress() {
         if (batchId) {
           query = query.eq("batch_id", batchId);
         } else if (assessmentId) {
-          query = query.eq("assessment_id", assessmentId);
+          query = query.eq(
+            "assessment_id",
+            assessmentId
+          );
         }
 
         const {
@@ -53,170 +63,199 @@ export default function TraineesProgress() {
         }
 
         if (
-          assignmentsData &&
-          assignmentsData.length > 0
+          !assignmentsData ||
+          assignmentsData.length === 0
         ) {
-          // ===================================================
-          // EXTRACT IDs
-          // ===================================================
-
-          const traineeIds = [
-            ...new Set(
-              assignmentsData
-                .map((a) => a.trainee_id)
-                .filter(Boolean)
-            ),
-          ];
-
-          const assignmentIds = assignmentsData
-            .map((a) => a.id)
-            .filter(Boolean);
-
-          // ===================================================
-          // 2. FETCH TRAINEE PROFILES
-          // ===================================================
-
-          const profilesMap = {};
-
-          if (traineeIds.length > 0) {
-            const {
-              data: profilesData,
-              error: profilesError,
-            } = await supabase
-              .from("profiles")
-              .select(
-                "id, first_name, last_name, email"
-              )
-              .in("id", traineeIds);
-
-            if (profilesError) {
-              console.error(
-                "Profiles error:",
-                profilesError
-              );
-            }
-
-            if (profilesData) {
-              profilesData.forEach((profile) => {
-                profilesMap[profile.id] = profile;
-              });
-            }
+          if (isMounted) {
+            setTrainees([]);
           }
 
-          // ===================================================
-          // 3. FETCH ASSESSMENT SUBMISSIONS
-          // ===================================================
+          return;
+        }
 
-          const submissionsMap = {};
+        // =====================================================
+        // 2. EXTRACT IDS
+        // =====================================================
 
-          if (
-            assignmentIds.length > 0 ||
-            traineeIds.length > 0
-          ) {
-            let subQuery = supabase
-              .from("assessment_submissions")
-              .select("*");
+        const traineeIds = [
+          ...new Set(
+            assignmentsData
+              .map((assignment) => assignment.trainee_id)
+              .filter(Boolean)
+          ),
+        ];
 
-            if (assignmentIds.length > 0) {
-              subQuery = subQuery.in(
-                "assignment_id",
-                assignmentIds
-              );
-            } else if (traineeIds.length > 0) {
-              subQuery = subQuery.in(
-                "trainee_id",
-                traineeIds
-              );
-            }
+        const assignmentIds = assignmentsData
+          .map((assignment) => assignment.id)
+          .filter(Boolean);
 
-            const {
-              data: subsData,
-              error: subsError,
-            } = await subQuery;
+        // =====================================================
+        // 3. FETCH TRAINEE PROFILES
+        // =====================================================
 
-            // DEBUG
-            console.log(
-              "=== SUBMISSION DEBUG ==="
+        const profilesMap = {};
+
+        if (traineeIds.length > 0) {
+          const {
+            data: profilesData,
+            error: profilesError,
+          } = await supabase
+            .from("profiles")
+            .select(
+              "id, first_name, last_name, email"
+            )
+            .in("id", traineeIds);
+
+          if (profilesError) {
+            console.error(
+              "Profiles error:",
+              profilesError
             );
-            console.log("Batch ID:", batchId);
-            console.log(
-              "Assessment ID:",
-              assessmentId
-            );
-            console.log(
-              "Assignment IDs:",
+          }
+
+          if (profilesData) {
+            profilesData.forEach((profile) => {
+              profilesMap[profile.id] = profile;
+            });
+          }
+        }
+
+        // =====================================================
+        // 4. FETCH SUBMISSIONS
+        // =====================================================
+        //
+        // IMPORTANT:
+        //
+        // We use assessment_submissions to determine whether
+        // the trainee actually started/took the assessment.
+        //
+        // An assignment becoming "Completed" does NOT mean
+        // the trainee completed the assessment.
+        //
+        // =====================================================
+
+        const submissionsMap = {};
+
+        if (assignmentIds.length > 0) {
+          const {
+            data: submissionsData,
+            error: submissionsError,
+          } = await supabase
+            .from("assessment_submissions")
+            .select("*")
+            .in(
+              "assignment_id",
               assignmentIds
             );
-            console.log(
-              "Trainee IDs:",
-              traineeIds
-            );
-            console.log(
-              "Submissions:",
-              subsData
-            );
-            console.log(
-              "Submission Error:",
-              subsError
-            );
 
-            if (subsError) {
-              console.error(
-                "Submission query error:",
-                subsError
-              );
-            }
+          console.log(
+            "=== TRAINEE PROGRESS DEBUG ==="
+          );
+          console.log(
+            "Batch ID:",
+            batchId
+          );
+          console.log(
+            "Assessment ID:",
+            assessmentId
+          );
+          console.log(
+            "Assignment IDs:",
+            assignmentIds
+          );
+          console.log(
+            "Submissions:",
+            submissionsData
+          );
+          console.log(
+            "Submission Error:",
+            submissionsError
+          );
 
-            if (subsData) {
-              subsData.forEach((submission) => {
-                const key =
-                  submission.assignment_id ||
-                  submission.trainee_id;
-
-                if (key) {
-                  submissionsMap[key] =
-                    submission;
-                }
-              });
-            }
+          if (submissionsError) {
+            console.error(
+              "Submission query error:",
+              submissionsError
+            );
           }
 
-          // ===================================================
-          // 4. FORMAT TRAINEES
-          // ===================================================
+          if (submissionsData) {
+            submissionsData.forEach(
+              (submission) => {
+                if (
+                  submission.assignment_id
+                ) {
+                  submissionsMap[
+                    submission.assignment_id
+                  ] = submission;
+                }
+              }
+            );
+          }
+        }
 
-          const formatted = assignmentsData.map(
+        // =====================================================
+        // 5. FORMAT TRAINEES
+        // =====================================================
+
+        const formatted =
+          assignmentsData.map(
             (assignment) => {
               const profile =
                 profilesMap[
-                assignment.trainee_id
+                  assignment.trainee_id
                 ];
 
+              /*
+               * IMPORTANT:
+               *
+               * Only use the submission belonging to
+               * THIS assignment.
+               *
+               * Do not fall back to another submission
+               * belonging to the same trainee.
+               *
+               * This prevents a submission from another
+               * assessment from making this trainee appear
+               * completed.
+               */
+
               const submission =
-                submissionsMap[assignment.id] ||
                 submissionsMap[
-                assignment.trainee_id
-                ];
+                  assignment.id
+                ] || null;
 
               // =================================================
               // RESOLVE NAME
               // =================================================
 
               const fullName = profile
-                ? `${profile.first_name || ""} ${profile.last_name || ""
-                  }`.trim() || profile.email
+                ? `${profile.first_name || ""} ${
+                    profile.last_name || ""
+                  }`.trim() ||
+                  profile.email
                 : assignment.trainee_id
                   ? `Trainee #${assignment.trainee_id.slice(
-                    0,
-                    8
-                  )}`
+                      0,
+                      8
+                    )}`
                   : "Assigned Trainee";
 
               // =================================================
-              // RESOLVE STATUS
+              // RESOLVE TRAINEE STATUS
+              // =================================================
+              //
+              // IMPORTANT:
+              //
+              // assignment.status is NOT used to decide
+              // whether the trainee completed the assessment.
+              //
+              // assessment_submissions is the source of truth
+              // for actual assessment activity.
+              //
               // =================================================
 
-              let status = "Not Started";
+              let status = "No Assessment";
 
               if (submission) {
                 const rawStatus = String(
@@ -225,74 +264,147 @@ export default function TraineesProgress() {
                   .trim()
                   .toLowerCase();
 
-                const rawOverallResult = String(
-                  submission.overall_result || ""
-                )
-                  .trim()
-                  .toLowerCase();
+                const startedAt =
+                  submission.started_at;
 
-                console.log(
-                  "Trainee:",
-                  fullName,
-                  "Status:",
-                  rawStatus,
-                  "Overall Result:",
-                  rawOverallResult
-                );
+                const submittedAt =
+                  submission.submitted_at;
 
-                // Finalized
-                if (
-                  rawStatus === "evaluated" ||
-                  rawStatus === "completed" ||
-                  rawStatus === "in evaluated"
-                ) {
-                  status = "Evaluated";
+                /*
+                 * =========================================================
+                 * COMPLETED
+                 * =========================================================
+                 *
+                 * A submission with submitted_at means the trainee
+                 * actually submitted the assessment.
+                 */
+
+                if (submittedAt) {
+                  status = "Completed";
                 }
 
-                // Submitted / ready for evaluation
+                /*
+                 * =========================================================
+                 * SUBMITTED
+                 * =========================================================
+                 *
+                 * Some existing records may have a submitted status
+                 * even if submitted_at was not populated.
+                 */
+
                 else if (
-                  rawStatus === "submitted" ||
-                  rawOverallResult === "submitted"
+                  rawStatus === "submitted"
                 ) {
                   status = "Submitted";
                 }
 
-                // Currently being evaluated
+                /*
+                 * =========================================================
+                 * EVALUATED
+                 * =========================================================
+                 *
+                 * Your current database uses:
+                 *
+                 * status = evaluated
+                 *
+                 * for completed/evaluated submissions.
+                 *
+                 * If there is an actual submission row, this is valid
+                 * evidence that the trainee took the assessment.
+                 */
+
                 else if (
-                  rawStatus === "in evaluation" ||
-                  rawStatus === "in_evaluation" ||
-                  rawStatus === "in evaluate"
+                  rawStatus === "evaluated"
                 ) {
-                  status = "In Evaluation";
+                  status = "Completed";
                 }
 
-                // Currently taking assessment
+                /*
+                 * =========================================================
+                 * IN PROGRESS
+                 * =========================================================
+                 */
+
                 else if (
+                  startedAt ||
                   rawStatus === "in_progress" ||
                   rawStatus === "in progress"
                 ) {
                   status = "In Progress";
                 }
-              } else if (
-                assignment.status === "completed"
-              ) {
-                status = "Evaluated";
-              } else if (
-                assignment.status === "in_progress" ||
-                assignment.status === "in progress"
-              ) {
-                status = "In Progress";
+
+                /*
+                 * =========================================================
+                 * OTHER EXISTING SUBMISSION
+                 * =========================================================
+                 *
+                 * A submission row itself means the trainee has started
+                 * an assessment session.
+                 *
+                 * Therefore, don't mark it as Completed unless there is
+                 * evidence of submission/evaluation.
+                 */
+
+                else {
+                  status = "In Progress";
+                }
+              } else {
+                /*
+                 * =========================================================
+                 * NO SUBMISSION
+                 * =========================================================
+                 *
+                 * This is the important fix.
+                 *
+                 * Even if:
+                 *
+                 * assignment.status === "Completed"
+                 *
+                 * the trainee is still:
+                 *
+                 * No Assessment
+                 *
+                 * because there is no assessment_submissions row.
+                 */
+
+                status = "No Assessment";
               }
+
+              console.log(
+                "Trainee Progress:",
+                fullName,
+                {
+                  assignmentId:
+                    assignment.id,
+                  assignmentStatus:
+                    assignment.status,
+                  submissionId:
+                    submission?.id || null,
+                  startedAt:
+                    submission?.started_at ||
+                    null,
+                  submittedAt:
+                    submission?.submitted_at ||
+                    null,
+                  submissionStatus:
+                    submission?.status ||
+                    null,
+                  finalStatus:
+                    status,
+                }
+              );
 
               return {
                 id:
                   assignment.trainee_id ||
                   assignment.id,
 
-                assignmentId: assignment.id,
+                assignmentId:
+                  assignment.id,
 
                 batchId:
-                  assignment.batch_id || batchId,
+                  assignment.batch_id ||
+                  batchId,
 
                 assessmentId:
                   assignment.assessment_id ||
@@ -303,13 +415,19 @@ export default function TraineesProgress() {
                 traineeId:
                   assignment.trainee_id
                     ? `#TR-${assignment.trainee_id
-                      .slice(0, 8)
-                      .toUpperCase()}`
+                        .slice(
+                          0,
+                          8
+                        )
+                        .toUpperCase()}`
                     : `#ASSIGN-${String(
-                      assignment.id
-                    )
-                      .slice(0, 6)
-                      .toUpperCase()}`,
+                        assignment.id
+                      )
+                        .slice(
+                          0,
+                          6
+                        )
+                        .toUpperCase()}`,
 
                 course: selectedCourse,
 
@@ -318,22 +436,21 @@ export default function TraineesProgress() {
                 submission:
                   submission || null,
 
-                // Keep the original DB records available
-                // to the next pages.
                 assignment,
 
                 submissionId:
-                  submission?.id || null,
+                  submission?.id ||
+                  null,
 
                 submission_id:
-                  submission?.id || null,
+                  submission?.id ||
+                  null,
               };
             }
           );
 
+        if (isMounted) {
           setTrainees(formatted);
-        } else {
-          setTrainees([]);
         }
       } catch (err) {
         console.error(
@@ -341,19 +458,26 @@ export default function TraineesProgress() {
           err
         );
 
-        setTrainees([]);
+        if (isMounted) {
+          setTrainees([]);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
 
     fetchAssignedTrainees();
+
+    return () => {
+      isMounted = false;
+    };
   }, [
     batchId,
     assessmentId,
     selectedCourse,
   ]);
-
 
   // =========================================================
   // RENDER
@@ -385,9 +509,12 @@ export default function TraineesProgress() {
       ) : (
         <SelectedTraineesTable
           trainees={trainees}
-          assessmentCategory={assessmentCategory}
+          assessmentCategory={
+            assessmentCategory
+          }
         />
       )}
     </div>
   );
 }
+

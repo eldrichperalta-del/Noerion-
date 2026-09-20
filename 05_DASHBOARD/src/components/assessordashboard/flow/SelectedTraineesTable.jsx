@@ -13,19 +13,74 @@ const getDisplayStatus = (
   trainee,
   assessmentCategory
 ) => {
-  if (assessmentCategory === "Upcoming") {
-    return "Not Started";
-  }
-
-  if (assessmentCategory === "Completed") {
-    return "Completed";
-  }
-
   const status = String(
     trainee.status || ""
   )
     .trim()
     .toLowerCase();
+
+  // =========================================================
+  // NO ASSESSMENT
+  // =========================================================
+  //
+  // This MUST be checked first.
+  //
+  // A completed assessment batch does NOT mean every assigned
+  // trainee completed the assessment.
+  //
+  // If there is no assessment_submissions record, the parent
+  // TraineesProgress page sets the trainee status to:
+  //
+  //     "No Assessment"
+  //
+  // Keep that status even when the batch category is Completed.
+  // =========================================================
+
+  if (
+    status === "no assessment" ||
+    status === "no_assessment"
+  ) {
+    return "No Assessment";
+  }
+
+
+  // =========================================================
+  // UPCOMING BATCH
+  // =========================================================
+  //
+  // For an assessment that has not started yet, trainees should
+  // appear as Not Started.
+  // =========================================================
+
+  if (
+    assessmentCategory === "Upcoming"
+  ) {
+    return "Not Started";
+  }
+
+
+  // =========================================================
+  // ACTUAL TRAINEE ASSESSMENT STATUS
+  // =========================================================
+  //
+  // From this point onward, use the trainee's actual status.
+  // Do NOT use assessmentCategory === "Completed" to overwrite it.
+  // =========================================================
+
+  if (
+    status === "completed" ||
+    status === "evaluated"
+  ) {
+    return "Completed";
+  }
+
+
+  if (
+    status === "submitted"
+  ) {
+    return "Submitted";
+  }
+
 
   if (
     status === "in progress" ||
@@ -34,9 +89,18 @@ const getDisplayStatus = (
     return "In Progress";
   }
 
-  if (status === "submitted") {
-    return "Submitted";
+
+  if (
+    status === "in evaluation" ||
+    status === "in_evaluation"
+  ) {
+    return "In Evaluation";
   }
+
+
+  // =========================================================
+  // DEFAULT
+  // =========================================================
 
   return "Not Started";
 };
@@ -61,6 +125,7 @@ export default function SelectedTraineesTable({
 
   const statusOptions = [
     "All",
+    "No Assessment",
     "Not Started",
     "In Progress",
     "Submitted",
@@ -261,8 +326,8 @@ export default function SelectedTraineesTable({
 
       <div
         className={`grid ${showAction
-            ? "grid-cols-12"
-            : "grid-cols-10"
+          ? "grid-cols-12"
+          : "grid-cols-10"
           } items-center rounded-xl bg-gray-200 px-6 py-3 text-xs font-bold uppercase tracking-wide text-gray-600`}
       >
         <div className="col-span-4">
@@ -312,8 +377,8 @@ export default function SelectedTraineesTable({
                   trainee.id
                 }
                 className={`grid ${showAction
-                    ? "grid-cols-12"
-                    : "grid-cols-10"
+                  ? "grid-cols-12"
+                  : "grid-cols-10"
                   } items-center rounded-2xl border border-gray-100 bg-white px-6 py-5 shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl`}
               >
 
@@ -438,8 +503,8 @@ export default function SelectedTraineesTable({
                     setCurrentPage(page)
                   }
                   className={`h-10 min-w-10 rounded-lg px-3 text-sm font-semibold transition ${currentPage === page
-                      ? "bg-[#002f86] text-white shadow-sm"
-                      : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                    ? "bg-[#002f86] text-white shadow-sm"
+                    : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
                     }`}
                   aria-current={
                     currentPage === page
