@@ -16,7 +16,7 @@ import {
 import { supabase } from "../../../supabaseClient";
 
 const TESTING_TIME_SECONDS = null;
-const PASSING_PERCENTAGE = 0.75;
+const PASSING_PERCENTAGE = 0.50;
 
 const toAssignmentIdOrNull = (val) => {
   if (val === null || val === undefined || val === "") return null;
