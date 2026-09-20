@@ -19,14 +19,42 @@ import DashboardPageHeader from "../../../components/common/DashboardPageHeader"
 import "../../../styles/ResultsMonitoring.css";
 
 export default function CourseResults() {
-    const { courseId } = useParams();
+    const { courseCode } = useParams();
 
     const location = useLocation();
     const navigate = useNavigate();
 
-    // ============================================================
-    // COURSE INFORMATION
-    // ============================================================
+    // =============================================================
+    // NAVIGATION DATA
+    //
+    // The URL now uses courseCode instead of the database UUID.
+    //
+    // Example:
+    // /admin/results/course/CSS-NC2
+    //
+    // The actual database course ID is resolved internally from
+    // the courses table.
+    //
+    // Batches.jsx may pass:
+    // - courseCode
+    // - courseId
+    // - courseName
+    // - assessmentId
+    // - assessmentName
+    //
+    // courseId is only used internally when passed through state.
+    // It is NOT exposed in the URL.
+    // =============================================================
+
+    const selectedAssessmentId =
+        location.state?.assessmentId ||
+        "";
+
+    const [databaseCourseId, setDatabaseCourseId] =
+        useState(
+            location.state?.courseId ||
+            ""
+        );
 
     const [courseName, setCourseName] =
         useState(
@@ -34,13 +62,11 @@ export default function CourseResults() {
             "Course Results"
         );
 
-    const databaseCourseId =
-        location.state?.courseId ||
-        courseId;
-
-    // ============================================================
-    // STATE
-    // ============================================================
+    const [assessmentName, setAssessmentName] =
+        useState(
+            location.state?.assessmentName ||
+            ""
+        );
 
     const [results, setResults] =
         useState([]);
@@ -60,17 +86,26 @@ export default function CourseResults() {
     const [dateFilter, setDateFilter] =
         useState("");
 
-    // ============================================================
-    // LOAD COURSE NAME
-    // ============================================================
-
+    // =============================================================
+    // FETCH COURSE INFORMATION
+    //
+    // IMPORTANT:
+    // The URL contains the course CODE.
+    //
+    // We use that code to find the real database UUID.
+    // =============================================================
     useEffect(() => {
-        if (!databaseCourseId) {
+        if (!courseCode) {
+            setError("Course code is missing.");
+            setLoading(false);
             return;
         }
 
-        const fetchCourse = async () => {
+        const fetchCourseInformation = async () => {
             try {
+                setLoading(true);
+                setError("");
+
                 const {
                     data,
                     error: courseError,
@@ -80,10 +115,10 @@ export default function CourseResults() {
                         id,
                         code,
                         title
-                     `)
+                    `)
                     .eq(
-                        "id",
-                        databaseCourseId
+                        "code",
+                        courseCode
                     )
                     .maybeSingle();
 
@@ -91,7 +126,19 @@ export default function CourseResults() {
                     throw courseError;
                 }
 
-                if (data?.title) {
+                if (!data) {
+                    throw new Error(
+                        "Course not found."
+                    );
+                }
+
+                // Store the real database UUID internally.
+                setDatabaseCourseId(
+                    data.id
+                );
+
+                // Use the database course title for display.
+                if (data.title) {
                     setCourseName(
                         data.title
                     );
@@ -101,60 +148,128 @@ export default function CourseResults() {
                     "Course information error:",
                     err
                 );
+
+                setError(
+                    err?.message ||
+                    "Failed to load course information."
+                );
+
+                setDatabaseCourseId("");
+            } finally {
+                setLoading(false);
             }
         };
 
-        fetchCourse();
-    }, [databaseCourseId]);
+        fetchCourseInformation();
+    }, [courseCode]);
 
-    // ============================================================
-    // LOAD RESULTS
-    // ============================================================
+    // =============================================================
+    // FETCH SELECTED ASSESSMENT INFORMATION
+    //
+    // This makes sure the assessment name is still available when
+    // the page is refreshed.
+    // =============================================================
+    useEffect(() => {
+        if (!selectedAssessmentId) {
+            return;
+        }
 
+        const fetchAssessmentInformation =
+            async () => {
+                try {
+                    const {
+                        data,
+                        error: assessmentError,
+                    } = await supabase
+                        .from("assessments")
+                        .select(`
+                            id,
+                            course_id,
+                            title,
+                            set_type,
+                            total_items,
+                            time_limit_minutes,
+                            status
+                        `)
+                        .eq(
+                            "id",
+                            selectedAssessmentId
+                        )
+                        .maybeSingle();
+
+                    if (assessmentError) {
+                        throw assessmentError;
+                    }
+
+                    if (data) {
+                        setAssessmentName(
+                            data.title ||
+                            data.set_type ||
+                            ""
+                        );
+                    }
+                } catch (err) {
+                    console.error(
+                        "Assessment information error:",
+                        err
+                    );
+                }
+            };
+
+        fetchAssessmentInformation();
+    }, [selectedAssessmentId]);
+
+    // =============================================================
+    // FETCH RESULTS
+    // =============================================================
     useEffect(() => {
         if (!databaseCourseId) {
             setResults([]);
-            setLoading(false);
+
+            // Do not stop the initial course lookup from displaying
+            // its loading state. Once the course is resolved,
+            // this effect will run again.
             return;
         }
 
         fetchResults();
-    }, [databaseCourseId]);
+    }, [
+        databaseCourseId,
+        selectedAssessmentId,
+    ]);
 
     const fetchResults = async () => {
         setLoading(true);
         setError("");
 
         try {
-            // ======================================================
-            // 1. GET SUBMISSIONS FOR SELECTED COURSE
-            // ======================================================
-
-            const {
-                data: submissionData,
-                error: submissionError,
-            } = await supabase
+            // =====================================================
+            // BASE RESULTS QUERY
+            // =====================================================
+            let query = supabase
                 .from("assessment_submissions")
                 .select(`
-id,
-    assessment_id,
-    trainee_id,
-    status,
-    total_score,
-    passed,
-    overall_result,
-    submitted_at,
-    created_at,
-    updated_at,
+                    id,
+                    assessment_id,
+                    trainee_id,
+                    status,
+                    total_score,
+                    passed,
+                    overall_result,
+                    submitted_at,
+                    created_at,
+                    updated_at,
 
-    assessments!inner(
-        id,
-        course_id,
-        title,
-        total_items,
-        status
-    )
-        `)
+                    assessments!inner(
+                        id,
+                        course_id,
+                        title,
+                        set_type,
+                        total_items,
+                        time_limit_minutes,
+                        status
+                    )
+                `)
                 .in("status", [
                     "submitted",
                     "evaluated",
@@ -162,13 +277,33 @@ id,
                 .eq(
                     "assessments.course_id",
                     databaseCourseId
-                )
-                .order(
-                    "updated_at",
-                    {
-                        ascending: false,
-                    }
                 );
+
+            // =====================================================
+            // IMPORTANT:
+            //
+            // If CourseResults was opened from Batches, an
+            // assessmentId is available.
+            //
+            // In that case, only retrieve submissions belonging
+            // to that specific assessment/batch.
+            // =====================================================
+            if (selectedAssessmentId) {
+                query = query.eq(
+                    "assessment_id",
+                    selectedAssessmentId
+                );
+            }
+
+            const {
+                data: submissionData,
+                error: submissionError,
+            } = await query.order(
+                "updated_at",
+                {
+                    ascending: false,
+                }
+            );
 
             if (submissionError) {
                 throw submissionError;
@@ -177,10 +312,9 @@ id,
             const submissions =
                 submissionData || [];
 
-            // ======================================================
-            // 2. GET UNIQUE TRAINEE IDS
-            // ======================================================
-
+            // =====================================================
+            // GET TRAINEE IDS
+            // =====================================================
             const traineeIds = [
                 ...new Set(
                     submissions
@@ -192,12 +326,9 @@ id,
                 ),
             ];
 
-            // ======================================================
-            // 3. LOAD TRAINEE PROFILES
-            //
-            // trainee_id points to profiles.id
-            // ======================================================
-
+            // =====================================================
+            // FETCH TRAINEE PROFILES
+            // =====================================================
             let profiles = [];
 
             if (traineeIds.length > 0) {
@@ -207,13 +338,13 @@ id,
                 } = await supabase
                     .from("profiles")
                     .select(`
-id,
-    first_name,
-    middle_name,
-    last_name,
-    suffix,
-    email
-        `)
+                        id,
+                        first_name,
+                        middle_name,
+                        last_name,
+                        suffix,
+                        email
+                    `)
                     .in(
                         "id",
                         traineeIds
@@ -227,10 +358,9 @@ id,
                     profileData || [];
             }
 
-            // ======================================================
-            // 4. CREATE PROFILE MAP
-            // ======================================================
-
+            // =====================================================
+            // CREATE PROFILE LOOKUP MAP
+            // =====================================================
             const profileMap =
                 new Map(
                     profiles.map(
@@ -243,10 +373,9 @@ id,
                     )
                 );
 
-            // ======================================================
-            // 5. FORMAT RESULTS
-            // ======================================================
-
+            // =====================================================
+            // FORMAT RESULTS
+            // =====================================================
             const formattedResults =
                 submissions.map(
                     (submission) => {
@@ -260,10 +389,6 @@ id,
                                 )
                             );
 
-                        // ------------------------------------------
-                        // BUILD FULL NAME
-                        // ------------------------------------------
-
                         const traineeName = [
                             profile?.first_name,
                             profile?.middle_name,
@@ -274,10 +399,6 @@ id,
                             .join(" ")
                             .trim();
 
-                        // ------------------------------------------
-                        // FINAL RESULT
-                        // ------------------------------------------
-
                         const finalResult =
                             normalizeResult(
                                 submission?.overall_result,
@@ -285,10 +406,6 @@ id,
                             );
 
                         return {
-                            // --------------------------------------
-                            // IDs
-                            // --------------------------------------
-
                             resultId:
                                 submission?.id,
 
@@ -298,37 +415,34 @@ id,
                             assessmentId:
                                 submission?.assessment_id,
 
-                            // --------------------------------------
-                            // TRAINEE
-                            // --------------------------------------
+                            assessmentName:
+                                submission
+                                    ?.assessments
+                                    ?.title ||
+                                "",
+
+                            assessmentType:
+                                submission
+                                    ?.assessments
+                                    ?.set_type ||
+                                "",
 
                             traineeId:
-                                traineeId || "-",
+                                traineeId ||
+                                "-",
 
                             traineeName:
                                 traineeName ||
                                 profile?.email ||
                                 "Unnamed Trainee",
 
-                            // --------------------------------------
-                            // RESULT
-                            // --------------------------------------
-
                             finalResult,
-
-                            // --------------------------------------
-                            // DATE
-                            // --------------------------------------
 
                             dateCompleted:
                                 submission?.updated_at ||
                                 submission?.submitted_at ||
                                 submission?.created_at ||
                                 null,
-
-                            // --------------------------------------
-                            // SCORE
-                            // --------------------------------------
 
                             writtenScore:
                                 submission?.total_score ??
@@ -340,9 +454,11 @@ id,
                                     ?.total_items ??
                                 null,
 
-                            // --------------------------------------
-                            // STATUS
-                            // --------------------------------------
+                            timeLimit:
+                                submission
+                                    ?.assessments
+                                    ?.time_limit_minutes ??
+                                null,
 
                             status:
                                 submission?.status ||
@@ -356,22 +472,14 @@ id,
                                 submission?.overall_result ??
                                 null,
 
-                            // --------------------------------------
-                            // COURSE
-                            //
-                            // Keep for existing actions/components,
-                            // but do NOT display as a table column.
-                            // --------------------------------------
-
                             course:
                                 courseName,
 
                             courseId:
                                 databaseCourseId,
 
-                            // --------------------------------------
-                            // OPTIONAL AI DATA
-                            // --------------------------------------
+                            courseCode:
+                                courseCode,
 
                             aiSummary:
                                 submission?.ai_summary ||
@@ -384,7 +492,6 @@ id,
             setResults(
                 formattedResults
             );
-
         } catch (err) {
             console.error(
                 "Course Results error:",
@@ -397,16 +504,14 @@ id,
             );
 
             setResults([]);
-
         } finally {
             setLoading(false);
         }
     };
 
-    // ============================================================
+    // =============================================================
     // FILTER RESULTS
-    // ============================================================
-
+    // =============================================================
     const filteredResults = useMemo(() => {
         const search =
             searchTerm
@@ -441,7 +546,8 @@ id,
                     result.finalResult ===
                     resultFilter;
 
-                let matchesDate = true;
+                let matchesDate =
+                    true;
 
                 if (
                     dateFilter &&
@@ -454,7 +560,7 @@ id,
 
                     const selectedDate =
                         new Date(
-                            `${dateFilter} T00:00:00`
+                            `${dateFilter}T00:00:00`
                         );
 
                     matchesDate =
@@ -480,10 +586,9 @@ id,
         dateFilter,
     ]);
 
-    // ============================================================
-    // OVERVIEW
-    // ============================================================
-
+    // =============================================================
+    // RESULTS OVERVIEW
+    // =============================================================
     const overviewData = useMemo(() => {
         const totalAssessments =
             results.length;
@@ -518,74 +623,108 @@ id,
             passRate,
         };
     }, [results]);
-    // ============================================================
-    // COMPLETION RATE CHART DATA
-    //
-    // Uses ONLY the existing results array.
-    // No fake months, dates, or placeholder activity.
-    //
-    // One result = one chart data point.
-    // Two results = two chart data points.
-    // No results = empty chart.
-    // ============================================================
 
-    const completionRateData = useMemo(() => {
-        return [...results]
-            .filter((result) => result?.dateCompleted)
-            .sort(
-                (a, b) =>
-                    new Date(a.dateCompleted).getTime() -
-                    new Date(b.dateCompleted).getTime()
-            )
-            .map((result, index) => {
-                const date = new Date(
-                    result.dateCompleted
+    // =============================================================
+    // COMPLETION RATE DATA
+    // =============================================================
+    const completionRateData =
+        useMemo(() => {
+            return [...results]
+                .filter(
+                    (result) =>
+                        result?.dateCompleted
+                )
+                .sort(
+                    (a, b) =>
+                        new Date(
+                            a.dateCompleted
+                        ).getTime() -
+                        new Date(
+                            b.dateCompleted
+                        ).getTime()
+                )
+                .map(
+                    (
+                        result,
+                        index
+                    ) => {
+                        const date =
+                            new Date(
+                                result.dateCompleted
+                            );
+
+                        return {
+                            date:
+                                date.toLocaleDateString(
+                                    "en-US",
+                                    {
+                                        month: "short",
+                                        day: "numeric",
+                                    }
+                                ),
+
+                            rate:
+                                result.finalResult ===
+                                    "Pass"
+                                    ? 100
+                                    : result.finalResult ===
+                                        "Fail"
+                                        ? 0
+                                        : null,
+
+                            result:
+                                result.finalResult,
+
+                            trainee:
+                                result.traineeName ||
+                                `Result ${index + 1}`,
+                        };
+                    }
+                )
+                .filter(
+                    (item) =>
+                        item.rate !==
+                        null
                 );
+        }, [results]);
 
-                return {
-                    date: date.toLocaleDateString(
-                        "en-US",
-                        {
-                            month: "short",
-                            day: "numeric",
-                        }
-                    ),
-
-                    rate:
-                        result.finalResult === "Pass"
-                            ? 100
-                            : result.finalResult === "Fail"
-                                ? 0
-                                : null,
-
-                    result: result.finalResult,
-
-                    trainee:
-                        result.traineeName ||
-                        `Result ${index + 1}`,
-                };
-            })
-            .filter(
-                (item) => item.rate !== null
-            );
-    }, [results]);
-
-    
-    // ============================================================
+    // =============================================================
     // CLEAR FILTERS
-    // ============================================================
+    // =============================================================
+    const handleClearFilters =
+        () => {
+            setSearchTerm("");
+            setResultFilter("");
+            setDateFilter("");
+        };
 
-    const handleClearFilters = () => {
-        setSearchTerm("");
-        setResultFilter("");
-        setDateFilter("");
-    };
-
-    // ============================================================
-    // BACK
-    // ============================================================
-
+    // =============================================================
+    // BACK TO BATCHES
+    //
+    // IMPORTANT:
+    // The URL now uses courseCode instead of courseId.
+    // =============================================================
     const handleBack = () => {
+        if (selectedAssessmentId) {
+            navigate(
+                `/admin/results/batches/${courseCode}`,
+                {
+                    state: {
+                        courseName:
+                            courseName,
+
+                        courseId:
+                            databaseCourseId,
+
+                        courseCode:
+                            courseCode,
+                    },
+                }
+            );
+
+            return;
+        }
+
         navigate(
             "/admin/results"
         );
@@ -594,12 +733,19 @@ id,
     return (
         <div className="results-page">
 
+            {/* =====================================================
+                BREADCRUMB
+            ====================================================== */}
             <header>
+
                 <nav className="-mt-5 flex items-center gap-2 text-sm font-semibold">
+
                     <button
                         type="button"
                         onClick={() =>
-                            navigate("/admin/results")
+                            navigate(
+                                "/admin/results"
+                            )
                         }
                         className="text-gray-500 hover:text-[#002f86] hover:underline"
                     >
@@ -610,48 +756,89 @@ id,
                         &gt;
                     </span>
 
-                    <span className="text-[#002f86]">
-                        {courseName}
-                    </span>
+                    {selectedAssessmentId ? (
+                        <>
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    navigate(
+                                        `/admin/results/batches/${courseCode}`,
+                                        {
+                                            state: {
+                                                courseName:
+                                                    courseName,
+
+                                                courseId:
+                                                    databaseCourseId,
+
+                                                courseCode:
+                                                    courseCode,
+                                            },
+                                        }
+                                    )
+                                }
+                                className="text-gray-500 hover:text-[#002f86] hover:underline"
+                            >
+                                Assessment Batches
+                            </button>
+
+                            <span className="text-gray-400">
+                                &gt;
+                            </span>
+
+                            <span className="text-[#002f86]">
+                                {assessmentName ||
+                                    courseName}
+                            </span>
+                        </>
+                    ) : (
+                        <span className="text-[#002f86]">
+                            {courseName}
+                        </span>
+                    )}
+
                 </nav>
 
+                {/* =================================================
+                    PAGE TITLE
+                ================================================== */}
                 <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900">
-                            {courseName}
+                            {assessmentName ||
+                                courseName}
                         </h1>
 
                         <p className="mt-2 text-gray-600">
-                            View assessment performance, completion outcomes, and trainee results.
+                            {selectedAssessmentId
+                                ? `View trainee results for ${assessmentName || "this assessment"}.`
+                                : "View assessment performance, completion outcomes, and trainee results."}
                         </p>
                     </div>
+
                 </div>
             </header>
 
-            {/* ==================================================
-                SUMMARY
-            =================================================== */}
-
+            {/* =====================================================
+                OVERVIEW CARDS
+            ====================================================== */}
             <ResultsOverviewCards
                 stats={overviewData}
-                completionRateData={completionRateData}
+                completionRateData={
+                    completionRateData
+                }
                 loading={loading}
             />
 
-            {/* ==================================================
-                CONTENT
-            =================================================== */}
-
             <div className="results-container">
 
-                {/* ==================================================
-                    FILTERS
-                =================================================== */}
-
+                {/* =================================================
+                    SEARCH + FILTERS
+                ================================================== */}
                 <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
 
-                    {/* SEARCH */}
-
+                    {/* Search */}
                     <label className="relative w-full lg:max-w-md">
 
                         <Search
@@ -668,7 +855,9 @@ id,
                                 event
                             ) =>
                                 setSearchTerm(
-                                    event.target.value
+                                    event
+                                        .target
+                                        .value
                                 )
                             }
                             placeholder="Search by Name or ID..."
@@ -677,12 +866,10 @@ id,
 
                     </label>
 
-                    {/* RIGHT FILTERS */}
-
+                    {/* Filters */}
                     <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
 
-                        {/* RESULT */}
-
+                        {/* Result Filter */}
                         <select
                             value={
                                 resultFilter
@@ -691,12 +878,13 @@ id,
                                 event
                             ) =>
                                 setResultFilter(
-                                    event.target.value
+                                    event
+                                        .target
+                                        .value
                                 )
                             }
                             className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-[0_2px_8px_rgba(0,0,0,0.40)] outline-none transition focus:border-[#002f86] focus:ring-2 focus:ring-blue-100 sm:w-56"
                         >
-
                             <option value="">
                                 All Results
                             </option>
@@ -712,11 +900,9 @@ id,
                             <option value="In Evaluation">
                                 In Evaluation
                             </option>
-
                         </select>
 
-                        {/* DATE */}
-
+                        {/* Date Filter */}
                         <label className="relative w-full sm:w-56">
 
                             <Calendar
@@ -733,7 +919,9 @@ id,
                                     event
                                 ) =>
                                     setDateFilter(
-                                        event.target.value
+                                        event
+                                            .target
+                                            .value
                                     )
                                 }
                                 className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm shadow-[0_2px_8px_rgba(0,0,0,0.40)] outline-none transition focus:border-[#002f86] focus:ring-2 focus:ring-blue-100"
@@ -741,12 +929,10 @@ id,
 
                         </label>
 
-                        {/* CLEAR */}
-
+                        {/* Clear */}
                         {(searchTerm ||
                             resultFilter ||
                             dateFilter) && (
-
                                 <button
                                     type="button"
                                     onClick={
@@ -756,29 +942,23 @@ id,
                                 >
                                     Clear
                                 </button>
-
                             )}
 
                     </div>
-
                 </div>
 
-                {/* ==================================================
+                {/* =================================================
                     ERROR
-                =================================================== */}
-
+                ================================================== */}
                 {error && (
-
                     <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
                         {error}
                     </div>
-
                 )}
 
-                {/* ==================================================
-                    TRAINEE RESULTS TABLE
-                =================================================== */}
-
+                {/* =================================================
+                    RESULTS TABLE
+                ================================================== */}
                 <ResultsTable
                     results={
                         filteredResults
@@ -792,15 +972,13 @@ id,
                 />
 
             </div>
-
         </div>
     );
 }
 
-// ============================================================
-// RESULT NORMALIZATION
-// ============================================================
-
+// =============================================================
+// NORMALIZE RESULT
+// =============================================================
 function normalizeResult(
     result,
     passed
@@ -832,4 +1010,3 @@ function normalizeResult(
 
     return "In Evaluation";
 }
-

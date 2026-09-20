@@ -970,13 +970,14 @@ export default function CreateAssessment() {
                 </div>
 
 
-                <div className="grid gap-6 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-6">
 
                     {/* ==================================================
-                       COURSE
-                    ================================================== */}
+       COURSE
+       Row 1 — spans 3 columns
+    ================================================== */}
 
-                    <div>
+                    <div className="md:col-span-3">
 
                         <label
                             htmlFor="course"
@@ -984,7 +985,6 @@ export default function CreateAssessment() {
                         >
                             Course
                         </label>
-
 
                         <select
                             id="course"
@@ -1007,7 +1007,6 @@ export default function CreateAssessment() {
                                     : "Select a course"}
                             </option>
 
-
                             {courses.map(
                                 (course) => (
                                     <option
@@ -1027,26 +1026,15 @@ export default function CreateAssessment() {
 
                         </select>
 
-
-                        {assessmentData.courseId && (
-                            <p className="mt-2 text-sm text-gray-500">
-                                Qualification:{" "}
-                                <span className="font-medium text-gray-700">
-                                    {
-                                        assessmentData.qualification
-                                    }
-                                </span>
-                            </p>
-                        )}
-
                     </div>
 
 
                     {/* ==================================================
-                       TITLE
-                    ================================================== */}
+       ASSESSMENT TITLE
+       Row 1 — spans 3 columns
+    ================================================== */}
 
-                    <div>
+                    <div className="md:col-span-3">
 
                         <label
                             htmlFor="assessment-title"
@@ -1054,7 +1042,6 @@ export default function CreateAssessment() {
                         >
                             Assessment Title
                         </label>
-
 
                         <input
                             id="assessment-title"
@@ -1067,8 +1054,7 @@ export default function CreateAssessment() {
                                     (current) => ({
                                         ...current,
                                         title:
-                                            event.target
-                                                .value,
+                                            event.target.value,
                                     })
                                 )
                             }
@@ -1081,10 +1067,39 @@ export default function CreateAssessment() {
 
 
                     {/* ==================================================
-                       SET TYPE
-                    ================================================== */}
+       QUALIFICATION
+       Row 2 — spans 2 columns
+    ================================================== */}
 
-                    <div>
+                    <div className="md:col-span-2">
+
+                        <label
+                            htmlFor="qualification"
+                            className="mb-2 block text-sm font-semibold text-gray-700"
+                        >
+                            Qualification
+                        </label>
+
+                        <input
+                            id="qualification"
+                            type="text"
+                            value={
+                                assessmentData.qualification
+                            }
+                            readOnly
+                            placeholder="Select a course first"
+                            className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-700 outline-none"
+                        />
+
+                    </div>
+
+
+                    {/* ==================================================
+       ASSESSMENT SET
+       Row 2 — spans 2 columns
+    ================================================== */}
+
+                    <div className="md:col-span-2">
 
                         <label
                             htmlFor="set-type"
@@ -1092,7 +1107,6 @@ export default function CreateAssessment() {
                         >
                             Assessment Set
                         </label>
-
 
                         <select
                             id="set-type"
@@ -1104,8 +1118,7 @@ export default function CreateAssessment() {
                                     (current) => ({
                                         ...current,
                                         setType:
-                                            event.target
-                                                .value,
+                                            event.target.value,
                                     })
                                 )
                             }
@@ -1131,10 +1144,11 @@ export default function CreateAssessment() {
 
 
                     {/* ==================================================
-                       TIME LIMIT
-                    ================================================== */}
+       TIME LIMIT
+       Row 2 — spans 2 columns
+    ================================================== */}
 
-                    <div>
+                    <div className="md:col-span-2">
 
                         <label
                             htmlFor="time-limit"
@@ -1142,7 +1156,6 @@ export default function CreateAssessment() {
                         >
                             Time Limit
                         </label>
-
 
                         <div className="relative">
 
@@ -1158,9 +1171,7 @@ export default function CreateAssessment() {
                                         (current) => ({
                                             ...current,
                                             timeLimit:
-                                                event
-                                                    .target
-                                                    .value,
+                                                event.target.value,
                                         })
                                     )
                                 }
@@ -1176,9 +1187,7 @@ export default function CreateAssessment() {
 
                     </div>
 
-
                 </div>
-
             </section>
 
 
