@@ -262,7 +262,7 @@ export default function ResultsTable({
                 <tr>
 
                   <td
-                    colSpan="5"
+                    colSpan="6"
                     className="px-5 py-12 text-center text-sm text-gray-500"
                   >
                     No results found.
@@ -304,9 +304,11 @@ export default function ResultsTable({
                         <td className="px-5 py-4">
 
                           <p className="font-semibold text-gray-900">
+
                             {item?.traineeName ||
                               item?.trainee_name ||
                               "-"}
+
                           </p>
 
                         </td>
@@ -318,9 +320,11 @@ export default function ResultsTable({
                         <td className="px-5 py-4">
 
                           <span className="text-sm text-gray-600">
+
                             {item?.traineeId ||
                               item?.trainee_id ||
                               "-"}
+
                           </span>
 
                         </td>
@@ -336,7 +340,9 @@ export default function ResultsTable({
                               resultLabel
                             )}`}
                           >
+
                             {resultLabel}
+
                           </span>
 
                         </td>
@@ -346,12 +352,14 @@ export default function ResultsTable({
                         ======================================= */}
 
                         <td className="px-5 py-4 text-sm text-gray-600">
+
                           {formatDate(
                             item?.dateCompleted ||
                             item?.updated_at ||
                             item?.submitted_at ||
                             item?.created_at
                           )}
+
                         </td>
 
                         {/* ======================================
@@ -363,6 +371,7 @@ export default function ResultsTable({
                           <button
                             type="button"
                             onClick={(event) => {
+
                               event.stopPropagation();
 
                               setOpenMenuId(
@@ -370,6 +379,7 @@ export default function ResultsTable({
                                   ? null
                                   : rowId
                               );
+
                             }}
                             aria-label={`Actions for ${item?.traineeName ||
                               item?.traineeId ||
@@ -473,7 +483,9 @@ export default function ResultsTable({
             </button>
 
             <span className="rounded-lg border border-gray-200 px-3 py-2 font-medium text-gray-700">
+
               {currentPage}
+
             </span>
 
             <button
@@ -654,7 +666,6 @@ export default function ResultsTable({
 
               </section>
 
-
               {/* ==================================================
                   ASSESSMENT INFORMATION
               =================================================== */}
@@ -728,7 +739,6 @@ export default function ResultsTable({
                 </div>
 
               </section>
-
 
               {/* ==================================================
                   ASSESSMENT RESULT
@@ -842,7 +852,6 @@ export default function ResultsTable({
 
               </section>
 
-
               {/* ==================================================
                   AI EVALUATION SUMMARY
               =================================================== */}
@@ -881,7 +890,6 @@ export default function ResultsTable({
                 </div>
 
               </section>
-
 
               {/* ==================================================
                   COMPLETION INFORMATION
@@ -936,7 +944,6 @@ export default function ResultsTable({
 
               </section>
 
-
               {/* ==================================================
                   FOOTER
               =================================================== */}
@@ -964,4 +971,3 @@ export default function ResultsTable({
     </>
   );
 }
-

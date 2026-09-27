@@ -69,7 +69,7 @@ export default function Baseline() {
         DEPLOYMENT STAGE WEBSOCKET CONFIGURATION
     ========================================================================= */
     const MIDDLEWARE_WS_URL = "ws://127.0.0.1:8000/ws/eeg";
-    const BASELINE_DURATION = 300; // 5 minutes calibration (300s)
+    const BASELINE_DURATION = 20; // 5 minutes calibration (300s)
 
     const [timeLeft, setTimeLeft] = useState(BASELINE_DURATION);
     const [recording, setRecording] = useState(false);
@@ -471,7 +471,7 @@ export default function Baseline() {
     useEffect(() => {
         if (!recording) return;
 
-        if (timeLeft <= 165 && !eyesClosedPromptTriggeredRef.current) {
+        if (timeLeft <= 10 && !eyesClosedPromptTriggeredRef.current) { // pop up 
             eyesClosedPromptTriggeredRef.current = true;
             setShowEyesClosedModal(true);
 
