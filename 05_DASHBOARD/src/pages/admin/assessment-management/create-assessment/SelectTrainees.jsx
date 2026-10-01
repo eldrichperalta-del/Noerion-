@@ -196,18 +196,35 @@ export default function SelectTrainees({
 
             return {
               id: traineeIdStr,
+
               fullName:
                 name.trim() ||
                 item.email ||
                 "Unnamed Trainee",
+
+              traineeId:
+                `TRN-${traineeIdStr
+                  .slice(0, 7)
+                  .toUpperCase()}`,
+
               email:
                 item.email ||
                 "No Email",
-              qualification,
-              assessmentStatus: displayStatus,
-              isClickable,
-              attemptCount: totalAttemptsCount,
-              raw: item,
+
+              qualification:
+                qualification,
+
+              assessmentStatus:
+                displayStatus,
+
+              isClickable:
+                isClickable,
+
+              attemptCount:
+                totalAttemptsCount,
+
+              raw:
+                item,
             };
           });
 
@@ -251,7 +268,7 @@ export default function SelectTrainees({
     return traineeList.filter((trainee) => {
       const searchTarget = `
         ${trainee.fullName}
-        ${trainee.id}
+        ${trainee.traineeId}
         ${trainee.email}
       `.toLowerCase();
 
@@ -462,7 +479,7 @@ export default function SelectTrainees({
                 event.target.value
               )
             }
-            placeholder="Search trainee name or email"
+            placeholder="Search trainee name or ID"
             className="w-full rounded-xl border border-gray-400 py-3 pl-12 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-[#001F5B]"
           />
         </label>
@@ -535,9 +552,7 @@ export default function SelectTrainees({
                   Trainee Name
                 </th>
 
-                <th className="px-4 py-4">
-                  Email
-                </th>
+                <th className="px-4 py-4">Trainee ID</th>
 
                 <th className="px-4 py-4">
                   Qualification
@@ -613,9 +628,9 @@ export default function SelectTrainees({
                         {trainee.fullName}
                       </td>
 
-                      {/* EMAIL */}
-                      <td className="px-4 py-3 text-gray-700">
-                        {trainee.email}
+                      {/* TRAINEE ID */}
+                      <td className="px-4 py-3">
+                        {trainee.traineeId}
                       </td>
 
                       {/* QUALIFICATION */}

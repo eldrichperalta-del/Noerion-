@@ -4,6 +4,19 @@ import {
   notifyTraineeSchedule,
   notifyAssessorSchedule,
 } from "../../../../services/notificationService";
+import {
+  ClipboardList,
+  Users,
+  UserRound,
+  CalendarDays,
+  Clock,
+  Timer,
+  BadgeCheck,
+  AlertTriangle,
+  X,
+  Loader2,
+  CheckCircle2,
+} from "lucide-react";
 
 function ReviewConfirm({
   assessmentData,
@@ -345,125 +358,235 @@ function ReviewConfirm({
     }
   };
 
+  const isAssessorAvailable = assessorStatus === "Available";
+
   return (
     <div className="w-full flex justify-center -mt-4">
-      <div className="step-card">
-        <div className="text-xl font-semibold text-gray-900 mb-6">
-          <h1>Show full summary before finalizing</h1>
+      <div className="w-full max-w-6xl bg-white rounded-2xl border border-gray-100 shadow-sm p-7">
+
+        {/* HEADER */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">
+            Review &amp; confirm before finalizing
+          </h1>
+          <p className="text-base text-gray-500 mt-1">
+            Double-check the details below, then confirm to schedule the assessment.
+          </p>
         </div>
 
+        {/* ERROR */}
         {errorMessage && (
-          <div className="mb-4 rounded-xl bg-red-50 p-4 text-sm font-medium text-red-700 border border-red-200 flex items-center justify-between">
-            <span>⚠️ {errorMessage}</span>
-            <button onClick={() => setErrorMessage(null)} className="text-red-500 hover:text-red-800 font-bold ml-4">
-              ✕
+          <div className="mb-6 flex items-start justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-base font-medium text-red-700">
+            <div className="flex items-start gap-2">
+              <AlertTriangle size={18} className="mt-0.5 flex-none" />
+              <span>{errorMessage}</span>
+            </div>
+            <button
+              onClick={() => setErrorMessage(null)}
+              className="flex-none text-red-400 hover:text-red-700 transition"
+              aria-label="Dismiss error"
+            >
+              <X size={18} />
             </button>
           </div>
         )}
 
-        <div className="mb-6 rounded-xl bg-white p-4 shadow-sm">
-          <span className="font-semibold">Selected Assessment:</span>{" "}
-          {selectedAssessment?.title || "No assessment selected"}
+        {/* SELECTED ASSESSMENT */}
+        <div className="mb-6 flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/60 px-4 py-3.5">
+          <div className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-[#001F5B]/5 text-[#001F5B]">
+            <ClipboardList size={19} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+              Selected Assessment
+            </p>
+            <p className="text-base font-medium text-gray-900 truncate">
+              {selectedAssessment?.title || "No assessment selected"}
+            </p>
+          </div>
         </div>
 
-        <div className="review-grid">
-          <div className="review-card">
-            <h3>Selected Trainees</h3>
-            <p className="count">Count: {trainees.length} Trainees</p>
-            <div className="mt-10 list-box">
+        {/* GRID */}
+        <div className="grid grid-cols-12 gap-5">
+
+          {/* TRAINEES */}
+          <div className="col-span-12 lg:col-span-4 rounded-2xl border border-gray-100 p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Users size={17} className="text-[#001F5B]" />
+              <h3 className="text-base font-bold text-gray-900">Selected Trainees</h3>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              Count: {trainees.length} trainee{trainees.length !== 1 ? "s" : ""}
+            </p>
+
+            <div className="max-h-52 overflow-y-auto rounded-xl border border-gray-100 divide-y divide-gray-100">
               {trainees.length > 0 ? (
                 trainees.map((t) => (
-                  <div key={t.id || t.user_id} className="list-item">
+                  <div
+                    key={t.id || t.user_id}
+                    className="px-3.5 py-2.5 text-base text-gray-700 truncate"
+                  >
                     {t.fullName || t.name || t.email || "Unnamed Trainee"}
                   </div>
                 ))
               ) : (
-                <div className="list-item text-gray-500">No trainees selected</div>
+                <div className="px-3.5 py-2.5 text-base text-gray-400">
+                  No trainees selected
+                </div>
               )}
             </div>
           </div>
 
-          <div className="review-card">
-            <h3>Assigned Assessor</h3>
-            <p className="sub-text">Selected Assessor for {qualification}</p>
-            <div className="mt-10 list-box flex flex-col items-center text-center gap-2 pt-8 pb-4">
+          {/* ASSESSOR */}
+          <div className="col-span-12 lg:col-span-4 rounded-2xl border border-gray-100 p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <UserRound size={17} className="text-[#001F5B]" />
+              <h3 className="text-base font-bold text-gray-900">Assigned Assessor</h3>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              Selected assessor for {qualification}
+            </p>
+
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-gray-100 px-4 py-6 text-center">
               {assessor.photo || assessor.image || assessor.raw?.profile_photo_url ? (
                 <img
                   src={assessor.photo || assessor.image || assessor.raw?.profile_photo_url}
                   alt="assessor"
-                  className="w-16 h-16 rounded-full object-cover"
+                  className="h-16 w-16 rounded-full object-cover border border-gray-200"
                 />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-gray-300 flex items-center justify-center font-bold">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#001F5B] text-lg font-bold text-white">
                   {assessorName?.charAt(0) || "A"}
                 </div>
               )}
-              <p className="font-semibold text-gray-900">{assessorName}</p>
-              <p className="text-sm text-gray-600">ID: {assessorId}</p>
-              <p className={`text-sm font-semibold ${assessorStatus === "Available" ? "text-green-600" : "text-amber-600"}`}>
-                Status: {assessorStatus}
-              </p>
+              <p className="text-base font-semibold text-gray-900">{assessorName}</p>
+              <p className="text-sm text-gray-500">ID: {assessorId}</p>
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-semibold ${isAssessorAvailable
+                    ? "bg-green-100 text-green-700"
+                    : "bg-amber-100 text-amber-700"
+                  }`}
+              >
+                <BadgeCheck size={13} />
+                {assessorStatus}
+              </span>
             </div>
           </div>
 
-          <div className="right-column">
-            <div className="review-card">
-              <h3>Schedule Details</h3>
-              <div className="info-row">
-                <span>Date:</span>
-                <strong>{schedule.date || schedule.assessment_date || "N/A"}</strong>
+          {/* RIGHT COLUMN */}
+          <div className="col-span-12 lg:col-span-4 flex flex-col gap-5">
+
+            <div className="rounded-2xl border border-gray-100 p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <CalendarDays size={17} className="text-[#001F5B]" />
+                <h3 className="text-base font-bold text-gray-900">Schedule Details</h3>
               </div>
-              <div className="info-row">
-                <span>Start Time:</span>
-                <strong>{schedule.startTime || schedule.start_time || "N/A"}</strong>
-              </div>
-              <div className="info-row">
-                <span>Duration:</span>
-                <strong>{duration}</strong>
+
+              <div className="space-y-2.5 text-base">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Date</span>
+                  <span className="font-medium text-gray-900">
+                    {schedule.date || schedule.assessment_date || "N/A"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Start Time</span>
+                  <span className="font-medium text-gray-900">
+                    {schedule.startTime || schedule.start_time || "N/A"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 flex items-center gap-1">
+                    <Timer size={15} />
+                    Duration
+                  </span>
+                  <span className="font-medium text-gray-900">{duration}</span>
+                </div>
               </div>
             </div>
 
-            <div className="review-card">
-              <h3>Assessment Summary</h3>
-              <div className="info-row">
-                <span>Total Trainees:</span>
-                <strong>{trainees.length}</strong>
+            <div className="rounded-2xl border border-gray-100 p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Clock size={17} className="text-[#001F5B]" />
+                <h3 className="text-base font-bold text-gray-900">Assessment Summary</h3>
               </div>
-              <div className="info-row">
-                <span>Assessor:</span>
-                <strong>{assessorName}</strong>
-              </div>
-              <div className="info-row">
-                <span>Qualification Area:</span>
-                <strong>{assessor.specialization || qualification || "N/A"}</strong>
-              </div>
-              <div className="info-row">
-                <span>Assessment Type:</span>
-                <strong>{selectedAssessment?.assessment_type || "Assessment"}</strong>
+
+              <div className="space-y-2.5 text-base">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Total Trainees</span>
+                  <span className="font-medium text-gray-900">{trainees.length}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Assessor</span>
+                  <span className="font-medium text-gray-900 truncate max-w-[60%] text-right">
+                    {assessorName}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Qualification Area</span>
+                  <span className="font-medium text-gray-900 truncate max-w-[60%] text-right">
+                    {assessor.specialization || qualification || "N/A"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Assessment Type</span>
+                  <span className="font-medium text-gray-900">
+                    {selectedAssessment?.assessment_type || "Assessment"}
+                  </span>
+                </div>
               </div>
             </div>
+
           </div>
         </div>
 
-        <div className="review-actions flex items-center justify-end gap-3">
-          <button className="rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 hover:bg-gray-100" onClick={onBack} disabled={isSubmitting}>
+        {/* ACTIONS */}
+        <div className="mt-7 flex items-center justify-end gap-3">
+          <button
+            className="rounded-xl border border-gray-200 px-6 py-2.5 text-base font-semibold text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={onBack}
+            disabled={isSubmitting}
+          >
             Back
           </button>
-          <button className="rounded-lg px-6 py-3 font-semibold text-white bg-[#001F5B] hover:bg-[#001746] transition disabled:bg-gray-400" onClick={handleConfirmClick} disabled={isSubmitting}>
+          <button
+            className="flex items-center gap-2 rounded-xl bg-[#001F5B] px-6 py-2.5 text-base font-semibold text-white shadow-sm transition hover:bg-[#001746] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
+            onClick={handleConfirmClick}
+            disabled={isSubmitting}
+          >
+            {isSubmitting && <Loader2 size={16} className="animate-spin" />}
             {isSubmitting ? "Processing..." : "Confirm Assessment"}
           </button>
         </div>
 
+        {/* CONFIRM MODAL */}
         {showConfirmModal && (
-          <div className="modal-overlay">
-            <div className="modal-container">
-              <h2 className="modal-title">FINAL CONFIRMATION</h2>
-              <p className="modal-text">Are you sure you want to create this assessment?</p>
-              <div className="modal-actions">
-                <button className="cancel-btn" onClick={() => setShowConfirmModal(false)} disabled={isSubmitting}>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#001F5B]/5 text-[#001F5B]">
+                <AlertTriangle size={24} />
+              </div>
+              <h2 className="text-lg font-bold text-gray-900">
+                Final Confirmation
+              </h2>
+              <p className="mt-2 text-base text-gray-500">
+                Are you sure you want to create this assessment?
+              </p>
+
+              <div className="mt-6 flex justify-center gap-3">
+                <button
+                  className="rounded-xl border border-gray-200 px-5 py-2.5 text-base font-semibold text-gray-600 hover:bg-gray-50 transition disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => setShowConfirmModal(false)}
+                  disabled={isSubmitting}
+                >
                   Cancel
                 </button>
-                <button className="create-btn" onClick={handleCreateAssessment} disabled={isSubmitting}>
+                <button
+                  className="flex items-center gap-2 rounded-xl bg-[#001F5B] px-5 py-2.5 text-base font-semibold text-white shadow-sm hover:bg-[#001746] transition disabled:cursor-not-allowed disabled:bg-gray-300"
+                  onClick={handleCreateAssessment}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting && <Loader2 size={16} className="animate-spin" />}
                   {isSubmitting ? "Creating..." : "Create Assessment"}
                 </button>
               </div>
@@ -471,16 +594,23 @@ function ReviewConfirm({
           </div>
         )}
 
+        {/* SUCCESS MODAL */}
         {showSuccessMessage && (
-          <div className="modal-overlay">
-            <div className="modal-container">
-              <h2 style={{ color: "#16a34a", fontSize: "24px", fontWeight: "700", textAlign: "center" }}>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-sm rounded-2xl bg-white p-7 shadow-2xl text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-50 text-green-600">
+                <CheckCircle2 size={30} />
+              </div>
+              <h2 className="text-xl font-bold text-green-600">
                 Created Successfully!
               </h2>
-              <p className="modal-text">Assessment has been created successfully.</p>
+              <p className="mt-2 text-base text-gray-500">
+                Assessment has been created successfully.
+              </p>
             </div>
           </div>
         )}
+
       </div>
     </div>
   );

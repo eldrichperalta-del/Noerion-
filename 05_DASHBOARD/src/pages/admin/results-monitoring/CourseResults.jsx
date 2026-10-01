@@ -94,7 +94,6 @@ export default function CourseResults() {
     //
     // We use that code to find the real database UUID.
     // =============================================================
-
     useEffect(() => {
         if (!courseCode) {
             setError("Course code is missing.");
@@ -170,7 +169,6 @@ export default function CourseResults() {
     // This makes sure the assessment name is still available when
     // the page is refreshed.
     // =============================================================
-
     useEffect(() => {
         if (!selectedAssessmentId) {
             return;
@@ -224,7 +222,6 @@ export default function CourseResults() {
     // =============================================================
     // FETCH RESULTS
     // =============================================================
-
     useEffect(() => {
         if (!databaseCourseId) {
             setResults([]);
@@ -249,7 +246,6 @@ export default function CourseResults() {
             // =====================================================
             // BASE RESULTS QUERY
             // =====================================================
-
             let query = supabase
                 .from("assessment_submissions")
                 .select(`
@@ -292,7 +288,6 @@ export default function CourseResults() {
             // In that case, only retrieve submissions belonging
             // to that specific assessment/batch.
             // =====================================================
-
             if (selectedAssessmentId) {
                 query = query.eq(
                     "assessment_id",
@@ -318,86 +313,8 @@ export default function CourseResults() {
                 submissionData || [];
 
             // =====================================================
-            // GET SUBMISSION IDS
-            //
-            // These IDs are used to connect:
-            //
-            // assessment_submissions.id
-            // ->
-            // ai_assessment_insights.submission_id
-            // =====================================================
-
-            const submissionIds = [
-                ...new Set(
-                    submissions
-                        .map(
-                            (submission) =>
-                                submission?.id
-                        )
-                        .filter(Boolean)
-                ),
-            ];
-
-            // =====================================================
-            // FETCH AI ASSESSMENT INSIGHTS
-            //
-            // We only need overall_summary for the
-            // AI Evaluation Summary section.
-            // =====================================================
-
-            let aiInsights = [];
-
-            if (submissionIds.length > 0) {
-                const {
-                    data: aiInsightData,
-                    error: aiInsightError,
-                } = await supabase
-                    .from(
-                        "ai_assessment_insights"
-                    )
-                    .select(`
-                        submission_id,
-                        overall_summary
-                    `)
-                    .in(
-                        "submission_id",
-                        submissionIds
-                    );
-
-                if (aiInsightError) {
-                    throw aiInsightError;
-                }
-
-                aiInsights =
-                    aiInsightData || [];
-            }
-
-            // =====================================================
-            // CREATE AI INSIGHT LOOKUP MAP
-            //
-            // Key:
-            //     assessment_submissions.id
-            //
-            // Value:
-            //     ai_assessment_insights record
-            // =====================================================
-
-            const aiInsightMap =
-                new Map(
-                    aiInsights.map(
-                        (insight) => [
-                            String(
-                                insight.submission_id
-                            ),
-                            insight,
-                        ]
-                    )
-                );
-
-            // =====================================================
             // GET TRAINEE IDS
             // =====================================================
-
             const traineeIds = [
                 ...new Set(
                     submissions
@@ -412,7 +329,6 @@ export default function CourseResults() {
             // =====================================================
             // FETCH TRAINEE PROFILES
             // =====================================================
-
             let profiles = [];
 
             if (traineeIds.length > 0) {
@@ -445,7 +361,6 @@ export default function CourseResults() {
             // =====================================================
             // CREATE PROFILE LOOKUP MAP
             // =====================================================
-
             const profileMap =
                 new Map(
                     profiles.map(
@@ -461,24 +376,18 @@ export default function CourseResults() {
             // =====================================================
             // FORMAT RESULTS
             // =====================================================
-
             const formattedResults =
                 submissions.map(
                     (submission) => {
-
                         const traineeId =
                             submission?.trainee_id;
 
-                        // =================================================
-                        // FIND AI INSIGHT FOR THIS SUBMISSION
-                        // =================================================
-
-                        const aiInsight =
-                            aiInsightMap.get(
-                                String(
-                                    submission?.id
-                                )
-                            );
+                        const formattedTraineeId =
+                            traineeId
+                                ? `TRN-${String(
+                                    traineeId
+                                ).slice(0, 7).toUpperCase()}`
+                                : "-";
 
                         const profile =
                             profileMap.get(
@@ -504,11 +413,6 @@ export default function CourseResults() {
                             );
 
                         return {
-
-                            // =================================================
-                            // RESULT IDENTIFIERS
-                            // =================================================
-
                             resultId:
                                 submission?.id,
 
@@ -517,10 +421,6 @@ export default function CourseResults() {
 
                             assessmentId:
                                 submission?.assessment_id,
-
-                            // =================================================
-                            // ASSESSMENT INFORMATION
-                            // =================================================
 
                             assessmentName:
                                 submission
@@ -534,22 +434,13 @@ export default function CourseResults() {
                                     ?.set_type ||
                                 "",
 
-                            // =================================================
-                            // TRAINEE INFORMATION
-                            // =================================================
-
                             traineeId:
-                                traineeId ||
-                                "-",
-
+                                formattedTraineeId,
+                                
                             traineeName:
                                 traineeName ||
                                 profile?.email ||
                                 "Unnamed Trainee",
-
-                            // =================================================
-                            // RESULT
-                            // =================================================
 
                             finalResult,
 
@@ -587,10 +478,6 @@ export default function CourseResults() {
                                 submission?.overall_result ??
                                 null,
 
-                            // =================================================
-                            // COURSE INFORMATION
-                            // =================================================
-
                             course:
                                 courseName,
 
@@ -600,15 +487,9 @@ export default function CourseResults() {
                             courseCode:
                                 courseCode,
 
-                            // =================================================
-                            // AI EVALUATION SUMMARY
-                            //
-                            // SOURCE:
-                            // ai_assessment_insights.overall_summary
-                            // =================================================
-
                             aiSummary:
-                                aiInsight?.overall_summary ||
+                                submission?.ai_summary ||
+                                submission?.aiSummary ||
                                 "",
                         };
                     }
@@ -618,7 +499,6 @@ export default function CourseResults() {
                 formattedResults
             );
         } catch (err) {
-
             console.error(
                 "Course Results error:",
                 err
@@ -631,18 +511,14 @@ export default function CourseResults() {
 
             setResults([]);
         } finally {
-
             setLoading(false);
-
         }
     };
 
     // =============================================================
     // FILTER RESULTS
     // =============================================================
-
     const filteredResults = useMemo(() => {
-
         const search =
             searchTerm
                 .trim()
@@ -650,7 +526,6 @@ export default function CourseResults() {
 
         return results.filter(
             (result) => {
-
                 const traineeName =
                     String(
                         result?.traineeName ||
@@ -684,7 +559,6 @@ export default function CourseResults() {
                     dateFilter &&
                     result.dateCompleted
                 ) {
-
                     const resultDate =
                         new Date(
                             result.dateCompleted
@@ -702,7 +576,6 @@ export default function CourseResults() {
                         selectedDate.getMonth() &&
                         resultDate.getDate() ===
                         selectedDate.getDate();
-
                 }
 
                 return (
@@ -712,7 +585,6 @@ export default function CourseResults() {
                 );
             }
         );
-
     }, [
         results,
         searchTerm,
@@ -723,9 +595,7 @@ export default function CourseResults() {
     // =============================================================
     // RESULTS OVERVIEW
     // =============================================================
-
     const overviewData = useMemo(() => {
-
         const totalAssessments =
             results.length;
 
@@ -758,16 +628,13 @@ export default function CourseResults() {
             totalFailed,
             passRate,
         };
-
     }, [results]);
 
     // =============================================================
     // COMPLETION RATE DATA
     // =============================================================
-
     const completionRateData =
         useMemo(() => {
-
             return [...results]
                 .filter(
                     (result) =>
@@ -787,14 +654,12 @@ export default function CourseResults() {
                         result,
                         index
                     ) => {
-
                         const date =
                             new Date(
                                 result.dateCompleted
                             );
 
                         return {
-
                             date:
                                 date.toLocaleDateString(
                                     "en-US",
@@ -819,7 +684,6 @@ export default function CourseResults() {
                             trainee:
                                 result.traineeName ||
                                 `Result ${index + 1}`,
-
                         };
                     }
                 )
@@ -828,20 +692,16 @@ export default function CourseResults() {
                         item.rate !==
                         null
                 );
-
         }, [results]);
 
     // =============================================================
     // CLEAR FILTERS
     // =============================================================
-
     const handleClearFilters =
         () => {
-
             setSearchTerm("");
             setResultFilter("");
             setDateFilter("");
-
         };
 
     // =============================================================
@@ -850,16 +710,12 @@ export default function CourseResults() {
     // IMPORTANT:
     // The URL now uses courseCode instead of courseId.
     // =============================================================
-
     const handleBack = () => {
-
         if (selectedAssessmentId) {
-
             navigate(
                 `/admin/results/batches/${courseCode}`,
                 {
                     state: {
-
                         courseName:
                             courseName,
 
@@ -868,7 +724,6 @@ export default function CourseResults() {
 
                         courseCode:
                             courseCode,
-
                     },
                 }
             );
@@ -887,7 +742,6 @@ export default function CourseResults() {
             {/* =====================================================
                 BREADCRUMB
             ====================================================== */}
-
             <header>
 
                 <nav className="-mt-5 flex items-center gap-2 text-sm font-semibold">
@@ -909,9 +763,7 @@ export default function CourseResults() {
                     </span>
 
                     {selectedAssessmentId ? (
-
                         <>
-
                             <button
                                 type="button"
                                 onClick={() =>
@@ -919,7 +771,6 @@ export default function CourseResults() {
                                         `/admin/results/batches/${courseCode}`,
                                         {
                                             state: {
-
                                                 courseName:
                                                     courseName,
 
@@ -928,7 +779,6 @@ export default function CourseResults() {
 
                                                 courseCode:
                                                     courseCode,
-
                                             },
                                         }
                                     )
@@ -938,23 +788,19 @@ export default function CourseResults() {
                                 Assessment Batches
                             </button>
 
-                    <span className="text-gray-400">
-                        &gt;
-                    </span>
+                            <span className="text-gray-400">
+                                &gt;
+                            </span>
 
                             <span className="text-[#002f86]">
                                 {assessmentName ||
                                     courseName}
                             </span>
-
                         </>
-
                     ) : (
-
                         <span className="text-[#002f86]">
                             {courseName}
                         </span>
-
                     )}
 
                 </nav>
@@ -962,36 +808,27 @@ export default function CourseResults() {
                 {/* =================================================
                     PAGE TITLE
                 ================================================== */}
-
                 <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
 
                     <div>
-
                         <h1 className="text-3xl font-bold text-gray-900">
-
                             {assessmentName ||
                                 courseName}
-
                         </h1>
 
                         <p className="mt-2 text-gray-600">
-
                             {selectedAssessmentId
                                 ? `View trainee results for ${assessmentName || "this assessment"}.`
                                 : "View assessment performance, completion outcomes, and trainee results."}
-
                         </p>
-
                     </div>
 
                 </div>
-
             </header>
 
             {/* =====================================================
                 OVERVIEW CARDS
             ====================================================== */}
-
             <ResultsOverviewCards
                 stats={overviewData}
                 completionRateData={
@@ -1005,11 +842,9 @@ export default function CourseResults() {
                 {/* =================================================
                     SEARCH + FILTERS
                 ================================================== */}
-
                 <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
 
                     {/* Search */}
-
                     <label className="relative w-full lg:max-w-md">
 
                         <Search
@@ -1038,11 +873,9 @@ export default function CourseResults() {
                     </label>
 
                     {/* Filters */}
-
                     <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
 
                         {/* Result Filter */}
-
                         <select
                             value={
                                 resultFilter
@@ -1076,7 +909,6 @@ export default function CourseResults() {
                         </select>
 
                         {/* Date Filter */}
-
                         <label className="relative w-full sm:w-56">
 
                             <Calendar
@@ -1104,22 +936,19 @@ export default function CourseResults() {
                         </label>
 
                         {/* Clear */}
-
                         {(searchTerm ||
                             resultFilter ||
                             dateFilter) && (
-
-                            <button
-                                type="button"
-                                onClick={
-                                    handleClearFilters
-                                }
-                                className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-600 shadow-[0_2px_8px_rgba(0,0,0,0.40)] transition hover:bg-gray-50"
-                            >
-                                Clear
-                            </button>
-
-                        )}
+                                <button
+                                    type="button"
+                                    onClick={
+                                        handleClearFilters
+                                    }
+                                    className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-600 shadow-[0_2px_8px_rgba(0,0,0,0.40)] transition hover:bg-gray-50"
+                                >
+                                    Clear
+                                </button>
+                            )}
 
                     </div>
                 </div>
@@ -1127,20 +956,15 @@ export default function CourseResults() {
                 {/* =================================================
                     ERROR
                 ================================================== */}
-
                 {error && (
                     <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-
                         {error}
-
                     </div>
-
                 )}
 
                 {/* =================================================
                     RESULTS TABLE
                 ================================================== */}
-
                 <ResultsTable
                     results={
                         filteredResults
@@ -1161,12 +985,10 @@ export default function CourseResults() {
 // =============================================================
 // NORMALIZE RESULT
 // =============================================================
-
 function normalizeResult(
     result,
     passed
 ) {
-
     const normalized = String(
         result || ""
     )
@@ -1179,9 +1001,7 @@ function normalizeResult(
         normalized === "competent" ||
         passed === true
     ) {
-
         return "Pass";
-
     }
 
     if (
@@ -1191,9 +1011,7 @@ function normalizeResult(
         normalized === "not yet competent" ||
         passed === false
     ) {
-
         return "Fail";
-
     }
 
     return "In Evaluation";

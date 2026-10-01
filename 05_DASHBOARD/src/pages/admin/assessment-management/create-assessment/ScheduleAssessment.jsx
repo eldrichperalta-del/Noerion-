@@ -1,8 +1,16 @@
-
 import React, { useMemo, useEffect } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import "../../../../styles/ScheduleAssessment.css";
+import {
+  CalendarDays,
+  Clock,
+  Timer,
+  ClipboardList,
+  Users,
+  UserRound,
+  AlertTriangle,
+} from "lucide-react";
 
 function ScheduleAssessment({
   assessmentData,
@@ -233,11 +241,16 @@ function ScheduleAssessment({
         ================================================================= */}
 
         <div className="col-span-6">
-          <div className="bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-6">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-7">
 
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">
-              Set the assessment date and time.
-            </h2>
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 tracking-tight">
+                Set the assessment date and time
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Pick a date on the calendar, then define the start and end time.
+              </p>
+            </div>
 
             <div className="grid grid-cols-12 gap-6 items-start">
 
@@ -246,7 +259,7 @@ function ScheduleAssessment({
               =========================================================== */}
 
               <div className="col-span-7">
-                <div className="bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.30)] p-6">
+                <div className="bg-gray-50/60 rounded-2xl border border-gray-100 p-4 modern-calendar-wrap">
                   <Calendar
                     onChange={handleDateChange}
                     value={selectedDate}
@@ -255,9 +268,15 @@ function ScheduleAssessment({
                 </div>
 
                 {selectedDate && (
-                  <p className="text-sm text-gray-500 mt-3">
-                    Selected: {schedule.date}
-                  </p>
+                  <div className="flex items-center gap-2 text-sm text-gray-600 mt-3 px-1">
+                    <CalendarDays size={15} className="text-[#001F5B]" />
+                    <span>
+                      Selected:{" "}
+                      <span className="font-medium text-gray-800">
+                        {schedule.date}
+                      </span>
+                    </span>
+                  </div>
                 )}
               </div>
 
@@ -268,14 +287,15 @@ function ScheduleAssessment({
               <div className="col-span-5 flex flex-col h-full">
 
                 {/* START TIME */}
-                <div className="mb-6">
-                  <label className="font-medium block mb-2">
+                <div className="mb-5">
+                  <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-2">
+                    <Clock size={14} className="text-gray-400" />
                     Start Time
                   </label>
 
                   <div className="flex gap-2">
 
-                    <div className="flex-1 bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3">
+                    <div className="flex-1 bg-white rounded-xl border border-gray-200 px-3.5 py-2.5 transition focus-within:border-[#001F5B] focus-within:ring-1 focus-within:ring-[#001F5B]">
                       <input
                         type="time"
                         value={
@@ -290,11 +310,11 @@ function ScheduleAssessment({
                             e.target.value
                           )
                         }
-                        className="w-full bg-transparent focus:outline-none text-sm"
+                        className="w-full bg-transparent focus:outline-none text-sm text-gray-800"
                       />
                     </div>
 
-                    <div className="w-24 bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3">
+                    <div className="w-20 bg-white rounded-xl border border-gray-200 px-2 py-2.5 transition focus-within:border-[#001F5B] focus-within:ring-1 focus-within:ring-[#001F5B]">
                       <select
                         value={
                           getTimeParts(
@@ -308,7 +328,7 @@ function ScheduleAssessment({
                             e.target.value
                           )
                         }
-                        className="w-full bg-transparent focus:outline-none text-sm"
+                        className="w-full bg-transparent focus:outline-none text-sm text-gray-800"
                       >
                         <option value="AM">AM</option>
                         <option value="PM">PM</option>
@@ -321,13 +341,14 @@ function ScheduleAssessment({
                 {/* END TIME */}
                 <div className="mb-4">
 
-                  <label className="font-medium block mb-2">
+                  <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-2">
+                    <Clock size={14} className="text-gray-400" />
                     End Time
                   </label>
 
                   <div className="flex gap-2">
 
-                    <div className="flex-1 bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3">
+                    <div className="flex-1 bg-white rounded-xl border border-gray-200 px-3.5 py-2.5 transition focus-within:border-[#001F5B] focus-within:ring-1 focus-within:ring-[#001F5B]">
                       <input
                         type="time"
                         value={
@@ -342,11 +363,11 @@ function ScheduleAssessment({
                             e.target.value
                           )
                         }
-                        className="w-full bg-transparent focus:outline-none text-sm"
+                        className="w-full bg-transparent focus:outline-none text-sm text-gray-800"
                       />
                     </div>
 
-                    <div className="w-24 bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] p-3">
+                    <div className="w-20 bg-white rounded-xl border border-gray-200 px-2 py-2.5 transition focus-within:border-[#001F5B] focus-within:ring-1 focus-within:ring-[#001F5B]">
                       <select
                         value={
                           getTimeParts(
@@ -360,7 +381,7 @@ function ScheduleAssessment({
                             e.target.value
                           )
                         }
-                        className="w-full bg-transparent focus:outline-none text-sm"
+                        className="w-full bg-transparent focus:outline-none text-sm text-gray-800"
                       >
                         <option value="AM">AM</option>
                         <option value="PM">PM</option>
@@ -372,24 +393,25 @@ function ScheduleAssessment({
 
                 {/* INVALID TIME */}
                 {hasOverlapWarning && (
-                  <div className="text-red-600 text-sm font-medium mb-4">
-                    ⚠ Invalid time range
+                  <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 mb-4">
+                    <AlertTriangle size={15} />
+                    Invalid time range
                   </div>
                 )}
 
                 {/* INCOMPLETE FORM */}
                 {!canProceed && (
-                  <p className="text-xs text-red-500 mb-2">
+                  <p className="text-xs text-gray-400 mb-2">
                     Please complete date, start time, and end time correctly.
                   </p>
                 )}
 
                 {/* BUTTONS */}
-                <div className="mt-auto flex justify-end gap-4 pt-6">
+                <div className="mt-auto flex justify-end gap-3 pt-6">
 
                   <button
                     onClick={onBack}
-                    className="px-6 py-3 rounded-lg font-semibold text-gray-700 border border-gray-300 hover:bg-gray-100 transition"
+                    className="px-6 py-2.5 rounded-xl font-semibold text-sm text-gray-600 border border-gray-200 hover:bg-gray-50 hover:text-gray-800 transition"
                   >
                     Back
                   </button>
@@ -397,9 +419,9 @@ function ScheduleAssessment({
                   <button
                     disabled={!canProceed}
                     onClick={onNext}
-                    className={`px-6 py-3 rounded-lg font-semibold text-white transition ${canProceed
-                        ? "bg-[#001F5B] hover:bg-[#001746]"
-                        : "bg-gray-300 cursor-not-allowed"
+                    className={`px-6 py-2.5 rounded-xl font-semibold text-sm text-white transition shadow-sm ${canProceed
+                      ? "bg-[#001F5B] hover:bg-[#001746]"
+                      : "bg-gray-300 cursor-not-allowed shadow-none"
                       }`}
                   >
                     Next
@@ -418,117 +440,156 @@ function ScheduleAssessment({
 
         <div className="col-span-3">
 
-          {/* Main summary container stays */}
-          <div className="bg-white rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.35)] p-5">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sticky top-6">
 
-            <h3 className="text-lg font-bold mb-8">
-              Assessment Details Summary
+            <h3 className="text-base font-bold text-gray-900 mb-6 tracking-tight">
+              Assessment Summary
             </h3>
 
-            {/* ============================================================
-                SELECTED ASSESSMENT
-            ============================================================= */}
+            <div className="space-y-5">
 
-            <p className="font-semibold mb-1">
-              Selected Assessment
-            </p>
+              {/* ==========================================================
+                  SELECTED ASSESSMENT
+              =========================================================== */}
 
-            <p className="text-sm text-gray-700 mb-4">
-              {selectedAssessment?.title ||
-                "No assessment selected"}
-            </p>
+              <div className="flex gap-3">
+                <div className="mt-0.5 flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-[#001F5B]/5 text-[#001F5B]">
+                  <ClipboardList size={16} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    Assessment
+                  </p>
+                  <p className="text-sm text-gray-800 mt-0.5 truncate">
+                    {selectedAssessment?.title ||
+                      "No assessment selected"}
+                  </p>
+                </div>
+              </div>
 
-            {/* ============================================================
-                SELECTED TRAINEES
-            ============================================================= */}
+              {/* ==========================================================
+                  SELECTED TRAINEES
+              =========================================================== */}
 
-            <p className="font-semibold mb-1">
-              Selected Trainees ({traineeList.length})
-            </p>
+              <div className="flex gap-3">
+                <div className="mt-0.5 flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-[#001F5B]/5 text-[#001F5B]">
+                  <Users size={16} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    Trainees ({traineeList.length})
+                  </p>
 
-            <div className="mb-4 max-h-40 overflow-y-auto">
+                  <div className="mt-1 max-h-32 overflow-y-auto pr-1">
+                    <ul className="space-y-1">
+                      {traineeList.length > 0 ? (
+                        traineeList.map((trainee) => (
+                          <li
+                            key={
+                              trainee.id ||
+                              trainee.user_id
+                            }
+                            className="text-sm text-gray-700 truncate"
+                          >
+                            {trainee.fullName ||
+                              trainee.name ||
+                              trainee.email ||
+                              "Trainee"}
+                          </li>
+                        ))
+                      ) : (
+                        <li className="text-sm text-gray-400">
+                          No trainees selected
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              </div>
 
-              <ul className="ml-5 list-disc text-sm text-gray-700">
+              {/* ==========================================================
+                  ASSESSOR
+              =========================================================== */}
 
-                {traineeList.length > 0 ? (
-                  traineeList.map((trainee) => (
-                    <li
-                      key={
-                        trainee.id ||
-                        trainee.user_id
-                      }
-                    >
-                      {trainee.fullName ||
-                        trainee.name ||
-                        trainee.email ||
-                        "Trainee"}
-                    </li>
-                  ))
-                ) : (
-                  <li>
-                    No trainees selected
-                  </li>
-                )}
+              <div className="flex gap-3">
+                <div className="mt-0.5 flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-[#001F5B]/5 text-[#001F5B]">
+                  <UserRound size={16} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    Assessor
+                  </p>
+                  <p className="text-sm text-gray-800 mt-0.5 truncate">
+                    {selectedAssessor?.fullName ||
+                      selectedAssessor?.name ||
+                      "None"}
+                  </p>
+                </div>
+              </div>
 
-              </ul>
+              <hr className="border-gray-100" />
+
+              {/* ==========================================================
+                  DATE
+              =========================================================== */}
+
+              <div className="flex gap-3">
+                <div className="mt-0.5 flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-[#001F5B]/5 text-[#001F5B]">
+                  <CalendarDays size={16} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    Date
+                  </p>
+                  <p className="text-sm text-gray-800 mt-0.5 min-h-[18px]">
+                    {schedule.date ||
+                      "Select a date"}
+                  </p>
+                </div>
+              </div>
+
+              {/* ==========================================================
+                  TIME
+              =========================================================== */}
+
+              <div className="flex gap-3">
+                <div className="mt-0.5 flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-[#001F5B]/5 text-[#001F5B]">
+                  <Clock size={16} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    Time
+                  </p>
+                  <p className="text-sm text-gray-800 mt-0.5 min-h-[18px]">
+                    {schedule.startTime &&
+                      schedule.endTime
+                      ? `${schedule.startTime} - ${schedule.endTime}`
+                      : "Select time range"}
+                  </p>
+                </div>
+              </div>
+
+              {/* ==========================================================
+                  DURATION
+              =========================================================== */}
+
+              <div className="flex gap-3">
+                <div className="mt-0.5 flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-[#001F5B]/5 text-[#001F5B]">
+                  <Timer size={16} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    Duration
+                  </p>
+                  <p className="text-sm text-gray-800 mt-0.5 min-h-[18px]">
+                    {computedDuration ||
+                      schedule.duration ||
+                      "Auto-calculated"}
+                  </p>
+                </div>
+              </div>
 
             </div>
-
-            {/* ============================================================
-                ASSESSOR
-            ============================================================= */}
-
-            <p className="font-semibold mb-1">
-              Assessor
-            </p>
-
-            <p className="text-sm text-gray-700 mb-4">
-              {selectedAssessor?.fullName ||
-                selectedAssessor?.name ||
-                "None"}
-            </p>
-
-            {/* ============================================================
-                DATE
-            ============================================================= */}
-
-            <p className="font-semibold mb-1">
-              Date
-            </p>
-
-            <p className="text-sm text-gray-700 mb-4 min-h-[20px]">
-              {schedule.date ||
-                "Select a date"}
-            </p>
-
-            {/* ============================================================
-                TIME
-            ============================================================= */}
-
-            <p className="font-semibold mb-1">
-              Time
-            </p>
-
-            <p className="text-sm text-gray-700 mb-4 min-h-[20px]">
-              {schedule.startTime &&
-                schedule.endTime
-                ? `${schedule.startTime} - ${schedule.endTime}`
-                : "Select time range"}
-            </p>
-
-            {/* ============================================================
-                DURATION
-            ============================================================= */}
-
-            <p className="font-semibold mb-1">
-              Duration
-            </p>
-
-            <p className="text-sm text-gray-700 min-h-[20px]">
-              {computedDuration ||
-                schedule.duration ||
-                "Auto-calculated"}
-            </p>
 
           </div>
         </div>
@@ -539,4 +600,3 @@ function ScheduleAssessment({
 }
 
 export default ScheduleAssessment;
-
