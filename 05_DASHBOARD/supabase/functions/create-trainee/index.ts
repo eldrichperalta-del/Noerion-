@@ -11,13 +11,6 @@ const SUPABASE_URL =
 const SUPABASE_SERVICE_ROLE_KEY =
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-const RESEND_API_KEY =
-    Deno.env.get("RESEND_API_KEY") ?? "";
-
-const EMAIL_FROM =
-    Deno.env.get("EMAIL_FROM") ??
-    "NOERION <onboarding@resend.dev>";
-
 
 // ============================================================
 // SUPABASE ADMIN CLIENT
@@ -75,303 +68,6 @@ function cleanString(
     return String(
         value ?? ""
     ).trim();
-}
-
-
-// ============================================================
-// CUSTOM PASSWORD-SETUP EMAIL
-//
-// IMPORTANT:
-//
-// Supabase's generateLink() ONLY GENERATES THE LINK.
-//
-// It does NOT send our custom email.
-//
-// This function sends the generated link through Resend.
-//
-// Required Edge Function secret:
-//
-// RESEND_API_KEY
-//
-// Optional Edge Function secret:
-//
-// EMAIL_FROM
-//
-// Example:
-//
-// EMAIL_FROM=NOERION <noreply@yourdomain.com>
-// ============================================================
-
-async function sendPasswordSetupEmail({
-    email,
-    firstName,
-    passwordSetupLink,
-}: {
-    email: string;
-    firstName: string;
-    passwordSetupLink: string;
-}) {
-
-    // ----------------------------------------------------------
-    // EMAIL PROVIDER CONFIGURATION CHECK
-    // ----------------------------------------------------------
-
-    if (!RESEND_API_KEY) {
-
-        throw new Error(
-            "RESEND_API_KEY is not configured. The trainee account was created, but the password-setup email could not be sent."
-        );
-
-    }
-
-
-    // ----------------------------------------------------------
-    // EMAIL CONTENT
-    // ----------------------------------------------------------
-
-    const subject =
-        "Create Your NOERION Trainee Password";
-
-
-    const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Create Your NOERION Password</title>
-</head>
-
-<body
-    style="
-        margin: 0;
-        padding: 0;
-        background: #eef4f8;
-        font-family: Arial, Helvetica, sans-serif;
-    "
->
-
-    <div
-        style="
-            max-width: 600px;
-            margin: 40px auto;
-            background: #ffffff;
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
-        "
-    >
-
-        <div
-            style="
-                background: #001F5B;
-                padding: 28px 32px;
-                color: #ffffff;
-            "
-        >
-
-            <h1
-                style="
-                    margin: 0;
-                    font-size: 24px;
-                "
-            >
-                NOERION
-            </h1>
-
-            <p
-                style="
-                    margin: 8px 0 0;
-                    font-size: 14px;
-                    opacity: 0.9;
-                "
-            >
-                Trainee Account Setup
-            </p>
-
-        </div>
-
-
-        <div
-            style="
-                padding: 32px;
-                color: #1f2937;
-            "
-        >
-
-            <h2
-                style="
-                    margin-top: 0;
-                    color: #001F5B;
-                "
-            >
-                Welcome, ${firstName}!
-            </h2>
-
-
-            <p
-                style="
-                    font-size: 15px;
-                    line-height: 1.6;
-                "
-            >
-                Your NOERION trainee account has been created by an
-                administrator.
-            </p>
-
-
-            <p
-                style="
-                    font-size: 15px;
-                    line-height: 1.6;
-                "
-            >
-                Before you can sign in, you need to create your own
-                password.
-            </p>
-
-
-            <div
-                style="
-                    text-align: center;
-                    margin: 32px 0;
-                "
-            >
-
-                <a
-                    href="${passwordSetupLink}"
-                    style="
-                        display: inline-block;
-                        background: #2563EB;
-                        color: #ffffff;
-                        text-decoration: none;
-                        padding: 14px 28px;
-                        border-radius: 8px;
-                        font-size: 15px;
-                        font-weight: bold;
-                    "
-                >
-                    Create Your Password
-                </a>
-
-            </div>
-
-
-            <p
-                style="
-                    font-size: 13px;
-                    line-height: 1.6;
-                    color: #6b7280;
-                "
-            >
-                If the button above does not work, copy and paste the
-                following link into your browser:
-            </p>
-
-
-            <p
-                style="
-                    font-size: 12px;
-                    line-height: 1.5;
-                    word-break: break-all;
-                    color: #4b5563;
-                "
-            >
-                ${passwordSetupLink}
-            </p>
-
-
-            <p
-                style="
-                    margin-top: 28px;
-                    font-size: 13px;
-                    line-height: 1.6;
-                    color: #6b7280;
-                "
-            >
-                If you did not expect this account, please contact your
-                training administrator.
-            </p>
-
-        </div>
-
-
-        <div
-            style="
-                border-top: 1px solid #e5e7eb;
-                padding: 20px 32px;
-                color: #9ca3af;
-                font-size: 12px;
-                text-align: center;
-            "
-        >
-            NOERION — AI-Driven Skill Evaluation System
-        </div>
-
-    </div>
-
-</body>
-</html>
-`;
-
-
-    // ----------------------------------------------------------
-    // SEND THROUGH RESEND
-    // ----------------------------------------------------------
-
-    const response = await fetch(
-        "https://api.resend.com/emails",
-        {
-            method: "POST",
-
-            headers: {
-                "Authorization":
-                    `Bearer ${RESEND_API_KEY}`,
-
-                "Content-Type":
-                    "application/json",
-            },
-
-            body: JSON.stringify({
-                from: EMAIL_FROM,
-
-                to: [
-                    email,
-                ],
-
-                subject,
-
-                html,
-            }),
-        }
-    );
-
-
-    const responseBody =
-        await response.text();
-
-
-    if (!response.ok) {
-
-        console.error(
-            "RESEND EMAIL ERROR:",
-            responseBody
-        );
-
-        throw new Error(
-            `Password-setup email could not be sent: ${responseBody}`
-        );
-
-    }
-
-
-    console.log(
-        "PASSWORD-SETUP EMAIL SENT:",
-        email
-    );
-
-
-    return true;
 }
 
 
@@ -516,7 +212,7 @@ Deno.serve(
                 },
 
                 error:
-                    callerError,
+                callerError,
 
             } =
                 await supabaseUser.auth.getUser(
@@ -549,7 +245,7 @@ Deno.serve(
                 data: callerProfile,
 
                 error:
-                    callerProfileError,
+                callerProfileError,
 
             } =
                 await supabaseAdmin
@@ -593,9 +289,9 @@ Deno.serve(
 
             if (
                 callerRole !==
-                    "admin" &&
+                "admin" &&
                 callerRole !==
-                    "administrator"
+                "administrator"
             ) {
 
                 return jsonResponse(
@@ -775,10 +471,10 @@ Deno.serve(
 
             const {
                 data:
-                    existingProfile,
+                existingProfile,
 
                 error:
-                    existingProfileError,
+                existingProfileError,
 
             } =
                 await supabaseAdmin
@@ -825,23 +521,17 @@ Deno.serve(
 
 
             // ========================================================
-            // 9. CREATE AUTH USER
+            // 9. CREATE AUTH USER + SEND SUPABASE INVITATION
             //
-            // IMPORTANT:
-            //
-            // We DO NOT use inviteUserByEmail().
-            //
-            // The account is created immediately.
-            //
-            // The trainee will receive our custom password-setup
-            // email later in this function.
+            // This follows the same mechanism used by Add Assessor.
+            // Supabase Auth creates the account and sends the invitation
+            // email automatically. No Resend API is used here.
             // ========================================================
 
             const appUrl =
                 Deno.env.get(
                     "APP_URL"
                 );
-
 
             if (!appUrl) {
 
@@ -851,106 +541,89 @@ Deno.serve(
 
             }
 
-
             const redirectTo =
                 `${appUrl.replace(/\/+$/, "")}/set-password`;
 
-
             console.log(
-                "CREATING TRAINEE AUTH USER..."
+                "CREATING TRAINEE AUTH USER AND SENDING INVITATION..."
             );
-
 
             console.log(
                 "TRAINEE EMAIL:",
                 email
             );
 
-
             console.log(
                 "PASSWORD SETUP REDIRECT:",
                 redirectTo
             );
 
-
             const {
-                data: authUserData,
-
+                data: invitationData,
                 error:
-                    authUserError,
+                invitationError,
 
             } =
-                await supabaseAdmin.auth.admin.createUser({
-
+                await supabaseAdmin.auth.admin.inviteUserByEmail(
                     email,
+                    {
+                        data: {
+                            first_name:
+                                firstName,
 
-                    email_confirm:
-                        true,
+                            middle_name:
+                                middleName ||
+                                null,
 
-                    user_metadata: {
+                            last_name:
+                                lastName,
 
-                        first_name:
-                            firstName,
+                            suffix:
+                                suffix ||
+                                null,
 
-                        middle_name:
-                            middleName ||
-                            null,
+                            role:
+                                "trainee",
+                        },
 
-                        last_name:
-                            lastName,
-
-                        suffix:
-                            suffix ||
-                            null,
-
-                        role:
-                            "trainee",
-
-                    },
-
-                });
-
+                        redirectTo,
+                    }
+                );
 
             if (
-                authUserError
+                invitationError
             ) {
 
                 console.error(
-                    "TRAINEE AUTH USER ERROR:",
-                    authUserError
+                    "TRAINEE INVITATION ERROR:",
+                    invitationError
                 );
 
-
                 throw new Error(
-                    `Unable to create trainee authentication account: ${authUserError.message}`
+                    `Unable to send trainee invitation: ${invitationError.message}`
                 );
 
             }
 
-
             const traineeUser =
-                authUserData?.user;
-
+                invitationData?.user;
 
             if (
                 !traineeUser?.id
             ) {
 
                 throw new Error(
-                    "Trainee authentication account was created but no user ID was returned."
+                    "Trainee invitation was sent but no user ID was returned."
                 );
 
             }
 
-
             const traineeUserId =
                 traineeUser.id;
-
 
             console.log(
                 "TRAINEE AUTH USER CREATED."
             );
-
 
             console.log(
                 "TRAINEE USER ID:",
@@ -971,7 +644,7 @@ Deno.serve(
                 data: savedProfile,
 
                 error:
-                    profileError,
+                profileError,
 
             } =
                 await supabaseAdmin
@@ -1007,11 +680,8 @@ Deno.serve(
                         contact_number:
                             contactNumber,
 
-                        is_approved:
-                            false,
-
-                        registration_status:
-                            "Pending",
+                        is_approved: true,
+                        registration_status: "Approved",
 
                         rejected_reason:
                             null,
@@ -1070,7 +740,7 @@ Deno.serve(
 
             const {
                 error:
-                    traineeProfileError,
+                traineeProfileError,
 
             } =
                 await supabaseAdmin
@@ -1139,283 +809,7 @@ Deno.serve(
 
 
             // ========================================================
-            // 12. GENERATE PASSWORD-SETUP LINK
-            //
-            // IMPORTANT:
-            //
-            // This runs ONLY AFTER:
-            //
-            // - Auth user exists
-            // - profiles exists
-            // - trainee_profiles exists
-            //
-            // This is NOT inviteUserByEmail().
-            //
-            // The account already exists.
-            //
-            // generateLink() creates the recovery/password setup
-            // action link that redirects to:
-            //
-            // /set-password
-            // ========================================================
-
-            console.log(
-                "GENERATING TRAINEE PASSWORD SETUP LINK..."
-            );
-
-
-            const {
-                data:
-                    passwordLinkData,
-
-                error:
-                    passwordLinkError,
-
-            } =
-                await supabaseAdmin.auth.admin.generateLink({
-
-                    type:
-                        "recovery",
-
-                    email,
-
-                    options: {
-
-                        redirectTo,
-
-                    },
-
-                });
-
-
-            if (
-                passwordLinkError
-            ) {
-
-                console.error(
-                    "PASSWORD SETUP LINK ERROR:",
-                    passwordLinkError
-                );
-
-
-                // ----------------------------------------------------
-                // CLEAN UP ALL CREATED DATA
-                // ----------------------------------------------------
-
-                await supabaseAdmin
-
-                    .from("trainee_profiles")
-
-                    .delete()
-
-                    .eq(
-                        "user_id",
-                        traineeUserId
-                    );
-
-
-                await supabaseAdmin
-
-                    .from("profiles")
-
-                    .delete()
-
-                    .eq(
-                        "id",
-                        traineeUserId
-                    );
-
-
-                await supabaseAdmin.auth.admin.deleteUser(
-                    traineeUserId
-                );
-
-
-                throw new Error(
-                    `Unable to generate trainee password setup link: ${passwordLinkError.message}`
-                );
-
-            }
-
-
-            const passwordSetupLink =
-                passwordLinkData
-                    ?.properties
-                    ?.action_link;
-
-
-            if (
-                !passwordSetupLink
-            ) {
-
-                console.error(
-                    "NO PASSWORD SETUP LINK RETURNED."
-                );
-
-
-                // ----------------------------------------------------
-                // CLEAN UP ALL CREATED DATA
-                // ----------------------------------------------------
-
-                await supabaseAdmin
-
-                    .from("trainee_profiles")
-
-                    .delete()
-
-                    .eq(
-                        "user_id",
-                        traineeUserId
-                    );
-
-
-                await supabaseAdmin
-
-                    .from("profiles")
-
-                    .delete()
-
-                    .eq(
-                        "id",
-                        traineeUserId
-                    );
-
-
-                await supabaseAdmin.auth.admin.deleteUser(
-                    traineeUserId
-                );
-
-
-                throw new Error(
-                    "Trainee account was created but no password setup link was generated."
-                );
-
-            }
-
-
-            console.log(
-                "PASSWORD SETUP LINK GENERATED."
-            );
-
-
-            // ========================================================
-            // SECURITY NOTE:
-            //
-            // Do NOT log the actual password setup link in production.
-            //
-            // The link contains a sensitive recovery token.
-            // ========================================================
-
-            console.log(
-                "PASSWORD SETUP REDIRECT READY:",
-                redirectTo
-            );
-
-
-            // ========================================================
-            // 13. CUSTOM PASSWORD-SETUP EMAIL
-            //
-            // ========================================================
-            //
-            // THIS IS THE CUSTOM EMAIL SECTION.
-            //
-            // The passwordSetupLink generated above is passed to
-            // the email function.
-            //
-            // The trainee receives:
-            //
-            // "Your NOERION trainee account has been created."
-            //
-            // followed by:
-            //
-            // [ Create Your Password ]
-            //
-            // The button opens the generated Supabase recovery link
-            // and eventually redirects to:
-            //
-            // /set-password
-            //
-            // ========================================================
-
-            console.log(
-                "SENDING CUSTOM PASSWORD SETUP EMAIL..."
-            );
-
-
-            try {
-
-                await sendPasswordSetupEmail({
-
-                    email,
-
-                    firstName,
-
-                    passwordSetupLink,
-
-                });
-
-            }
-
-            catch (emailError) {
-
-                console.error(
-                    "PASSWORD SETUP EMAIL ERROR:",
-                    emailError
-                );
-
-
-                // ----------------------------------------------------
-                // IMPORTANT:
-                //
-                // The Auth user and database records already exist.
-                //
-                // We do NOT silently claim the email was sent.
-                //
-                // For now, clean everything up so the administrator
-                // does not end up with an account that was never given
-                // its password setup email.
-                // ----------------------------------------------------
-
-                await supabaseAdmin
-
-                    .from("trainee_profiles")
-
-                    .delete()
-
-                    .eq(
-                        "user_id",
-                        traineeUserId
-                    );
-
-
-                await supabaseAdmin
-
-                    .from("profiles")
-
-                    .delete()
-
-                    .eq(
-                        "id",
-                        traineeUserId
-                    );
-
-
-                await supabaseAdmin.auth.admin.deleteUser(
-                    traineeUserId
-                );
-
-
-                throw new Error(
-                    emailError instanceof Error
-                        ? emailError.message
-                        : "The trainee account was created, but the password-setup email could not be sent."
-                );
-
-            }
-
-
-            // ========================================================
-            // 14. SUCCESS
+            // 12. SUCCESS
             // ========================================================
 
             return jsonResponse(
@@ -1430,7 +824,7 @@ Deno.serve(
                     email,
 
                     message:
-                        "Trainee account and profile were created successfully. A password-setup email has been sent to the trainee.",
+                        "Trainee account and profile were created successfully. A password-setup invitation email has been sent to the trainee.",
 
                 },
 

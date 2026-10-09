@@ -9,23 +9,17 @@ function StatusBadge({ status }) {
 
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${
-        styles[status] || "bg-gray-50 text-gray-600 border-gray-200"
-      }`}
+      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${styles[status] || "bg-gray-50 text-gray-600 border-gray-200"
+        }`}
     >
       {status}
     </span>
   );
 }
 
-function AssessmentTable({
-  assessments,
-  onViewTrainees,
-  emptyMessage,
-}) {
+function AssessmentTable({ assessments, onViewTrainees, emptyMessage }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-      {/* Table Header */}
       <div className="hidden grid-cols-12 items-center bg-gray-100 px-6 py-3 text-xs font-bold uppercase tracking-wide text-gray-600 md:grid">
         <div className="col-span-4">Assessment</div>
         <div className="col-span-2">Date</div>
@@ -35,53 +29,48 @@ function AssessmentTable({
         <div className="col-span-2 text-right">Action</div>
       </div>
 
-      {/* Table Rows */}
       <div className="divide-y divide-gray-100">
         {assessments.map((assessment) => (
           <div
             key={assessment.id}
             className="grid grid-cols-1 gap-4 px-6 py-5 transition-colors hover:bg-gray-50 md:grid-cols-12 md:items-center md:gap-0"
           >
-            {/* Assessment */}
             <div className="md:col-span-4">
               <p className="font-semibold leading-snug text-gray-900">
                 {assessment.name}
               </p>
-
               {assessment.code && (
-                <p className="mt-1 text-sm text-gray-500">
-                  #{assessment.code}
+                <p className="mt-1 text-sm text-gray-500">#{assessment.code}</p>
+              )}
+              {assessment.traineeLabel && (
+                <p className="mt-1 text-xs font-medium text-gray-500">
+                  {assessment.traineeLabel}
                 </p>
               )}
             </div>
 
-            {/* Date */}
             <div className="md:col-span-2">
               <p className="text-sm font-medium text-gray-900">
                 {assessment.date || "N/A"}
               </p>
             </div>
 
-            {/* Time */}
             <div className="md:col-span-2">
               <p className="text-sm font-medium text-gray-900">
                 {assessment.time || "N/A"}
               </p>
             </div>
 
-            {/* Trainees */}
             <div className="md:col-span-1">
               <p className="text-sm font-semibold text-gray-900">
                 {assessment.trainees ?? 0}
               </p>
             </div>
 
-            {/* Status */}
             <div className="md:col-span-1">
               <StatusBadge status={assessment.status} />
             </div>
 
-            {/* Action */}
             <div className="flex md:col-span-2 md:justify-end">
               <button
                 type="button"
@@ -104,18 +93,11 @@ function AssessmentTable({
   );
 }
 
-function AssessmentSection({
-  title,
-  assessments,
-  onViewTrainees,
-}) {
+function AssessmentSection({ title, assessments, onViewTrainees }) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-gray-900">
-          {title}
-        </h2>
-
+        <h2 className="text-lg font-bold text-gray-900">{title}</h2>
         <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
           {assessments.length}{" "}
           {assessments.length === 1 ? "Assessment" : "Assessments"}
@@ -141,15 +123,12 @@ export default function CourseListTable({
 }) {
   return (
     <div className="-mt-2 space-y-8">
-      {/* Search & Status Filter */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        {/* Search */}
         <div className="relative w-full lg:max-w-md">
           <Search
             size={18}
             className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
           />
-
           <input
             type="text"
             value={searchTerm}
@@ -159,7 +138,6 @@ export default function CourseListTable({
           />
         </div>
 
-        {/* Status Filter */}
         <div className="relative w-full lg:w-64">
           <select
             value={statusFilter}
@@ -171,7 +149,6 @@ export default function CourseListTable({
             <option value="Ongoing">Ongoing</option>
             <option value="Completed">Completed</option>
           </select>
-
           <ChevronDown
             size={18}
             className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
@@ -179,7 +156,6 @@ export default function CourseListTable({
         </div>
       </div>
 
-      {/* Upcoming */}
       {(statusFilter === "All" || statusFilter === "Upcoming") && (
         <AssessmentSection
           title="Upcoming Assessments"
@@ -188,7 +164,6 @@ export default function CourseListTable({
         />
       )}
 
-      {/* Ongoing */}
       {(statusFilter === "All" || statusFilter === "Ongoing") && (
         <AssessmentSection
           title="Ongoing Assessments"
@@ -197,7 +172,6 @@ export default function CourseListTable({
         />
       )}
 
-      {/* Completed */}
       {(statusFilter === "All" || statusFilter === "Completed") && (
         <AssessmentSection
           title="Completed Assessments"

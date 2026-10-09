@@ -1,6 +1,19 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Plus, X, Trash2, ListChecks, HelpCircle, CheckCircle2, Award, ClipboardList, FileQuestion } from "lucide-react";
+import {
+    ChevronDown,
+    Plus,
+    X,
+    Trash2,
+    ListChecks,
+    HelpCircle,
+    CheckCircle2,
+    Award,
+    ClipboardList,
+    FileQuestion,
+    AlertTriangle,
+    RefreshCw,
+} from "lucide-react";
 
 /* ============================================================
    HELPERS
@@ -94,6 +107,67 @@ function normalizeQuestionType(value) {
 
 const CHOICE_BASED_TYPES = ["Multiple Choice", "Situational"];
 
+
+/* ============================================================
+   CHECK IF A CHOICE IS CORRECT
+   ============================================================ */
+
+function isChoiceCorrect(choice, question) {
+    if (!choice) {
+        return false;
+    }
+
+    const optionLetter =
+        typeof choice === "object"
+            ? String(choice.option_letter ?? "").trim()
+            : "";
+
+    const choiceText =
+        typeof choice === "string"
+            ? choice
+            : choice?.option_text ??
+            choice?.text ??
+            choice?.option ??
+            choice?.value ??
+            "";
+
+    const correctAnswer =
+        question?.correct_answer ??
+        question?.correctAnswer ??
+        question?.answer ??
+        "";
+
+    const normalizedCorrectAnswer =
+        String(correctAnswer)
+            .trim()
+            .toLowerCase();
+
+    /*
+     * Support an answer key stored as:
+     * A
+     * B
+     * C
+     * D
+     */
+    if (
+        optionLetter &&
+        optionLetter.toLowerCase() ===
+        normalizedCorrectAnswer
+    ) {
+        return true;
+    }
+
+    /*
+     * Support an answer key stored as the
+     * actual answer text.
+     */
+    return (
+        String(choiceText)
+            .trim()
+            .toLowerCase() ===
+        normalizedCorrectAnswer
+    );
+}
 /* ============================================================
    EMPTY FORM
    ============================================================ */
@@ -295,16 +369,7 @@ function QuestionModal({
                 questionType,
 
             points:
-                question.points ===
-                    null ||
-                    question.points ===
-                    undefined ||
-                    question.points ===
-                    ""
-                    ? 1
-                    : Number(
-                        question.points
-                    ) || 1,
+                Number(question.max_points) || 1,
 
             correct_answer:
                 question.correct_answer ||
@@ -1569,10 +1634,19 @@ export default function QuestionsContainer({
     openSections = {},
     toggleSection,
     onSaveQuestion,
+    onDeleteQuestion,
     saving = false,
 }) {
     const [modal, setModal] =
         useState(null);
+
+    const [deleteQuestion, setDeleteQuestion] =
+        useState(null);
+
+    const [deleting, setDeleting] =
+        useState(false);
+
+
 
     /* ==========================================================
        OPEN ADD
@@ -1617,6 +1691,82 @@ export default function QuestionsContainer({
                     ),
             },
         });
+    };
+
+    /* ==========================================================
+   OPEN DELETE CONFIRMATION
+   ========================================================== */
+
+    const handleDeleteClick = (
+        question
+    ) => {
+        if (!question?.id) {
+            console.error(
+                "Cannot delete question: question ID is missing.",
+                question
+            );
+            return;
+        }
+
+        setDeleteQuestion(
+            question
+        );
+    };
+
+
+    /* ==========================================================
+       CONFIRM DELETE
+       ========================================================== */
+
+    const handleConfirmDelete = async () => {
+        if (!deleteQuestion?.id) {
+            return;
+        }
+
+        if (
+            typeof onDeleteQuestion !==
+            "function"
+        ) {
+            console.error(
+                "onDeleteQuestion handler is not available."
+            );
+            return;
+        }
+
+        setDeleting(true);
+
+        try {
+            const result =
+                await onDeleteQuestion(
+                    deleteQuestion
+                );
+
+            if (result !== false) {
+                setDeleteQuestion(
+                    null
+                );
+            }
+        } catch (error) {
+            console.error(
+                "Question deletion failed:",
+                error
+            );
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+
+    /* ==========================================================
+       CANCEL DELETE
+       ========================================================== */
+
+    const handleCancelDelete = () => {
+        if (deleting) {
+            return;
+        }
+
+        setDeleteQuestion(null);
     };
 
     /* ==========================================================
@@ -1885,85 +2035,99 @@ export default function QuestionsContainer({
                                                                             </p>
 
                                                                             {/* =================================
-                                          MULTIPLE CHOICE / SITUATIONAL DISPLAY
-                                      ================================= */}
+    MULTIPLE CHOICE / SITUATIONAL DISPLAY
+================================= */}
 
-                                                                            {CHOICE_BASED_TYPES.includes(type) &&
-                                                                                Array.isArray(
-                                                                                    question.choices
-                                                                                ) &&
-                                                                                question.choices.length >
-                                                                                0 && (
-                                                                                    <div className="mt-4 space-y-2">
+                                                                            {CHOICE_BASED_TYPES.includes(type) && (
+                                                                                <div className="mt-4 space-y-2">
 
-                                                                                        {question.choices.map(
-                                                                                            (
-                                                                                                choice,
-                                                                                                choiceIndex
-                                                                                            ) => {
+                                                                                    {(
+                                                                                        Array.isArray(question.options) &&
+                                                                                            question.options.length > 0
+                                                                                            ? question.options
+                                                                                            : Array.isArray(question.choices)
+                                                                                                ? question.choices
+                                                                                                : []
+                                                                                    ).map(
+                                                                                        (
+                                                                                            option,
+                                                                                            optionIndex
+                                                                                        ) => {
 
-                                                                                                const choiceText =
-                                                                                                    typeof choice ===
-                                                                                                        "string"
-                                                                                                        ? choice
-                                                                                                        : choice?.option_text ??
-                                                                                                        choice?.text ??
-                                                                                                        choice?.option ??
-                                                                                                        choice?.value ??
-                                                                                                        "";
+                                                                                            const optionLetter =
+                                                                                                typeof option === "object"
+                                                                                                    ? option?.option_letter ??
+                                                                                                    String.fromCharCode(
+                                                                                                        65 + optionIndex
+                                                                                                    )
+                                                                                                    : String.fromCharCode(
+                                                                                                        65 + optionIndex
+                                                                                                    );
 
-                                                                                                const isCorrect =
-                                                                                                    String(
-                                                                                                        choiceText
-                                                                                                    ).trim() ===
-                                                                                                    String(
-                                                                                                        question.correct_answer ??
-                                                                                                        ""
-                                                                                                    ).trim();
+                                                                                            const optionText =
+                                                                                                typeof option === "string"
+                                                                                                    ? option
+                                                                                                    : option?.option_text ??
+                                                                                                    option?.text ??
+                                                                                                    option?.option ??
+                                                                                                    option?.value ??
+                                                                                                    "";
 
-                                                                                                return (
-                                                                                                    <div
-                                                                                                        key={
-                                                                                                            choiceIndex
-                                                                                                        }
-                                                                                                        className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm ${isCorrect
-                                                                                                            ? "border-green-200 bg-green-50 font-semibold text-green-700"
-                                                                                                            : "border-gray-200 bg-gray-50 text-gray-700"
-                                                                                                            }`}
-                                                                                                    >
+                                                                                            const isCorrect =
+                                                                                                isChoiceCorrect(
+                                                                                                    option,
+                                                                                                    question
+                                                                                                );
 
-                                                                                                        <span>
-                                                                                                            <span className="mr-2 font-bold text-gray-500">
-                                                                                                                {String.fromCharCode(
-                                                                                                                    65 +
-                                                                                                                    choiceIndex
-                                                                                                                )}
-                                                                                                                .
-                                                                                                            </span>
+                                                                                            return (
+                                                                                                <div
+                                                                                                    key={
+                                                                                                        typeof option === "object"
+                                                                                                            ? option?.id ??
+                                                                                                            `${question.id}-${optionIndex}`
+                                                                                                            : `${question.id}-${optionIndex}`
+                                                                                                    }
+                                                                                                    className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm ${isCorrect
+                                                                                                        ? "border-green-200 bg-green-50 font-semibold text-green-700"
+                                                                                                        : "border-gray-200 bg-gray-50 text-gray-700"
+                                                                                                        }`}
+                                                                                                >
 
-                                                                                                            {
-                                                                                                                choiceText
-                                                                                                            }
+                                                                                                    <div className="flex min-w-0 items-center gap-2">
+
+                                                                                                        <span
+                                                                                                            className={`shrink-0 font-bold ${isCorrect
+                                                                                                                ? "text-green-600"
+                                                                                                                : "text-gray-500"
+                                                                                                                }`}
+                                                                                                        >
+                                                                                                            {optionLetter}.
                                                                                                         </span>
 
-                                                                                                        {isCorrect && (
-                                                                                                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-bold text-green-700">
-                                                                                                                <CheckCircle2 size={12} />
-                                                                                                                Correct
-                                                                                                            </span>
-                                                                                                        )}
+                                                                                                        <span className="whitespace-pre-wrap">
+                                                                                                            {optionText}
+                                                                                                        </span>
 
                                                                                                     </div>
-                                                                                                );
-                                                                                            }
-                                                                                        )}
 
-                                                                                    </div>
-                                                                                )}
+                                                                                                    {isCorrect && (
+                                                                                                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-bold text-green-700">
+                                                                                                            <CheckCircle2 size={12} />
+                                                                                                            Correct
+                                                                                                        </span>
+                                                                                                    )}
+
+                                                                                                </div>
+                                                                                            );
+                                                                                        }
+                                                                                    )}
+
+                                                                                </div>
+                                                                            )}
 
                                                                             {/* =================================
-                                          TRUE/FALSE DISPLAY
-                                      ================================= */}
+                                                                                TRUE/FALSE DISPLAY
+                                                                            ================================= */}
 
                                                                             {type ===
                                                                                 "True/False" && (
@@ -2063,24 +2227,46 @@ export default function QuestionsContainer({
                                                                         </div>
 
                                                                         {/* =================================
-                                        EDIT BUTTON
-                                    ================================= */}
+    EDIT / DELETE BUTTONS
+================================= */}
 
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() =>
-                                                                                handleEdit(
-                                                                                    question
-                                                                                )
-                                                                            }
-                                                                            disabled={
-                                                                                saving ||
-                                                                                !question?.id
-                                                                            }
-                                                                            className="shrink-0 rounded-lg border border-[#16213e]/20 px-3 py-2 text-xs font-semibold text-[#16213e] hover:bg-[#16213e]/5 disabled:cursor-not-allowed disabled:opacity-50"
-                                                                        >
-                                                                            Edit
-                                                                        </button>
+                                                                        <div className="flex shrink-0 items-center gap-2">
+
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() =>
+                                                                                    handleEdit(
+                                                                                        question
+                                                                                    )
+                                                                                }
+                                                                                disabled={
+                                                                                    saving ||
+                                                                                    deleting ||
+                                                                                    !question?.id
+                                                                                }
+                                                                                className="rounded-lg border border-[#16213e]/20 px-3 py-2 text-xs font-semibold text-[#16213e] hover:bg-[#16213e]/5 disabled:cursor-not-allowed disabled:opacity-50"
+                                                                            >
+                                                                                Edit
+                                                                            </button>
+
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() =>
+                                                                                    handleDeleteClick(
+                                                                                        question
+                                                                                    )
+                                                                                }
+                                                                                disabled={
+                                                                                    saving ||
+                                                                                    deleting ||
+                                                                                    !question?.id
+                                                                                }
+                                                                                className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                                                            >
+                                                                                Delete
+                                                                            </button>
+
+                                                                        </div>
 
                                                                     </div>
 
@@ -2123,6 +2309,231 @@ export default function QuestionsContainer({
                     saving
                 }
             />
+
+            {/* ======================================================
+    DELETE CONFIRMATION MODAL
+====================================================== */}
+
+            {deleteQuestion && (
+                <div
+                    className="
+            fixed
+            inset-0
+            z-[100]
+            flex
+            items-center
+            justify-center
+            bg-black/50
+            p-4
+        "
+                >
+                    <div
+                        className="
+                w-full
+                max-w-md
+                overflow-hidden
+                rounded-xl
+                bg-white
+                shadow-2xl
+            "
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-question-title"
+                    >
+
+                        {/* ==================================================
+                HEADER
+            ================================================== */}
+
+                        <div
+                            className="
+                    flex
+                    items-center
+                    justify-between
+                    bg-[#15294b]
+                    px-6
+                    py-4
+                    text-white
+                "
+                        >
+
+                            <div className="flex items-center gap-3">
+
+                                <AlertTriangle
+                                    size={20}
+                                    className="text-white"
+                                />
+
+                                <h2
+                                    id="delete-question-title"
+                                    className="text-lg font-semibold"
+                                >
+                                    Confirmation
+                                </h2>
+
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={handleCancelDelete}
+                                disabled={deleting}
+                                className="
+                        transition
+                        hover:text-red-300
+                        disabled:cursor-not-allowed
+                        disabled:opacity-50
+                    "
+                                aria-label="Close confirmation dialog"
+                            >
+                                <X size={20} />
+                            </button>
+
+                        </div>
+
+
+                        {/* ==================================================
+                CONTENT
+            ================================================== */}
+
+                        <div className="px-6 py-6">
+
+                            <h3 className="text-lg font-bold text-gray-900">
+                                Delete Question?
+                            </h3>
+
+                            <p className="mt-2 text-sm leading-6 text-gray-600">
+                                This question will be permanently deleted from
+                                this assessment. This action cannot be undone.
+                            </p>
+
+
+                            {/* QUESTION DETAILS */}
+
+                            <div
+                                className="
+                        mt-5
+                        rounded-lg
+                        border
+                        border-gray-200
+                        bg-gray-50
+                        p-4
+                    "
+                            >
+
+                                <p
+                                    className="
+                            text-xs
+                            font-medium
+                            uppercase
+                            tracking-wider
+                            text-gray-500
+                        "
+                                >
+                                    Question
+                                </p>
+
+                                <p className="mt-1 font-semibold text-gray-900">
+                                    {deleteQuestion?.item_number
+                                        ? `Question ${deleteQuestion.item_number}`
+                                        : "Selected Question"}
+                                </p>
+
+                                <p className="mt-1 text-sm leading-5 text-gray-600">
+                                    {deleteQuestion?.question_text ||
+                                        "No question text available."}
+                                </p>
+
+                            </div>
+
+
+                            {/* ==================================================
+                    FOOTER
+                ================================================== */}
+
+                            <div
+                                className="
+                        mt-6
+                        flex
+                        justify-end
+                        gap-3
+                        border-t
+                        border-gray-200
+                        pt-5
+                    "
+                            >
+
+                                {/* CANCEL */}
+
+                                <button
+                                    type="button"
+                                    onClick={handleCancelDelete}
+                                    disabled={deleting}
+                                    className="
+                            rounded-lg
+                            border
+                            border-gray-300
+                            bg-white
+                            px-5
+                            py-2.5
+                            text-sm
+                            font-semibold
+                            text-gray-700
+                            shadow-sm
+                            transition
+                            hover:bg-gray-100
+                            disabled:cursor-not-allowed
+                            disabled:opacity-50
+                        "
+                                >
+                                    Cancel
+                                </button>
+
+
+                                {/* DELETE */}
+
+                                <button
+                                    type="button"
+                                    onClick={handleConfirmDelete}
+                                    disabled={deleting}
+                                    className="
+                            flex
+                            items-center
+                            gap-2
+                            rounded-lg
+                            bg-red-600
+                            px-5
+                            py-2.5
+                            text-sm
+                            font-semibold
+                            text-white
+                            shadow-sm
+                            transition
+                            hover:bg-red-700
+                            disabled:cursor-not-allowed
+                            disabled:opacity-60
+                        "
+                                >
+
+                                    {deleting && (
+                                        <RefreshCw
+                                            size={16}
+                                            className="animate-spin"
+                                        />
+                                    )}
+
+                                    {deleting
+                                        ? "Deleting..."
+                                        : "Delete"}
+
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+                </div>
+            )}
         </>
     );
 }

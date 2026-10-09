@@ -737,10 +737,7 @@ const now = new Date().toISOString();
               Recommended based on evidence
             </p>
 
-            <p className="text-[10px] text-slate-400 italic pt-1 border-t border-slate-100 w-full">
-              AI supports assessor review
-            </p>
-
+            
           </div>
         </div>
 
@@ -772,9 +769,7 @@ const now = new Date().toISOString();
               {score} of {total} items correct
             </p>
 
-            <p className="text-[10px] text-slate-400 italic pt-1 border-t border-slate-100 w-full">
-              Written evaluation score
-            </p>
+            
 
           </div>
         </div>

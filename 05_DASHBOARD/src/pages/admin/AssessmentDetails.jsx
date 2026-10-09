@@ -547,41 +547,13 @@ export default function AssessmentDetails() {
               options
                 .filter(
                   (option) =>
-                    String(
-                      option.question_id
-                    ) ===
-                    String(question.id)
+                    String(option.question_id) === String(question.id)
                 )
-                .sort((a, b) => {
-                  const aOrder =
-                    Number(
-                      a.option_order ??
-                      a.order_number ??
-                      0
-                    );
-
-                  const bOrder =
-                    Number(
-                      b.option_order ??
-                      b.order_number ??
-                      0
-                    );
-
-                  if (
-                    aOrder !==
-                    bOrder
-                  ) {
-                    return (
-                      aOrder - bOrder
-                    );
-                  }
-
-                  return (
-                    Number(a.id) -
-                    Number(b.id)
-                  );
-                });
-
+                .sort((a, b) =>
+                  String(a.option_letter ?? "").localeCompare(
+                    String(b.option_letter ?? "")
+                  )
+                );
             /* --------------------------------------------------
                ANSWER KEY
             -------------------------------------------------- */
@@ -680,14 +652,7 @@ export default function AssessmentDetails() {
                 "",
 
               points:
-                question.points ===
-                  null ||
-                  question.points ===
-                  undefined
-                  ? 1
-                  : Number(
-                    question.points
-                  ) || 1,
+                Number(question.max_points) || 1,
 
               correct_answer:
                 correctAnswer,
@@ -904,9 +869,8 @@ export default function AssessmentDetails() {
         test_section:
           questionType,
 
-        points:
-          Number(form.points) ||
-          1,
+        max_points:
+          Number(form.points) || 1,
       };
 
       let questionId =
@@ -1044,79 +1008,17 @@ export default function AssessmentDetails() {
           validChoices.length >
           0
         ) {
-          const optionRows =
-            validChoices.map(
-              (
-                choice,
-                index
-              ) => ({
-                question_id:
-                  questionId,
+          const optionRows = validChoices.map((choice, index) => ({
+            question_id: questionId,
+            option_letter: String.fromCharCode(65 + index),
+            option_text: choice,
+          }));
 
-                option_text:
-                  choice,
-
-                option_order:
-                  index + 1,
-
-                option_letter:
-                  String.fromCharCode(
-                    65 + index
-                  ),
-              })
-            );
-
-          /*
-           * Some databases may not have option_letter.
-           * Try the complete row first, then fall back
-           * to the columns already used by the application.
-           */
-
-          let {
-            error:
-            insertOptionsError,
-          } = await supabase
+          const { error: insertOptionsError } = await supabase
             .from("question_options")
-            .insert(
-              optionRows
-            );
+            .insert(optionRows);
 
-          if (
-            insertOptionsError
-          ) {
-            const fallbackRows =
-              validChoices.map(
-                (
-                  choice,
-                  index
-                ) => ({
-                  question_id:
-                    questionId,
-
-                  option_text:
-                    choice,
-
-                  option_order:
-                    index + 1,
-                })
-              );
-
-            const fallbackResult =
-              await supabase
-                .from(
-                  "question_options"
-                )
-                .insert(
-                  fallbackRows
-                );
-
-            insertOptionsError =
-              fallbackResult.error;
-          }
-
-          if (
-            insertOptionsError
-          ) {
+          if (insertOptionsError) {
             throw insertOptionsError;
           }
         }
@@ -1288,16 +1190,7 @@ export default function AssessmentDetails() {
         }
       }
 
-      /* ========================================================
-         SUCCESS
-      ======================================================== */
-
-      setSuccessMessage(
-        questionId &&
-          form.question_id
-          ? "Question updated successfully."
-          : "Question saved successfully."
-      );
+     
 
       /* ========================================================
          RELOAD DATABASE DATA
@@ -1317,6 +1210,126 @@ export default function AssessmentDetails() {
         error?.message ||
         "Unable to save the question."
       );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /* ==========================================================
+   DELETE QUESTION
+   ========================================================== */
+
+  const deleteQuestion = async (question) => {
+    if (!id || !question?.id) {
+      setErrorMessage("Question ID is missing.");
+      return false;
+    }
+
+    setSaving(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const questionId = question.id;
+
+      /* ========================================================
+         1. DELETE ANSWER KEY
+         ======================================================== */
+
+      const {
+        error: deleteAnswerKeyError,
+      } = await supabase
+        .from("answer_keys")
+        .delete()
+        .eq("question_id", questionId);
+
+      if (deleteAnswerKeyError) {
+        throw deleteAnswerKeyError;
+      }
+
+      /* ========================================================
+         2. DELETE QUESTION OPTIONS
+         ======================================================== */
+
+      const {
+        error: deleteOptionsError,
+      } = await supabase
+        .from("question_options")
+        .delete()
+        .eq("question_id", questionId);
+
+      if (deleteOptionsError) {
+        throw deleteOptionsError;
+      }
+
+      /* ========================================================
+         3. DELETE QUESTION
+         ======================================================== */
+
+      const {
+        error: deleteQuestionError,
+      } = await supabase
+        .from("questions")
+        .delete()
+        .eq("id", questionId);
+
+      if (deleteQuestionError) {
+        throw deleteQuestionError;
+      }
+
+      /* ========================================================
+         4. UPDATE TOTAL ITEMS
+         ======================================================== */
+
+      const {
+        count,
+        error: countError,
+      } = await supabase
+        .from("questions")
+        .select("id", {
+          count: "exact",
+          head: true,
+        })
+        .eq("assessment_id", id);
+
+      if (!countError) {
+        const {
+          error: assessmentUpdateError,
+        } = await supabase
+          .from("assessments")
+          .update({
+            total_items: Number(count) || 0,
+          })
+          .eq("id", id);
+
+        if (assessmentUpdateError) {
+          console.warn(
+            "Unable to update total_items:",
+            assessmentUpdateError
+          );
+        }
+      }
+
+      
+      /* ========================================================
+         6. RELOAD ASSESSMENT
+         ======================================================== */
+
+      await loadAssessment();
+
+      return true;
+    } catch (error) {
+      console.error(
+        "Error deleting question:",
+        error
+      );
+
+      setErrorMessage(
+        error?.message ||
+        "Unable to delete the question."
+      );
+
+      return false;
     } finally {
       setSaving(false);
     }
@@ -1515,6 +1528,7 @@ export default function AssessmentDetails() {
 
       </div>
 
+
       {/* ========================================================
           QUESTIONS CONTAINER
       ======================================================== */}
@@ -1536,6 +1550,10 @@ export default function AssessmentDetails() {
 
         onSaveQuestion={
           saveQuestion
+        }
+
+        onDeleteQuestion={
+          deleteQuestion
         }
 
         saving={saving}

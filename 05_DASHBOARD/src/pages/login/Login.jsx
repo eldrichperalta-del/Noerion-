@@ -42,7 +42,7 @@ export default function Login() {
         const cleanPassword = password.trim();
 
         if (!cleanEmail) {
-            setError("Email is required");
+            setError("Email and Password is required");
             return;
         }
 

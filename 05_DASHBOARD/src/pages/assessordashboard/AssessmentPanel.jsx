@@ -10,41 +10,15 @@ export default function AssessmentPanel() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-
+  // Each row represents one trainee's assignment, not the whole batch.
   const [assignedBatches, setAssignedBatches] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  /*
-   * ==========================================================================
-   * LIVE CURRENT TIME
-   * ==========================================================================
-   *
-   * Updates every second so the assessment automatically moves:
-   *
-   * Upcoming → Ongoing → Completed
-   *
-   * without requiring a page refresh.
-   */
-
-  const [currentTime, setCurrentTime] = useState(
-    () => new Date()
-  );
+  const [currentTime, setCurrentTime] = useState(() => new Date());
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => {
-      clearInterval(timer);
-    };
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
   }, []);
-
-  /*
-   * ==========================================================================
-   * FETCH ASSESSMENTS ASSIGNED TO CURRENT ASSESSOR
-   * ==========================================================================
-   */
 
   useEffect(() => {
     let isMounted = true;
@@ -53,442 +27,260 @@ export default function AssessmentPanel() {
       setLoading(true);
 
       try {
-        // =====================================================================
-        // 1. GET CURRENT LOGGED-IN ASSESSOR
-        // =====================================================================
-
         const {
           data: { user },
           error: userError,
         } = await supabase.auth.getUser();
 
-        if (userError) {
-          throw userError;
-        }
+        if (userError) throw userError;
 
-        const currentAssessorId = user?.id;
-
-        if (!currentAssessorId) {
-          if (isMounted) {
-            setAssignedBatches([]);
-          }
-
+        if (!user?.id) {
+          if (isMounted) setAssignedBatches([]);
           return;
         }
 
-        // =====================================================================
-        // 2. FETCH ONLY THIS ASSESSOR'S ASSESSMENT BATCHES
-        // =====================================================================
-
-        const {
-          data: batchesData,
-          error: batchesError,
-        } = await supabase
+        const { data: batchesData, error: batchesError } = await supabase
           .from("assessment_batches")
           .select("*")
-          .eq("assessor_id", currentAssessorId);
+          .eq("assessor_id", user.id);
 
-        if (batchesError) {
-          throw batchesError;
-        }
+        if (batchesError) throw batchesError;
 
         const rawBatches = batchesData || [];
-
         if (rawBatches.length === 0) {
-          if (isMounted) {
-            setAssignedBatches([]);
-          }
-
+          if (isMounted) setAssignedBatches([]);
           return;
         }
 
-        // =====================================================================
-        // 3. GET BATCH IDS BELONGING TO THIS ASSESSOR
-        // =====================================================================
-
-        const batchIds = rawBatches
-          .map((batch) => batch.id)
-          .filter(Boolean);
-
-        // =====================================================================
-        // 4. FETCH TRAINEE ASSIGNMENTS ONLY FOR THESE BATCHES
-        // =====================================================================
-
-        let assignmentsData = [];
-
-        if (batchIds.length > 0) {
-          const {
-            data,
-            error: assignmentsError,
-          } = await supabase
+        const batchIds = rawBatches.map((batch) => batch.id).filter(Boolean);
+        const { data: assignmentsData, error: assignmentsError } =
+          await supabase
             .from("assignments")
-            .select("batch_id, trainee_id")
+            .select("id, batch_id, trainee_id")
             .in("batch_id", batchIds);
 
-          if (assignmentsError) {
-            console.warn(
-              "Unable to fetch trainee assignments:",
-              assignmentsError
-            );
+        if (assignmentsError) throw assignmentsError;
+
+        const assignments = assignmentsData || [];
+        const assignmentsByBatch = {};
+        assignments.forEach((assignment) => {
+          if (!assignmentsByBatch[assignment.batch_id]) {
+            assignmentsByBatch[assignment.batch_id] = [];
+          }
+          assignmentsByBatch[assignment.batch_id].push(assignment);
+        });
+
+        const assignmentIds = assignments.map((assignment) => assignment.id).filter(Boolean);
+        let submittedIds = new Set();
+
+        if (assignmentIds.length > 0) {
+          const { data: submissionsData, error: submissionsError } = await supabase
+            .from("assessment_submissions")
+            .select("assignment_id, status, submitted_at")
+            .in("assignment_id", assignmentIds);
+
+          if (submissionsError) {
+            console.warn("Unable to fetch assessment submissions:", submissionsError);
           } else {
-            assignmentsData = data || [];
+            submittedIds = getSubmittedAssignmentIds(submissionsData || []);
           }
         }
 
-        // =====================================================================
-        // 5. COUNT TRAINEES PER BATCH
-        // =====================================================================
-
-        const traineeCountsMap = {};
-
-        assignmentsData.forEach((assignment) => {
-          if (assignment.batch_id) {
-            traineeCountsMap[assignment.batch_id] =
-              (traineeCountsMap[assignment.batch_id] || 0) + 1;
-          }
-        });
-
-        // =====================================================================
-        // 6. FORMAT ASSESSMENT BATCHES
-        // =====================================================================
-
-        const formatted = rawBatches.map((batch) => {
-          /*
-           * IMPORTANT:
-           *
-           * assessment_date in assessment_batches is a PostgreSQL DATE:
-           *
-           *     2026-09-21
-           *
-           * Therefore, DO NOT use:
-           *
-           *     new Date(assessment_date).toISOString()
-           *
-           * because that introduces unnecessary timezone conversion.
-           */
-
-          const rawDate =
-            batch.assessment_date || null;
-
-          const startTime =
-            batch.start_time || null;
-
-          const endTime =
-            batch.end_time || null;
-
+        const formattedRows = rawBatches.flatMap((batch) => {
+          const batchAssignments = assignmentsByBatch[batch.id] || [];
           const batchCode =
             batch.batch_code ||
             batch.batch_id ||
-            (batch.id
-              ? `BATCH-${batch.id
-                  .slice(0, 8)
-                  .toUpperCase()}`
-              : "N/A");
+            (batch.id ? `BATCH-${batch.id.slice(0, 8).toUpperCase()}` : "N/A");
 
-          // ===================================================================
-          // FORMAT DATE
-          // ===================================================================
-
-          const formattedDate = rawDate
-            ? formatAssessmentDate(rawDate)
-            : "N/A";
-
-          // ===================================================================
-          // FORMAT TIME
-          // ===================================================================
-
+          const rawDate = batch.assessment_date || null;
+          const startTime = batch.start_time || null;
+          const endTime = batch.end_time || null;
           let formattedTime = "N/A";
 
           if (startTime && endTime) {
-            formattedTime = `${formatTime(
-              startTime
-            )} - ${formatTime(endTime)}`;
+            formattedTime = `${formatTime(startTime)} - ${formatTime(endTime)}`;
           } else if (startTime) {
             formattedTime = formatTime(startTime);
           } else if (batch.duration) {
             formattedTime = `${batch.duration} Mins`;
           }
 
-          return {
-            id: batch.id,
-
-            assessmentId:
-              batch.assessment_id,
-
-            name:
-              batch.assessment_name ||
-              "Untitled Assessment Batch",
-
+          const common = {
+            batchId: batch.id,
+            assessmentId: batch.assessment_id,
+            name: batch.assessment_name || "Untitled Assessment Batch",
             code: batchCode,
-
-            trainees:
-              traineeCountsMap[batch.id] ?? 0,
-
-            date: formattedDate,
-
+            date: rawDate ? formatAssessmentDate(rawDate) : "N/A",
             time: formattedTime,
-
-            /*
-             * Keep the raw scheduling values.
-             *
-             * These are used by liveAssessments to calculate the current
-             * status every second.
-             */
             rawDate,
-
             startTime,
-
             endTime,
-
-            duration:
-              batch.duration ?? null,
-
-            category: "Upcoming",
-
-            status: "Pending",
+            duration: batch.duration ?? null,
           };
+
+          // Keep a separate row for each assigned trainee so submitted and
+          // unfinished trainees from the same batch can appear in different sections.
+          if (batchAssignments.length > 0) {
+            return batchAssignments.map((assignment) => ({
+              ...common,
+              id: `${batch.id}-${assignment.id}`,
+              assignmentId: assignment.id,
+              traineeId: assignment.trainee_id,
+              trainees: 1,
+              isSubmitted: submittedIds.has(assignment.id),
+              category: "Upcoming",
+              status: "Pending",
+            }));
+          }
+
+          // Preserve visibility for a batch with no linked assignments.
+          return [{
+            ...common,
+            id: batch.id,
+            assignmentId: null,
+            traineeId: null,
+            traineeLabel: "No trainees assigned",
+            trainees: 0,
+            isSubmitted: false,
+            category: "Upcoming",
+            status: "Pending",
+          }];
         });
 
-        if (isMounted) {
-          setAssignedBatches(formatted);
-        }
+        if (isMounted) setAssignedBatches(formattedRows);
       } catch (error) {
-        console.error(
-          "Error loading assessor assessment batches:",
-          error
-        );
-
-        if (isMounted) {
-          setAssignedBatches([]);
-        }
+        console.error("Error loading assessor assessment batches:", error);
+        if (isMounted) setAssignedBatches([]);
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (isMounted) setLoading(false);
       }
     }
 
     fetchAssignedBatches();
-
     return () => {
       isMounted = false;
     };
   }, []);
 
   /*
-   * ==========================================================================
-   * LIVE ASSESSMENT STATUS
-   * ==========================================================================
-   *
-   * The database is NOT queried every second.
-   *
-   * currentTime changes every second, which causes this calculation to run
-   * again and automatically move each assessment to the correct section.
-   *
-   * Rules:
-   *
-   * BEFORE START:
-   *     Upcoming / Pending
-   *
-   * AT START UNTIL END:
-   *     Ongoing / Ongoing
-   *
-   * AT OR AFTER END:
-   *     Completed / Completed
+   * Refresh each trainee's submission state every five seconds. The status
+   * is per assignment, so a submitted trainee can be Completed while other
+   * trainees assigned to the same batch remain Ongoing.
    */
+  const assignmentIdsKey = assignedBatches
+    .map((row) => row.assignmentId)
+    .filter(Boolean)
+    .join("|");
+
+  useEffect(() => {
+    const assignmentIds = [...new Set(
+      assignedBatches.map((row) => row.assignmentId).filter(Boolean)
+    )];
+    if (assignmentIds.length === 0) return undefined;
+
+    let isMounted = true;
+
+    const refreshSubmissionStatus = async () => {
+      const { data, error } = await supabase
+        .from("assessment_submissions")
+        .select("assignment_id, status, submitted_at")
+        .in("assignment_id", assignmentIds);
+
+      if (error) {
+        console.warn("Unable to refresh assessment submissions:", error);
+        return;
+      }
+
+      const submittedIds = getSubmittedAssignmentIds(data || []);
+      if (isMounted) {
+        setAssignedBatches((previous) =>
+          previous.map((row) => row.assignmentId
+            ? { ...row, isSubmitted: submittedIds.has(row.assignmentId) }
+            : row
+          )
+        );
+      }
+    };
+
+    refreshSubmissionStatus();
+    const intervalId = setInterval(refreshSubmissionStatus, 5000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, [assignmentIdsKey]);
 
   const liveAssessments = useMemo(() => {
     return assignedBatches.map((assessment) => {
-      const {
-        rawDate,
-        startTime,
-        endTime,
-        duration,
-      } = assessment;
+      // Submission always wins over the schedule: a trainee who has submitted
+      // is Completed immediately, even if the scheduled end time is later.
+      if (assessment.assignmentId && assessment.isSubmitted) {
+        return { ...assessment, category: "Completed", status: "Completed" };
+      }
 
       let category = "Upcoming";
       let displayStatus = "Pending";
 
-      if (rawDate) {
-        /*
-         * assessment_date is already:
-         *
-         * YYYY-MM-DD
-         *
-         * Example:
-         *
-         * 2026-09-21
-         *
-         * Do NOT convert this with new Date(rawDate).
-         */
-
-        const dateString = String(rawDate).slice(
-          0,
-          10
-        );
-
-        let startDateTime;
-        let endDateTime;
-
-        // =====================================================================
-        // START DATETIME
-        // =====================================================================
-
-        startDateTime = createLocalDateTime(
+      if (assessment.rawDate) {
+        const dateString = String(assessment.rawDate).slice(0, 10);
+        const startDateTime = createLocalDateTime(
           dateString,
-          startTime || "00:00:00"
+          assessment.startTime || "00:00:00"
         );
-
-        // =====================================================================
-        // END DATETIME
-        // =====================================================================
-
-        if (endTime) {
-          endDateTime = createLocalDateTime(
-            dateString,
-            endTime
-          );
-        } else if (duration) {
-          /*
-           * If there is no end_time, use duration.
-           *
-           * Example:
-           * 4 minutes
-           */
-
-          const durationMinutes =
-            parseDurationMinutes(duration);
-
-          endDateTime = new Date(
-            startDateTime.getTime() +
-              durationMinutes * 60 * 1000
-          );
-        } else {
-          /*
-           * No end time and no duration:
-           * default to one hour.
-           */
-
-          endDateTime = new Date(
-            startDateTime.getTime() +
-              60 * 60 * 1000
-          );
-        }
-
-        // =====================================================================
-        // DETERMINE LIVE STATUS
-        // =====================================================================
 
         if (currentTime < startDateTime) {
-          /*
-           * The assessment has not started yet.
-           */
           category = "Upcoming";
           displayStatus = "Pending";
-        } else if (currentTime < endDateTime) {
-          /*
-           * The assessment is currently happening.
-           */
+        } else {
+          // Do not mark a trainee Completed merely because the end time passed.
+          // Only a real submission can complete that trainee's row.
           category = "Ongoing";
           displayStatus = "Ongoing";
-        } else {
-          /*
-           * The assessment has ended.
-           */
-          category = "Completed";
-          displayStatus = "Completed";
         }
       }
 
-      return {
-        ...assessment,
-        category,
-        status: displayStatus,
-      };
+      return { ...assessment, category, status: displayStatus };
     });
-  }, [
-    assignedBatches,
-    currentTime,
-  ]);
-
-  /*
-   * ==========================================================================
-   * SEARCH + STATUS FILTER
-   * ==========================================================================
-   */
+  }, [assignedBatches, currentTime]);
 
   const filteredAssessments = useMemo(() => {
-    const query = searchTerm
-      .trim()
-      .toLowerCase();
-
+    const query = searchTerm.trim().toLowerCase();
     let result = liveAssessments;
 
-    // Search
     if (query) {
       result = result.filter((assessment) =>
-        `${assessment.name} ${assessment.code}`
+        `${assessment.name} ${assessment.code} ${assessment.traineeLabel || ""}`
           .toLowerCase()
           .includes(query)
       );
     }
 
-    // Status filter
     if (statusFilter !== "All") {
-      result = result.filter(
-        (assessment) =>
-          assessment.category === statusFilter
-      );
+      result = result.filter((assessment) => assessment.category === statusFilter);
     }
 
     return {
-      upcoming: result.filter(
-        (assessment) =>
-          assessment.category === "Upcoming"
-      ),
-
-      ongoing: result.filter(
-        (assessment) =>
-          assessment.category === "Ongoing"
-      ),
-
-      completed: result.filter(
-        (assessment) =>
-          assessment.category === "Completed"
-      ),
+      upcoming: result.filter((assessment) => assessment.category === "Upcoming"),
+      ongoing: result.filter((assessment) => assessment.category === "Ongoing"),
+      completed: result.filter((assessment) => assessment.category === "Completed"),
     };
-  }, [
-    liveAssessments,
-    searchTerm,
-    statusFilter,
-  ]);
+  }, [liveAssessments, searchTerm, statusFilter]);
 
-  /*
-   * ==========================================================================
-   * VIEW TRAINEES
-   * ==========================================================================
-   */
-
-  const handleViewTrainees = (batch) => {
-    navigate(
-      "/assessor/assessment-panel/selected-trainees",
-      {
-        state: {
-          selectedCourse: batch.name,
-          batchId: batch.id,
-          assessmentId: batch.assessmentId,
-          batchCode: batch.code,
-          assessmentCategory: batch.category,
-        },
-      }
-    );
+  const handleViewTrainees = (row) => {
+    navigate("/assessor/assessment-panel/selected-trainees", {
+      state: {
+        selectedCourse: row.name,
+        batchId: row.batchId || row.id,
+        assessmentId: row.assessmentId,
+        batchCode: row.code,
+        assessmentCategory: row.category,
+        traineeId: row.traineeId || null,
+        assignmentId: row.assignmentId || null,
+      },
+    });
   };
-
-  /*
-   * ==========================================================================
-   * PAGE
-   * ==========================================================================
-   */
 
   return (
     <div className="space-y-6">
@@ -512,6 +304,19 @@ export default function AssessmentPanel() {
         />
       )}
     </div>
+  );
+}
+
+function getSubmittedAssignmentIds(submissions) {
+  return new Set(
+    submissions
+      .filter((submission) => {
+        const status = String(submission.status || "").toLowerCase();
+        return Boolean(submission.submitted_at) ||
+          ["submitted", "completed", "finished"].includes(status);
+      })
+      .map((submission) => submission.assignment_id)
+      .filter(Boolean)
   );
 }
 

@@ -195,6 +195,57 @@ export default function CreateAssessment() {
         return true;
     };
 
+    /* ============================================================
+   DELETE QUESTION
+   CREATE ASSESSMENT = LOCAL DELETE
+
+   Questions on this page have not been saved to the database yet.
+   Therefore, deleting a question only removes it from the
+   assessmentData.questions state.
+   ============================================================ */
+
+    const handleDeleteQuestion = async (question) => {
+        if (!question) {
+            return false;
+        }
+
+        const questionId =
+            question?.question_id ??
+            question?.id ??
+            null;
+
+        if (!questionId) {
+            setErrorMessage("Question ID is missing.");
+            return false;
+        }
+
+        setAssessmentData((current) => {
+            const existingQuestions =
+                Array.isArray(current.questions)
+                    ? current.questions
+                    : [];
+
+            const updatedQuestions =
+                existingQuestions.filter(
+                    (existingQuestion) =>
+                        String(
+                            existingQuestion?.id ??
+                            existingQuestion?.question_id ??
+                            ""
+                        ) !== String(questionId)
+                );
+
+            return {
+                ...current,
+                questions: updatedQuestions,
+            };
+        });
+
+        setErrorMessage("");
+
+        return true;
+    };
+
 
     /* ============================================================
        VALIDATION
@@ -1214,6 +1265,10 @@ export default function CreateAssessment() {
 
                 onSaveQuestion={
                     handleSaveQuestion
+                }
+
+                onDeleteQuestion={
+                    handleDeleteQuestion
                 }
 
                 saving={
