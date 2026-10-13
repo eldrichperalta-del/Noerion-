@@ -270,7 +270,9 @@ export default function CertificateVerification() {
             </div>
 
             <p className="verification-note">
-              {errorMessage ||
+              {errorMessage === "Certificate could not be found."
+                ? "Certificate could not be found."
+                : errorMessage ||
                 "This certificate could not be verified through the NOERION system."}
             </p>
           </article>

@@ -1,85 +1,186 @@
-import { useEffect, useState } from "react";
+
+import { useEffect, useRef, useState } from "react";
 import { Camera } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Html5QrcodeScanner } from "html5-qrcode";
+import { Html5Qrcode } from "html5-qrcode";
 import "./certificateVerification.css";
 
 export default function CertificateSearch() {
+  const hasNavigatedRef = useRef(false);
   const navigate = useNavigate();
+
   const [certificateNumber, setCertificateNumber] = useState("");
+  const [cameraError, setCameraError] = useState("");
 
   useEffect(() => {
-    const scanner = new Html5QrcodeScanner(
-      "qr-reader",
-      {
-        fps: 10,
-        rememberLastUsedCamera: true,
-        aspectRatio: 1.5,
-      },
-      false
-    );
+    let active = true;
+    let scanner = null;
 
-    scanner.render(
-      (decodedText) => {
-        console.log("QR detected:", decodedText);
+    hasNavigatedRef.current = false;
+    setCameraError("");
 
-        scanner.clear().catch(() => { });
+    const startScanner = async () => {
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error(
+            "Camera access requires HTTPS or localhost and a supported browser."
+          );
+        }
 
-        const scannedValue = decodedText.trim();
+        scanner = new Html5Qrcode("qr-reader");
 
-        if (!scannedValue) {
-          navigate("/verify-certificate");
+        const cameras = await Html5Qrcode.getCameras();
+
+        if (!active) {
+          await scanner.clear().catch(() => { });
           return;
         }
 
-        try {
-          const url = new URL(scannedValue);
-
-          const currentOrigin = globalThis.location.origin;
-
-          const isSameOrigin = url.origin === currentOrigin;
-
-          const isVerificationPath =
-            url.pathname.startsWith("/verify/") ||
-            url.pathname.startsWith("/verify-certificate/");
-
-          if (isSameOrigin && isVerificationPath) {
-            navigate(url.pathname + url.search);
-            return;
-          }
-
-          // Fake/external/unrecognized QR
-          navigate("/verify-certificate");
-        } catch {
-          // QR is not a URL → treat it as an invalid QR
-          navigate("/verify-certificate");
+        if (!cameras?.length) {
+          throw new Error(
+            "No camera was found. Check your device and camera settings."
+          );
         }
-      },
-      () => {
-        // Ignore scan errors
+
+        const rearCamera = cameras.find((camera) =>
+          /back|rear|environment|world/i.test(camera.label || "")
+        );
+
+        const selectedCamera = rearCamera || cameras[0];
+
+        await scanner.start(
+          selectedCamera.id,
+          {
+            fps: 10,
+            aspectRatio: 1.5,
+            disableFlip: false,
+          },
+          async (decodedText) => {
+            if (!active || hasNavigatedRef.current) return;
+
+            const scannedValue = decodedText.trim();
+            if (!scannedValue) return;
+
+
+            let destination;
+
+            try {
+              const url = new URL(scannedValue);
+
+              const isNoerionDomain =
+                url.protocol === "https:" &&
+                url.hostname === "noerion.vercel.app";
+
+              const pathParts = url.pathname.split("/").filter(Boolean);
+
+              const isVerificationPath =
+                (pathParts[0] === "verify-certificate" ||
+                  pathParts[0] === "verify") &&
+                Boolean(pathParts[1]);
+
+              if (isNoerionDomain && isVerificationPath) {
+                // Valid NOERION verification URL.
+                destination = url.pathname + url.search + url.hash;
+              } else {
+                // Any other QR content is treated like a certificate number.
+                destination = `/verify-certificate/${encodeURIComponent(
+                  scannedValue
+                )}`;
+              }
+            } catch {
+              // Plain text or another non-URL QR value.
+              destination = `/verify-certificate/${encodeURIComponent(
+                scannedValue
+              )}`;
+            }
+
+            hasNavigatedRef.current = true;
+
+            try {
+              if (scanner?.isScanning) {
+                await scanner.stop();
+              }
+            } catch (error) {
+              console.warn("Could not stop QR scanner:", error);
+            }
+
+            if (active) {
+              navigate(destination);
+            }
+          },
+          () => {
+            // Ignore routine QR decoding failures.
+          }
+        );
+
+
+      } catch (error) {
+        const isPermissionDenied =
+          error?.name === "NotAllowedError" ||
+          error?.name === "PermissionDeniedError";
+
+        // Permission denial is an expected user action, not an application error.
+
+        if (!isPermissionDenied) {
+          console.error("QR scanner initialization failed:", error);
+        }
+
+
+        let message = "Unable to start the QR scanner. Please try again.";
+
+        if (isPermissionDenied) {
+          message =
+            "Camera access was denied. Allow camera access in your browser settings and reload the page, or enter your certificate number below.";
+        } else if (error?.name === "NotFoundError") {
+          message =
+            "No camera was found. Connect or enable a camera and try again.";
+        } else if (error?.name === "NotReadableError") {
+          message =
+            "The camera could not be opened. It may be in use by another application.";
+        } else if (error?.name === "OverconstrainedError") {
+          message =
+            "The selected camera does not support the requested settings. Try another camera.";
+        } else if (!window.isSecureContext) {
+          message =
+            "Camera access requires HTTPS or localhost. Open NOERION using a secure connection.";
+        }
+
+        if (active) {
+          setCameraError(message);
+        }
       }
-    );
 
-    /*
-     * Html5QrcodeScanner creates the camera permission
-     * button dynamically. Wait for it to appear, then
-     * trigger it automatically.
-     */
-    const waitForPermissionButton = setInterval(() => {
-      const permissionButton = document.querySelector(
-        "#html5-qrcode-button-camera-permission"
-      );
+    };
 
-      if (permissionButton) {
-        clearInterval(waitForPermissionButton);
-
-        permissionButton.click();
-      }
-    }, 100);
+    startScanner();
 
     return () => {
-      clearInterval(waitForPermissionButton);
-      scanner.clear().catch(() => { });
+      active = false;
+
+      const currentScanner = scanner;
+
+      if (currentScanner) {
+        const cleanup = async () => {
+          try {
+            if (currentScanner.isScanning) {
+              await currentScanner.stop();
+            }
+          } catch (error) {
+            console.warn(
+              "QR scanner stop during cleanup:",
+              error
+            );
+          }
+
+          try {
+            await currentScanner.clear();
+          } catch {
+            // Scanner may already be cleared.
+          }
+        };
+
+        cleanup();
+      }
     };
   }, [navigate]);
 
@@ -96,10 +197,12 @@ export default function CertificateSearch() {
   return (
     <main className="verification-page search-page">
       <div className="verification-grid" aria-hidden="true" />
+
       <div
         className="verification-circuit circuit-left"
         aria-hidden="true"
       />
+
       <div
         className="verification-circuit circuit-right"
         aria-hidden="true"
@@ -133,6 +236,12 @@ export default function CertificateSearch() {
             </div>
           </div>
 
+          {cameraError && (
+            <p className="camera-error" role="alert">
+              {cameraError}
+            </p>
+          )}
+
           <div className="or-divider">
             <span>OR</span>
           </div>
@@ -151,9 +260,11 @@ export default function CertificateSearch() {
             onChange={(e) =>
               setCertificateNumber(e.target.value)
             }
-            onKeyDown={(e) =>
-              e.key === "Enter" && verifyCertificate()
-            }
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                verifyCertificate();
+              }
+            }}
             placeholder="Enter certificate number"
           />
 
