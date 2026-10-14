@@ -1,15 +1,16 @@
+
 import { useEffect, useLayoutEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../../../supabaseClient.js";
 import { notifyTraineeResult } from "../../../services/notificationService.js";
-import { 
-  ShieldCheck, 
-  CheckCircle2, 
-  AlertCircle, 
-  ChevronDown, 
-  ChevronUp, 
-  FileText, 
-  Clock, 
+import {
+  ShieldCheck,
+  CheckCircle2,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  Clock,
   ArrowLeft,
   BarChart3,
   XCircle,
@@ -31,6 +32,7 @@ export default function FinalizeEvaluation() {
   // Instant scroll-to-top BEFORE browser paint
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+
     const scrollContainers = document.querySelectorAll(
       "main, #main-content, .overflow-y-auto"
     );
@@ -72,6 +74,12 @@ export default function FinalizeEvaluation() {
 
   const [submissionRecord, setSubmissionRecord] = useState(null);
 
+  // AI recommendation saved by the backend.
+  // This is separate from the assessor's official result.
+  const [aiRecommendation, setAiRecommendation] = useState(
+    "Insufficient Evidence"
+  );
+
   const traineeObj = {
     name:
       rawTrainee?.fullName ??
@@ -88,25 +96,18 @@ export default function FinalizeEvaluation() {
 
   /*
    * ============================================================
-   * LOAD SUBMISSION + QUESTIONS + ANSWERS
+   * LOAD SUBMISSION + AI RECOMMENDATION + QUESTIONS + ANSWERS
    * ============================================================
    */
   useEffect(() => {
+    let isMounted = true;
+
     async function loadData() {
       if (!submissionId) return;
 
       try {
         /*
          * Load the exact submission.
-         *
-         * The three summary cards are connected to these fields:
-         *
-         * status
-         * overall_result
-         * total_score
-         * passed
-         * submitted_at
-         * updated_at
          */
         const { data: sub, error: subError } = await supabase
           .from("assessment_submissions")
@@ -132,7 +133,7 @@ export default function FinalizeEvaluation() {
           );
         }
 
-        if (sub) {
+        if (sub && isMounted) {
           setSubmissionRecord(sub);
 
           if (sub.remarks) {
@@ -145,18 +146,47 @@ export default function FinalizeEvaluation() {
         }
 
         /*
+         * Load the recommendation produced and saved by the AI backend.
+         *
+         * IMPORTANT:
+         * This assumes ai_assessment_insights contains a submission_id
+         * column that identifies the submission.
+         */
+        const {
+          data: aiInsight,
+          error: aiInsightError
+        } = await supabase
+          .from("ai_assessment_insights")
+          .select("grade_recommendation")
+          .eq("submission_id", submissionId)
+          .maybeSingle();
+
+        if (aiInsightError) {
+          console.error(
+            "Error loading AI grade recommendation:",
+            aiInsightError
+          );
+        }
+
+        if (isMounted) {
+          setAiRecommendation(
+            aiInsight?.grade_recommendation ||
+              "Insufficient Evidence"
+          );
+        }
+
+        /*
          * Always prefer the assessment_id stored inside
          * assessment_submissions.
-         *
-         * This makes sure the questions belong to the exact
-         * submission being viewed.
          */
         const actualAssessmentId =
           sub?.assessment_id ??
           assessmentId;
 
         if (!actualAssessmentId) {
-          setQuestions([]);
+          if (isMounted) {
+            setQuestions([]);
+          }
           return;
         }
 
@@ -165,9 +195,7 @@ export default function FinalizeEvaluation() {
          */
         const { data: qList, error: qError } = await supabase
           .from("questions")
-          .select(
-            "id, item_number, question_text"
-          )
+          .select("id, item_number, question_text")
           .eq("assessment_id", actualAssessmentId)
           .order("item_number", {
             ascending: true,
@@ -183,13 +211,13 @@ export default function FinalizeEvaluation() {
         /*
          * Load answers belonging to this exact submission.
          */
-        const { data: answers, error: answerError } =
-          await supabase
-            .from("trainee_answers")
-            .select(
-              "question_id, text_answer, is_correct"
-            )
-            .eq("submission_id", submissionId);
+        const {
+          data: answers,
+          error: answerError
+        } = await supabase
+          .from("trainee_answers")
+          .select("question_id, text_answer, is_correct")
+          .eq("submission_id", submissionId);
 
         if (answerError) {
           console.error(
@@ -212,29 +240,27 @@ export default function FinalizeEvaluation() {
         /*
          * Combine questions + trainee answers.
          */
-        const formatted = (qList || []).map(
-          (q, idx) => ({
-            id: q.id,
+        const formatted = (qList || []).map((q, idx) => ({
+          id: q.id,
 
-            itemNumber:
-              q.item_number ??
-              idx + 1,
+          itemNumber:
+            q.item_number ??
+            idx + 1,
 
-            question:
-              q.question_text,
+          question:
+            q.question_text,
 
-            traineeAnswer:
-              ansMap[q.id]?.text_answer ??
-              "No Answer Provided",
+          traineeAnswer:
+            ansMap[q.id]?.text_answer ??
+            "No Answer Provided",
 
-            isCorrect:
-              Boolean(
-                ansMap[q.id]?.is_correct
-              ),
-          })
-        );
+          isCorrect:
+            Boolean(ansMap[q.id]?.is_correct),
+        }));
 
-        setQuestions(formatted);
+        if (isMounted) {
+          setQuestions(formatted);
+        }
       } catch (err) {
         console.error(
           "Error loading final evaluation data:",
@@ -244,6 +270,10 @@ export default function FinalizeEvaluation() {
     }
 
     loadData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [assessmentId, submissionId]);
 
   /*
@@ -256,9 +286,6 @@ export default function FinalizeEvaluation() {
    * SCORE
    *
    * Uses assessment_submissions.total_score.
-   *
-   * PostgreSQL numeric values can arrive as strings,
-   * so convert to Number().
    */
   const score = Number(
     submissionRecord?.total_score ??
@@ -268,11 +295,6 @@ export default function FinalizeEvaluation() {
 
   /*
    * TOTAL QUESTIONS
-   *
-   * Comes directly from the questions table.
-   *
-   * Example:
-   * 40 questions -> total = 40
    */
   const total =
     questions.length > 0
@@ -281,20 +303,19 @@ export default function FinalizeEvaluation() {
 
   /*
    * SCORE PERCENTAGE
-   *
-   * Example:
-   * 38 / 40 * 100 = 95
    */
   const percentage =
     total > 0
-      ? Math.round(
-          (score / total) * 100
-        )
+      ? Math.round((score / total) * 100)
       : 0;
 
   /*
    * ============================================================
    * OFFICIAL RESULT
+   *
+   * This is based on assessment_submissions.passed.
+   * It is separate from the AI recommendation and final assessor
+   * decision.
    * ============================================================
    */
   const officialResult =
@@ -306,58 +327,43 @@ export default function FinalizeEvaluation() {
 
   /*
    * ============================================================
+   * FINALIZATION STATE
+   * ============================================================
+   */
+  const isFinalized =
+    submissionRecord?.status === "evaluated";
+
+  /*
+   * ============================================================
    * DECISION STATUS
    * ============================================================
    */
-  const normalizedOverallResult =
-    String(
-      submissionRecord?.overall_result ?? ""
-    )
-      .trim()
-      .toLowerCase();
+  const decisionStatus =
+    isFinalized
+      ? "FINALIZED"
+      : "PENDING";
 
   /*
- * ============================================================
- * FINALIZATION STATE
- * ============================================================
- */
-const isFinalized =
-  submissionRecord?.status === "evaluated";
-
-/*
- * ============================================================
- * DECISION STATUS
- * ============================================================
- */
-const decisionStatus =
-  isFinalized
-    ? "FINALIZED"
-    : "PENDING";
-
-/*
- * ============================================================
- * FINALIZED DATE
- * ============================================================
- */
-const finalizedDate =
-  isFinalized &&
-  submissionRecord?.updated_at
-    ? new Date(
-        submissionRecord.updated_at
-      ).toLocaleDateString("en-US", {
-        month: "numeric",
-        day: "numeric",
-        year: "numeric",
-      })
-    : null;
+   * ============================================================
+   * FINALIZED DATE
+   * ============================================================
+   */
+  const finalizedDate =
+    isFinalized && submissionRecord?.updated_at
+      ? new Date(
+          submissionRecord.updated_at
+        ).toLocaleDateString("en-US", {
+          month: "numeric",
+          day: "numeric",
+          year: "numeric",
+        })
+      : null;
 
   /*
    * Incorrect answers.
    */
   const incorrectItems =
-    questions.filter(
-      (q) => !q.isCorrect
-    );
+    questions.filter((q) => !q.isCorrect);
 
   /*
    * ============================================================
@@ -365,21 +371,31 @@ const finalizedDate =
    * ============================================================
    */
   const handleConfirmSubmit = async () => {
+    if (!submissionId) {
+      console.error("Cannot finalize: submission ID is missing.");
+      alert("Unable to finalize because the submission ID is missing.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     const hasOverride = decisionMode === "override";
 
-// If assessor confirms, use the existing DB recommendation.
-// Only an explicit override is allowed to change the result.
-const finalResult = hasOverride
-  ? overrideResult
-  : (submissionRecord?.passed ? "Competent" : "Not Yet Competent");
+    // If assessor confirms, use the existing assessment result.
+    // Only an explicit override changes the official result.
+    const finalResult = hasOverride
+      ? overrideResult
+      : (
+          submissionRecord?.passed === true
+            ? "Competent"
+            : "Not Yet Competent"
+        );
 
-const isPassed = hasOverride
-  ? finalResult === "Competent"
-  : Boolean(submissionRecord?.passed);
+    const isPassed = hasOverride
+      ? finalResult === "Competent"
+      : submissionRecord?.passed === true;
 
-const now = new Date().toISOString();
+    const now = new Date().toISOString();
 
     try {
       const updatePayload = {
@@ -415,17 +431,15 @@ const now = new Date().toISOString();
           remarks.trim() || null,
 
         /*
-         * This is the timestamp used by the
-         * "Finalized on ..." card.
+         * Timestamp used by the "Finalized on ..." card.
          */
         updated_at: now,
       };
 
-      const { error: updateError } =
-        await supabase
-          .from("assessment_submissions")
-          .update(updatePayload)
-          .eq("id", submissionId);
+      const { error: updateError } = await supabase
+        .from("assessment_submissions")
+        .update(updatePayload)
+        .eq("id", submissionId);
 
       if (updateError) {
         throw updateError;
@@ -435,28 +449,27 @@ const now = new Date().toISOString();
        * Create certificate only when the final
        * official result is Competent.
        */
-      if (
-        isPassed &&
-        rawTrainee?.id
-      ) {
-        await supabase.functions.invoke(
+      if (isPassed && rawTrainee?.id) {
+        const {
+          error: certificateError
+        } = await supabase.functions.invoke(
           "create-certificate",
           {
             body: {
-              trainee_id:
-                rawTrainee.id,
-
-              assessment_id:
-                assessmentId,
-
-              qualification:
-                courseLabel,
-
-              result:
-                finalResult,
+              trainee_id: rawTrainee.id,
+              assessment_id: assessmentId,
+              qualification: courseLabel,
+              result: finalResult,
             },
           }
         );
+
+        if (certificateError) {
+          console.error(
+            "Certificate creation failed:",
+            certificateError
+          );
+        }
       }
 
       /*
@@ -464,16 +477,10 @@ const now = new Date().toISOString();
        */
       if (rawTrainee?.id) {
         await notifyTraineeResult({
-          traineeId:
-            rawTrainee.id,
-
+          traineeId: rawTrainee.id,
           submissionId,
-
-          assessmentTitle:
-            courseLabel,
-
-          result:
-            finalResult,
+          assessmentTitle: courseLabel,
+          result: finalResult,
         });
       }
 
@@ -481,49 +488,45 @@ const now = new Date().toISOString();
        * Update local UI immediately so the page
        * has the same values as the database.
        */
-      setSubmissionRecord(
-        (prev) => ({
-          ...prev,
+      setSubmissionRecord((prev) => ({
+        ...prev,
 
-          status:
-            "evaluated",
+        status: "evaluated",
 
-          overall_result:
-            finalResult,
+        overall_result: finalResult,
 
-          passed:
-            isPassed,
+        passed: isPassed,
 
-          override_result:
-            hasOverride
-              ? finalResult
-              : null,
+        override_result:
+          hasOverride
+            ? finalResult
+            : null,
 
-          override_applied:
-            hasOverride,
+        override_applied:
+          hasOverride,
 
-          justification:
-            hasOverride
-              ? justification.trim()
-              : null,
+        justification:
+          hasOverride
+            ? justification.trim()
+            : null,
 
-          remarks:
-            remarks.trim() || null,
+        remarks:
+          remarks.trim() || null,
 
-          updated_at:
-            now,
-        })
-      );
+        updated_at: now,
+      }));
 
       setShowConfirmModal(false);
 
-      navigate(
-        "/assessor/evaluation"
-      );
+      navigate("/assessor/evaluation");
     } catch (err) {
       console.error(
         "Submission failed:",
         err
+      );
+
+      alert(
+        "Failed to finalize the evaluation. Please check the console and try again."
       );
     } finally {
       setIsSubmitting(false);
@@ -547,19 +550,16 @@ const now = new Date().toISOString();
         "main, #main-content, .overflow-y-auto"
       );
 
-    scrollContainers.forEach(
-      (container) => {
-        container.scrollTop = 0;
-      }
-    );
+    scrollContainers.forEach((container) => {
+      container.scrollTop = 0;
+    });
 
     navigate(
       "/assessor/evaluation/ai-analysis",
       {
         state: {
           selectedCourse,
-          selectedTrainee:
-            rawTrainee,
+          selectedTrainee: rawTrainee,
           submissionId,
           assessmentId,
         },
@@ -577,15 +577,12 @@ const now = new Date().toISOString();
             to: "/assessor/evaluation",
           },
           {
-            label:
-              "Trainees Evaluation",
-            to:
-              "/assessor/evaluation/trainees",
+            label: "Trainees Evaluation",
+            to: "/assessor/evaluation/trainees",
           },
           {
             label: "AI Analysis",
-            to:
-              "/assessor/evaluation/ai-analysis",
+            to: "/assessor/evaluation/ai-analysis",
           },
           "Finalize Evaluation",
         ]}
@@ -662,14 +659,11 @@ const now = new Date().toISOString();
                 {submissionRecord?.submitted_at
                   ? new Date(
                       submissionRecord.submitted_at
-                    ).toLocaleDateString(
-                      "en-US",
-                      {
-                        month: "long",
-                        day: "numeric",
-                        year: "numeric",
-                      }
-                    )
+                    ).toLocaleDateString("en-US", {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })
                   : "Not available"}
               </p>
             </div>
@@ -679,7 +673,6 @@ const now = new Date().toISOString();
 
       {/* 4. Three Summary Cards Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
-
         {/* Container 1: Decision Status */}
         <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs transition-all duration-300 hover:shadow-md flex flex-col items-center justify-center text-center space-y-3">
           <div className="flex items-center justify-center gap-2 border-b border-slate-100 pb-3 w-full">
@@ -693,25 +686,19 @@ const now = new Date().toISOString();
           </div>
 
           <div className="space-y-1.5 my-auto py-1 flex flex-col items-center">
-
-            {/* PENDING or FINALIZED */}
             <p className="text-2xl font-black text-slate-900 uppercase tracking-tight">
               {decisionStatus}
             </p>
 
-            {/* Official result comes from `passed` */}
             <p className="text-xs font-bold text-slate-600">
               Official Result: {officialResult}
             </p>
 
-            {/* Only show this when FINALIZED */}
-            {isFinalized &&
-              finalizedDate && (
-                <p className="text-[10px] text-slate-400 italic pt-1 border-t border-slate-100 w-full">
-                  Finalized on {finalizedDate}
-                </p>
-              )}
-
+            {isFinalized && finalizedDate && (
+              <p className="text-[10px] text-slate-400 italic pt-1 border-t border-slate-100 w-full">
+                Finalized on {finalizedDate}
+              </p>
+            )}
           </div>
         </div>
 
@@ -728,16 +715,13 @@ const now = new Date().toISOString();
           </div>
 
           <div className="space-y-1.5 my-auto py-1 flex flex-col items-center">
-
             <p className="text-2xl font-black text-slate-900 uppercase tracking-tight">
-              {officialResult}
+              {aiRecommendation}
             </p>
 
             <p className="text-xs font-bold text-slate-600 leading-relaxed">
               Recommended based on evidence
             </p>
-
-            
           </div>
         </div>
 
@@ -754,7 +738,6 @@ const now = new Date().toISOString();
           </div>
 
           <div className="space-y-1.5 my-auto py-1 flex flex-col items-center">
-
             <p className="text-2xl font-black text-slate-900 uppercase tracking-tight">
               {submissionRecord?.passed === true
                 ? "PASSED"
@@ -768,9 +751,6 @@ const now = new Date().toISOString();
             <p className="text-xs font-bold text-slate-600">
               {score} of {total} items correct
             </p>
-
-            
-
           </div>
         </div>
       </div>
@@ -795,26 +775,24 @@ const now = new Date().toISOString();
 
         {incorrectItems.length > 0 ? (
           <div className="divide-y divide-slate-100">
-            {incorrectItems.map(
-              (item) => (
-                <div
-                  key={item.id}
-                  className="py-2.5 flex items-center justify-between text-xs"
-                >
-                  <span className="font-mono text-slate-400 font-bold w-8">
-                    #{item.itemNumber}
-                  </span>
+            {incorrectItems.map((item) => (
+              <div
+                key={item.id}
+                className="py-2.5 flex items-center justify-between text-xs"
+              >
+                <span className="font-mono text-slate-400 font-bold w-8">
+                  #{item.itemNumber}
+                </span>
 
-                  <span className="font-medium text-slate-800 flex-1 pr-4">
-                    {item.question}
-                  </span>
+                <span className="font-medium text-slate-800 flex-1 pr-4">
+                  {item.question}
+                </span>
 
-                  <span className="font-extrabold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-md text-[10px] uppercase tracking-wider shadow-xs">
-                    Incorrect
-                  </span>
-                </div>
-              )
-            )}
+                <span className="font-extrabold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-md text-[10px] uppercase tracking-wider shadow-xs">
+                  Incorrect
+                </span>
+              </div>
+            ))}
           </div>
         ) : (
           <p className="text-xs text-emerald-600 font-semibold py-2">
@@ -826,9 +804,7 @@ const now = new Date().toISOString();
           <button
             type="button"
             onClick={() =>
-              setShowAllResponses(
-                !showAllResponses
-              )
+              setShowAllResponses(!showAllResponses)
             }
             className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 focus:outline-none transition"
           >
@@ -849,34 +825,30 @@ const now = new Date().toISOString();
 
           {showAllResponses && (
             <div className="mt-3 divide-y divide-slate-100 rounded-xl bg-slate-50/70 border border-slate-200/60 p-4 max-h-72 overflow-y-auto text-xs font-medium">
-              {questions.map(
-                (q) => (
-                  <div
-                    key={q.id}
-                    className="py-2 flex items-center justify-between"
+              {questions.map((q) => (
+                <div
+                  key={q.id}
+                  className="py-2 flex items-center justify-between"
+                >
+                  <span className="font-mono text-slate-400 font-bold w-8">
+                    #{q.itemNumber}
+                  </span>
+
+                  <span className="text-slate-700 flex-1 truncate pr-4">
+                    {q.question}
+                  </span>
+
+                  <span
+                    className={`font-extrabold px-2.5 py-0.5 rounded-md text-[10px] uppercase tracking-wider border shadow-xs ${
+                      q.isCorrect
+                        ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                        : "text-rose-700 bg-rose-50 border-rose-200"
+                    }`}
                   >
-                    <span className="font-mono text-slate-400 font-bold w-8">
-                      #{q.itemNumber}
-                    </span>
-
-                    <span className="text-slate-700 flex-1 truncate pr-4">
-                      {q.question}
-                    </span>
-
-                    <span
-                      className={`font-extrabold px-2.5 py-0.5 rounded-md text-[10px] uppercase tracking-wider border shadow-xs ${
-                        q.isCorrect
-                          ? "text-emerald-700 bg-emerald-50 border-emerald-200"
-                          : "text-rose-700 bg-rose-50 border-rose-200"
-                      }`}
-                    >
-                      {q.isCorrect
-                        ? "Correct"
-                        : "Incorrect"}
-                    </span>
-                  </div>
-                )
-              )}
+                    {q.isCorrect ? "Correct" : "Incorrect"}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -924,9 +896,7 @@ const now = new Date().toISOString();
           <button
             type="button"
             disabled={isFinalized}
-            onClick={() =>
-              setDecisionMode("confirm")
-            }
+            onClick={() => setDecisionMode("confirm")}
             className={`p-4 rounded-xl border text-left transition-all duration-200 ${
               decisionMode === "confirm"
                 ? "border-emerald-500 bg-emerald-50/30 ring-2 ring-emerald-500/20 shadow-xs"
@@ -938,8 +908,7 @@ const now = new Date().toISOString();
                 Confirm Result
               </span>
 
-              {decisionMode ===
-                "confirm" && (
+              {decisionMode === "confirm" && (
                 <CheckCircle2
                   size={18}
                   className="text-emerald-600"
@@ -959,9 +928,7 @@ const now = new Date().toISOString();
           <button
             type="button"
             disabled={isFinalized}
-            onClick={() =>
-              setDecisionMode("override")
-            }
+            onClick={() => setDecisionMode("override")}
             className={`p-4 rounded-xl border text-left transition-all duration-200 ${
               decisionMode === "override"
                 ? "border-amber-500 bg-amber-50/30 ring-2 ring-amber-500/20 shadow-xs"
@@ -973,8 +940,7 @@ const now = new Date().toISOString();
                 Override Result
               </span>
 
-              {decisionMode ===
-                "override" && (
+              {decisionMode === "override" && (
                 <AlertCircle
                   size={18}
                   className="text-amber-600"
@@ -992,8 +958,7 @@ const now = new Date().toISOString();
           </button>
         </div>
 
-        {decisionMode ===
-          "override" && (
+        {decisionMode === "override" && (
           <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200 space-y-4">
             <div>
               <label className="block text-[10px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
@@ -1004,9 +969,7 @@ const now = new Date().toISOString();
                 disabled={isFinalized}
                 value={overrideResult}
                 onChange={(e) =>
-                  setOverrideResult(
-                    e.target.value
-                  )
+                  setOverrideResult(e.target.value)
                 }
                 className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
               >
@@ -1023,9 +986,7 @@ const now = new Date().toISOString();
             <div>
               <label className="block text-[10px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
                 Override Justification{" "}
-                <span className="text-rose-500">
-                  *
-                </span>
+                <span className="text-rose-500">*</span>
               </label>
 
               <textarea
@@ -1034,9 +995,7 @@ const now = new Date().toISOString();
                 rows={3}
                 value={justification}
                 onChange={(e) =>
-                  setJustification(
-                    e.target.value
-                  )
+                  setJustification(e.target.value)
                 }
                 placeholder="Explain why the final result differs from the system recommendation..."
                 className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
@@ -1057,9 +1016,7 @@ const now = new Date().toISOString();
             rows={2}
             disabled={isFinalized}
             value={remarks}
-            onChange={(e) =>
-              setRemarks(e.target.value)
-            }
+            onChange={(e) => setRemarks(e.target.value)}
             placeholder="Add optional notes..."
             className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
           />
@@ -1069,16 +1026,12 @@ const now = new Date().toISOString();
         <div className="flex justify-between items-center pt-2 border-t border-slate-100">
           <button
             type="button"
-            onClick={
-              handleBackToAIAnalysis
-            }
+            onClick={handleBackToAIAnalysis}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all duration-200"
           >
             <ArrowLeft size={15} />
 
-            <span>
-              Back to AI Analysis
-            </span>
+            <span>Back to AI Analysis</span>
           </button>
 
           {isFinalized ? (
@@ -1092,9 +1045,7 @@ const now = new Date().toISOString();
                 className="text-slate-400"
               />
 
-              <span>
-                Evaluated
-              </span>
+              <span>Evaluated</span>
             </button>
           ) : (
             <button
@@ -1111,21 +1062,21 @@ const now = new Date().toISOString();
         open={showConfirmModal}
         title="Finalize Evaluation?"
         message={`This action will finalize the evaluation with an official result of "${
-  decisionMode === "override"
-    ? overrideResult
-    : (submissionRecord?.passed ? "Competent" : "Not Yet Competent")
-}".`}
+          decisionMode === "override"
+            ? overrideResult
+            : (
+                submissionRecord?.passed === true
+                  ? "Competent"
+                  : "Not Yet Competent"
+              )
+        }".`}
         confirmLabel={
           isSubmitting
             ? "Finalizing..."
             : "Finalize Evaluation"
         }
-        onCancel={() =>
-          setShowConfirmModal(false)
-        }
-        onConfirm={
-          handleConfirmSubmit
-        }
+        onCancel={() => setShowConfirmModal(false)}
+        onConfirm={handleConfirmSubmit}
       />
     </div>
   );
